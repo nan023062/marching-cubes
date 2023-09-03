@@ -10,15 +10,15 @@ namespace MarchingCubes
 {
     public partial class MarchingCubes
     {
-        private static int Polygonise(in Cube cube, int iso, Triangle[] triangles)
+        private static int Polygonise(in Cube cube, Triangle[] triangles)
         {
             int cubeIndex = 0;
             for (int v = 0; v < VertexCount; v++)
             {
-                if (cube.GetValue(v) < iso)
+                if (cube[v].mark > 0)
                     cubeIndex |= 1 << v;
             }
-
+                
             int edgeMask = cubeTable[cubeIndex];
             if (edgeMask == 0)
                 return 0;
@@ -29,20 +29,9 @@ namespace MarchingCubes
                 if ((edgeMask & (1 << edge)) > 0)
                 {
                     ref readonly var t = ref edgeTable[edge];
-                    Point p1 = cube.Get(t.p1);
-                    Point p2 = cube.Get(t.p2);
-                    
-                    int d1 = iso - p1.value;
-                    int d2 = p2.value - p1.value;
-                    if (d1 == 0 || d2 == 0)
-                    {
-                        vertices[edge] = p1.position;
-                    }
-                    else
-                    {
-                        float lerp = d1 * 1f / d2;
-                        vertices[edge] = Vector3.Lerp(p1.position, p2.position, lerp);
-                    }
+                    ref readonly Point p1 = ref cube[t.p1];
+                    ref readonly Point p2 = ref cube[t.p2];
+                    vertices[edge] = Vector3.Lerp(p1.position, p2.position, 0.5f);
                 }
             }
 
@@ -69,14 +58,14 @@ namespace MarchingCubes
         /// </summary>
         private static readonly (int x, int y, int z)[] cubeVertex = new (int x, int y, int z)[VertexCount]
         {
-            (-1, -1, 0),
-            (0, -1, 0),
-            (0, -1, -1),
-            (-1, -1, -1),
-            (-1, 0, 0),
+            (0, 0, 1),
+            (1, 0, 1),
+            (1, 0, 0),
             (0, 0, 0),
-            (0, 0, -1),
-            (-1, 0, -1)
+            (0, 1, 1),
+            (1, 1, 1),
+            (1, 1, 0),
+            (0, 1, 0)
         };
         
         /// <summary>
