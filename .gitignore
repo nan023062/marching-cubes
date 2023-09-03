@@ -1,0 +1,14 @@
+Library/
+UnityPackageManager/
+Temp/
+obj/
+obj.meta
+*.log
+*.sln
+*.csproj
+*.unityproj
+*.userprefs
+*.suo
+*.csproj.user
+*.tmp
+*.mdb
