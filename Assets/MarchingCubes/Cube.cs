@@ -45,7 +45,7 @@ namespace MarchingCubes
             {
                 get
                 {
-                    ref (int x, int y, int z) v = ref cubeVertex[index];
+                    ref (int x, int y, int z) v = ref PolygonTable.cubeVertex[index];
                     return ref cubes._points[x + v.x, y + v.y, z + v.z];
                 }
             }

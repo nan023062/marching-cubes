@@ -4,7 +4,10 @@
 // Date: 2023-09-02 12:00
 // Version: 1.0
 //****************************************************************************
+
+using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace MarchingCubes.Sample
 {
@@ -13,41 +16,56 @@ namespace MarchingCubes.Sample
         public int x, y, z;
         public uint unit = 1;
         [SerializeField] GameObject pointCubePrefab;
+        [SerializeField] GameObject pointQuadPrefab;
         [SerializeField] private bool showPoint;
-        [SerializeField] private CubeBoard _board;
-
+        
         private MarchingCubes _marchingCubes;
         private MeshFilter _meshFilter;
         private PointCube[,,] _pointCubes;
 
         private void Awake()
         {
-            Vector3 scale = Vector3.one * (1f / unit);
+            Vector3 scale = Vector3.one / unit;
             Matrix4x4 matrix4X4 = Matrix4x4.TRS(transform.position, Quaternion.identity, scale);
             _marchingCubes = new MarchingCubes(x, y, z, matrix4X4);
             _meshFilter = GetComponent<MeshFilter>();
             _meshFilter.sharedMesh = _marchingCubes.mesh;
             transform.localScale = scale;
             _pointCubes = new PointCube[x + 1, y + 1, z + 1];
-            var transform1 = _board.transform;
-            transform1.localPosition = new Vector3(x, 0, z) * 0.5f;
-            transform1.localScale = new Vector3(x, 0, z);
-            _board.cubesSample = this;
+            for (int i = 1; i < x; i++)
+            {
+                for (int j = 1; j < z; j++)
+                {
+                    GameObject go = Instantiate(pointQuadPrefab);
+                    Transform t = go.transform;
+                    t.SetParent(this.transform);
+                    t.SetLocalPositionAndRotation(new Vector3(i, 0.5f, j), Quaternion.identity);
+                    t.localScale = new Vector3(1, 0, 1);
+                    var quad = go.GetComponent<PointQuad>();
+                    quad.marchingCubes = this;
+                    quad.x = i;
+                    quad.z = j;
+                }
+            }
         }
         
         private void OnDestroy()
         {
             _pointCubes = null;
         }
-
-        private void Update()
+        
+        public void OnClicked(PointElement element, bool left, in Vector3 normal)
         {
-            if (Input.GetMouseButtonUp(0))
+            if (left)
             {
-                if (RaycastCube(out var cube, out var hit))
+                if (element is PointQuad quad)
                 {
-                    Vector3 normal = cube.transform.InverseTransformVector(hit.normal).normalized;
-                    Vector3 coord = new Vector3(cube.x, cube.y, cube.z) + normal;
+                    CreateCube(quad.x, 1, quad.z);
+                }
+                else if (element is PointCube cube)
+                {
+                    Vector3 localNormal = cube.transform.InverseTransformVector(normal).normalized;
+                    Vector3 coord = new Vector3(cube.x, cube.y, cube.z) + localNormal;
                     int x0 = Mathf.RoundToInt(coord.x);
                     int y0 = Mathf.RoundToInt(coord.y);
                     int z0 = Mathf.RoundToInt(coord.z);
@@ -56,27 +74,13 @@ namespace MarchingCubes.Sample
             }
             else if (Input.GetMouseButtonUp(1))
             {
-                if (RaycastCube(out var cube, out var hit))
+                if (element is PointCube cube)
                 {
                     DestroyCube(cube);
                 }
             }
         }
         
-        private bool RaycastCube(out PointCube cube, out RaycastHit hit)
-        {
-            cube = null;
-            Vector3 pos = Input.mousePosition;
-            Ray ray = Camera.main.ScreenPointToRay(pos);
-            int layerMask = 1 << LayerMask.NameToLayer("MarchingCubes");
-            if (Physics.Raycast(ray, out hit, 1000, layerMask))
-            {
-                cube = hit.transform.GetComponent<PointCube>();
-            }
-
-            return null != cube;
-        }
-
         private void OnDrawGizmos()
         {
             if (showPoint)
@@ -84,12 +88,12 @@ namespace MarchingCubes.Sample
                 _marchingCubes?.DrawPoints();
             }
         }
-
-        public void CreateCube(int x, int y, int z)
+        
+        private void CreateCube(int x, int y, int z)
         {
-            if(x < 0 || y < 0 || z < 0) 
+            if(x <= 0 || y <= 0 || z <= 0) 
                 return;
-            if(x > _marchingCubes.X || y > _marchingCubes.Y || z > _marchingCubes.Z) 
+            if(x >= _marchingCubes.X || y >= _marchingCubes.Y || z >= _marchingCubes.Z) 
                 return;
             
             ref var cube = ref _pointCubes[x, y, z];
@@ -98,10 +102,11 @@ namespace MarchingCubes.Sample
                 GameObject go = Instantiate(pointCubePrefab);
                 Transform t = go.transform;
                 t.SetParent(this.transform);
-                t.SetPositionAndRotation(new Vector3(x, y, z), Quaternion.identity);
+                t.SetLocalPositionAndRotation(new Vector3(x, y, z), Quaternion.identity);
                 t.localScale = Vector3.one;
-
+                
                 cube = go.GetComponent<PointCube>();
+                cube.marchingCubes = this;
                 cube.x = x;
                 cube.y = y;
                 cube.z = z;

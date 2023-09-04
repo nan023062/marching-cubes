@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 2384697624466389174}
   - component: {fileID: -7964060845311060122}
   m_Layer: 6
-  m_Name: MarchingCubes
+  m_Name: point_cube
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -110,6 +110,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 710d6718be604b58a39a311b1a0dd54a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  marchingCubes: {fileID: 0}
   x: 0
   y: 0
   z: 0
