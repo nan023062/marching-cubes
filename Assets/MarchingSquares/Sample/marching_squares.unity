@@ -407,8 +407,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f5c2f9e3a7e04e3295b1ff5ebe2f2ceb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  width: 100
-  height: 10
+  width: 20
+  height: 5
   pow: 4
   textureLayer: 0
   bush: {fileID: 1092352291}

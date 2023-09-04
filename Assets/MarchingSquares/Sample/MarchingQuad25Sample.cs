@@ -36,7 +36,8 @@ namespace MarchingSquares
             _meshRenderer = GetComponent<MeshRenderer>();
             _meshFilter = GetComponent<MeshFilter>();
             Transform t = transform;
-            _terrain = new MSQTerrain(width, width, height, 1f / pow, t.position, this);
+            float unit = 1f / pow;
+            _terrain = new MSQTerrain(width, width, height, unit, t.position, this);
             t.localScale = _terrain.localToWorld.lossyScale;
             _meshFilter.sharedMesh = _terrain.mesh;
             _meshCollider.sharedMesh = _terrain.mesh;
@@ -51,7 +52,7 @@ namespace MarchingSquares
             if (Physics.Raycast(ray, out var hit, 1000, layerMask))
             {
                 var h = hit.collider;
-                t.position = hit.point;
+                pos = hit.point;
                 t.localScale = _terrain.localToWorld.lossyScale;
                 t.rotation = _terrain.localToWorld.rotation;
             }
@@ -61,8 +62,12 @@ namespace MarchingSquares
                 float northDis = Vector3.Project(position - ray.origin, Vector3.up).magnitude;
                 float cos = Vector3.Dot(Vector3.down, ray.direction);
                 float distance = northDis / cos;
-                t.position = ray.origin + ray.direction * distance;
+                pos = ray.origin + ray.direction * distance;
             }
+            float unit = 1f / pow;
+            pos.x = Mathf.RoundToInt(pos.x / unit) * unit;
+            pos.z = Mathf.RoundToInt(pos.z / unit) * unit;
+            t.position = pos;
 
             if (Input.GetMouseButtonUp(1))
             {

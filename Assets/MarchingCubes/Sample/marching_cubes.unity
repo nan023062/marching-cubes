@@ -428,7 +428,7 @@ MonoBehaviour:
   unit: 1
   pointCubePrefab: {fileID: 7868424380929822012, guid: feb0a7700d43af04991198f783d23414,
     type: 3}
-  showPoint: 0
+  showPoint: 1
   _board: {fileID: 1712148011}
 --- !u!33 &999007711
 MeshFilter:
