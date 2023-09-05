@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Experimental.GlobalIllumination;
 
 namespace MarchingCubes
 {
@@ -107,6 +108,15 @@ namespace MarchingCubes
                 {
                     Gizmos.color = Color.green;
                     Gizmos.DrawMesh(mesh);
+                    for (int i = 0; i < CubeConst.VertexCount; i++)
+                    {
+                        if ((index & 1 << i) > 0)
+                        {
+                            Gizmos.color = Color.blue;
+                            ref var p = ref CubeConst.Vertices[i];
+                            Gizmos.DrawSphere(new Vector3(p.x,p.y,p.z), 0.03f);
+                        }
+                    }
                 }
                 Gizmos.color = Color.red;
                 Gizmos.DrawWireCube(Vector3.one * 0.5f, Vector3.one);
