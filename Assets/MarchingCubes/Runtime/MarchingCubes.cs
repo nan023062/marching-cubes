@@ -6,9 +6,7 @@
 //****************************************************************************
 
 using System.Collections.Generic;
-using MarchingCubes.Sample;
 using UnityEngine;
-using Random = UnityEngine.Random;
 
 namespace MarchingCubes
 {

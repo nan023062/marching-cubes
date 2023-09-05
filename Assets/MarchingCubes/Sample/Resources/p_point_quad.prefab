@@ -14,7 +14,7 @@ GameObject:
   - component: {fileID: 623691464220410827}
   - component: {fileID: 525499220993165137}
   m_Layer: 6
-  m_Name: point_quad
+  m_Name: p_point_quad
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

@@ -14,14 +14,10 @@ namespace MarchingCubes
     
     public partial class MarchingCubes
     {
-        public const int VertexCount = 8;
-        public const int EdgeCount = 12;
-        public const int CubeKind = 256;
-        
         private static int Polygonise(in Cube cube, Triangle[] triangles)
         {
             int cubeIndex = 0;
-            for (int v = 0; v < VertexCount; v++)
+            for (int v = 0; v < CubeConst.VertexCount; v++)
             {
                 if (cube[v].mark > 0)
                     cubeIndex |= 1 << v;
@@ -31,12 +27,12 @@ namespace MarchingCubes
             if (edgeMask == 0)
                 return 0;
             
-            Vector3[] vertices = new Vector3[EdgeCount];
-            for (int edge = 0; edge < EdgeCount; edge++)
+            Vector3[] vertices = new Vector3[CubeConst.EdgeCount];
+            for (int edge = 0; edge < CubeConst.EdgeCount; edge++)
             {
                 if ((edgeMask & (1 << edge)) > 0)
                 {
-                    ref readonly var t = ref PolygonTable.edgeTable[edge];
+                    ref readonly var t = ref CubeConst.Edges[edge];
                     ref readonly Point p1 = ref cube[t.p1];
                     ref readonly Point p2 = ref cube[t.p2];
                     vertices[edge] = Vector3.Lerp(p1.position, p2.position, 0.5f);
