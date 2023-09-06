@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 namespace MarchingCubes
 {
@@ -9,33 +10,74 @@ namespace MarchingCubes
     [Serializable]
     public class CubeCase
     {
-        public CubeCase[] cases;
+        public MeshRenderer mesh;
+    }
+    
+    public sealed class EdgeIndexAttribute : Attribute
+    {
+        public readonly int index;
+        public EdgeIndexAttribute(int index)
+        {
+            this.index = index;
+        }
     }
 
-    public interface ICubeCaseMesh
+    public sealed class TriangleIndexAttribute : Attribute
     {
-        
+        public readonly int[] triangles;
+        public TriangleIndexAttribute(params int[] triangles)
+        {
+            this.triangles = triangles;
+        }
     }
+
+    #region CubeCase0_8
     
     /// <summary>
     /// 0和顶点 = 1
     /// </summary>
-    [Serializable]
-    public class CubeCase0 : CubeCase
+    [EdgeIndex(0b000000000000)]
+    [TriangleIndex()]
+    public sealed class CubeCase0_0x0 : CubeCase
     {
-        // null
     }
     
     /// <summary>
-    /// 1和顶点 C8 = 8
+    /// 8和顶点 = 1
     /// </summary>
-    [Serializable]
-    public class CubeCase1 : CubeCase
+    [EdgeIndex(0b111111111111)]
+    [TriangleIndex()]
+    public sealed class CubeCase8_0x0 : CubeCase
     {
-        // 对应 8个顶点的mesh
-        public ICubeCaseMesh[] meshes;
     }
 
+    #endregion
+    
+    #region CubeCase1_7
+    
+    /// <summary>
+    /// 1和顶点 C8 = 8
+    /// 对应 8个顶点的mesh
+    /// </summary>
+    [EdgeIndex(0b1001000010000)]
+    [TriangleIndex()]
+    public sealed class CubeCase1_1001000010000 : CubeCase
+    {
+    }
+    
+        
+    /// <summary>
+    /// 7和顶点 与Case1数量相等 三角面取反 = 8
+    /// </summary>
+    [Serializable]
+    public class CubeCase7 : CubeCase
+    {
+        //todo: 用1点取反
+    }
+
+    #endregion
+    
+    #region CubeCase2_6
     /// <summary>
     /// 2和顶点 C8^2 = (8 * 7) / (2 * 1) = 28
     /// </summary>
@@ -50,6 +92,21 @@ namespace MarchingCubes
         public ICubeCaseMesh[] diagonalMesh;
     }
     
+        
+
+    /// <summary>
+    /// 6和顶点 与Case2数量相等 三角面取反 = 28
+    /// </summary>
+    [Serializable]
+    public class CubeCase6 : CubeCase
+    {
+        //todo: 用2点取反
+    }
+
+    
+    #endregion
+    
+    #region CubeCase3_5
     /// <summary>
     /// 3和顶点 C8^3 = (8 * 7 * 6) / (3 * 2 * 1) = 56
     /// </summary>
@@ -64,6 +121,19 @@ namespace MarchingCubes
         public ICubeCaseMesh[] vertexDiagonalMesh;
     }
     
+    /// <summary>
+    /// 5和顶点 与Case3数量相等 三角面取反 = 56
+    /// </summary>
+    [Serializable]
+    public class CubeCase5 : CubeCase
+    {
+        //todo: 用3点取反
+    }
+
+    
+    #endregion
+    
+    #region CubeCase4
     /// <summary>
     /// 4和顶点 C8^4 = (8 * 7 * 6 * 5) / (4 * 3 * 2 * 1) = 70
     /// </summary>
@@ -86,43 +156,7 @@ namespace MarchingCubes
         
         // 48=12*4 种对角边 4点
         public ICubeCaseMesh[] edgeDiagonal2Mesh;
-        
-        
     }
     
-    /// <summary>
-    /// 5和顶点 与Case3数量相等 三角面取反 = 56
-    /// </summary>
-    [Serializable]
-    public class CubeCase5 : CubeCase
-    {
-        //todo: 用3点取反
-    }
-    
-    /// <summary>
-    /// 6和顶点 与Case2数量相等 三角面取反 = 28
-    /// </summary>
-    [Serializable]
-    public class CubeCase6 : CubeCase
-    {
-        //todo: 用2点取反
-    }
-    
-    /// <summary>
-    /// 7和顶点 与Case1数量相等 三角面取反 = 8
-    /// </summary>
-    [Serializable]
-    public class CubeCase7 : CubeCase
-    {
-        //todo: 用1点取反
-    }
-    
-    /// <summary>
-    /// 8和顶点 = 1
-    /// </summary>
-    [Serializable]
-    public class CubeCase8 : CubeCase
-    {
-        // null
-    }
+    #endregion
 }
