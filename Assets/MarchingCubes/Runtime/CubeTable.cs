@@ -1,21 +1,78 @@
 //****************************************************************************
-// File: MarchingMeshTable.cs
+// File: CubeTable.cs
 // Author: Li Nan
-// Date: 2023-09-02 12:00
+// Date: 2023-09-09 12:00
 // Version: 1.0
 //****************************************************************************
 
+using System.Runtime.CompilerServices;
+using UnityEngine;
+
 namespace MarchingCubes
 {
-    /// <summary>
-    /// 标准的多边形网格配置表
-    /// </summary>
-    public static class PolygonTable
+    public static class CubeTable
     {
+        public const int VertexCount = 8;
+        public const int EdgeCount = 12;
+        public const int CubeKind = 256;
+        public const float epsilon = 0.00001f;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool AlmostEqual(this float v1, float v2)
+        {
+            return Mathf.Abs(v1 - v2) < epsilon;
+        }
+        
+        /// <summary>
+        /// cube 8 个顶点与顺序
+        /// </summary>
+        public static readonly (int x, int y, int z)[] Vertices =
+            new (int x, int y, int z)[VertexCount]
+            {
+                (0, 0, 1),
+                (1, 0, 1),
+                (1, 0, 0),
+                (0, 0, 0),
+                (0, 1, 1),
+                (1, 1, 1),
+                (1, 1, 0),
+                (0, 1, 0)
+            };
+
+        /// <summary>
+        /// 12条边索引的顶点index
+        /// </summary>
+        public static readonly (int p1, int p2)[] Edges = new (int, int)[EdgeCount]
+        {
+            (0, 1), (1, 2), (2, 3), (3, 0),
+            (4, 5), (5, 6), (6, 7), (7, 4),
+            (0, 4), (1, 5), (2, 6), (3, 7)
+        };
+
+        /// <summary>
+        /// Smooths densities between 0.0f and 1.0f
+        /// ISO Level / Height is 0.5f
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static Vector3 InterpolateVerts(Vector3 v1, Vector3 v2, float s1, float s2, float isoLevel)
+        {
+            if (Mathf.Abs(isoLevel - s1) < epsilon)
+                return v1;
+            
+            if (Mathf.Abs(isoLevel - s2) < epsilon)
+                return v2;
+                
+            if (Mathf.Abs(s1 - s2) < epsilon) 
+                return (v1 + v2) * 0.5f;
+            
+            float t2 = (isoLevel - s1) / (s2 - s1);
+            return v1 + t2 * (v2 - v1);
+        }
+
         /// <summary>
         /// 256种情况的边索引表
         /// </summary>
-        public static readonly int[] cubeTable = new int[CubeConst.CubeKind]
+        public static readonly int[] cubeTable = new int[CubeTable.CubeKind]
         {
             0x0, 0X109, 0X203, 0X30a, 0X406, 0X50f, 0X605, 0X70c,
             0x80c, 0X905, 0Xa0f, 0Xb06, 0Xc0a, 0Xd03, 0Xe09, 0Xf00,
@@ -50,11 +107,11 @@ namespace MarchingCubes
             0xf00, 0Xe09, 0Xd03, 0Xc0a, 0Xb06, 0Xa0f, 0X905, 0X80c,
             0x70c, 0X605, 0X50f, 0X406, 0X30a, 0X203, 0X109, 0X0
         };
-        
+
         /// <summary>
         /// 256种情况的三角面表
         /// </summary>
-        public static readonly int[][] triTable = new int[CubeConst.CubeKind][]
+        public static readonly int[][] triTable = new int[CubeTable.CubeKind][]
         {
             new int[]
             {

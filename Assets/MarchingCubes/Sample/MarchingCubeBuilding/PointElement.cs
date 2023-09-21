@@ -10,7 +10,7 @@ namespace MarchingCubes.Sample
     {
         private MeshRenderer _renderer;
         private BoxCollider _collider;
-        public MarchingCubesSample marchingCubes;
+        public MarchingCubeBuilding marchingCubes;
         
         private void Awake()
         {

@@ -85,11 +85,11 @@ namespace MarchingCubes
     public class CubeCase2 : CubeCase
     {
         // 12条边所在2点
-        public ICubeCaseMesh[] edgeMesh;
+        //public ICubeCaseMesh[] edgeMesh;
         // 12条面对角线所在2点
-        public ICubeCaseMesh[] faceDiagonalMesh;
+        //public ICubeCaseMesh[] faceDiagonalMesh;
         // 4条 对角所在2点
-        public ICubeCaseMesh[] diagonalMesh;
+        //public ICubeCaseMesh[] diagonalMesh;
     }
     
         
@@ -114,11 +114,11 @@ namespace MarchingCubes
     public class CubeCase3 : CubeCase
     {
         // 24个同面3点（6个面 * 4顶点）
-        public ICubeCaseMesh[] faceMesh;
+        //public ICubeCaseMesh[] faceMesh;
         // 24个 (边 * 对角点）
-        public ICubeCaseMesh[] edgeDiagonalMesh;
+        //public ICubeCaseMesh[] edgeDiagonalMesh;
         // 8个（顶点 + 2个对交点
-        public ICubeCaseMesh[] vertexDiagonalMesh;
+        //public ICubeCaseMesh[] vertexDiagonalMesh;
     }
     
     /// <summary>
@@ -142,20 +142,20 @@ namespace MarchingCubes
     {
         // 4点共面
         // 6个  4点共面的情况: 在cube6个面上4点 
-        public ICubeCaseMesh[] faceEdgeMesh;
+        //public ICubeCaseMesh[] faceEdgeMesh;
         
         // 2点共面
         // 6个  对角边
-        public ICubeCaseMesh[] diagonalFaceMesh;
+        //public ICubeCaseMesh[] diagonalFaceMesh;
         
         // 3点共面
         // 
         // 24=12*4/2, 12条边与 相垂直面 
-        public ICubeCaseMesh[] edgeDiagonal1Mesh;
+        //public ICubeCaseMesh[] edgeDiagonal1Mesh;
         
         
         // 48=12*4 种对角边 4点
-        public ICubeCaseMesh[] edgeDiagonal2Mesh;
+        //public ICubeCaseMesh[] edgeDiagonal2Mesh;
     }
     
     #endregion

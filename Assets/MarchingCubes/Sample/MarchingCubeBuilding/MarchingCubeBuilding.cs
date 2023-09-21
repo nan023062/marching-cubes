@@ -1,35 +1,32 @@
 //****************************************************************************
-// File: MarchingCubesSample.cs
+// File: MarchingCubeBuilding.cs
 // Author: Li Nan
 // Date: 2023-09-02 12:00
 // Version: 1.0
 //****************************************************************************
-
-using System;
+using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 namespace MarchingCubes.Sample
 {
-    public class MarchingCubesSample : MonoBehaviour
+    public class MarchingCubeBuilding : MonoBehaviour, IMeshStore
     {
         public int x, y, z;
         public uint unit = 1;
         [SerializeField] GameObject pointCubePrefab;
         [SerializeField] GameObject pointQuadPrefab;
         [SerializeField] private bool showPoint;
+        [SerializeField] Transform meshes;
         
-        private MarchingCubes _marchingCubes;
-        private MeshFilter _meshFilter;
+        private BlockBuilding _building;
         private PointCube[,,] _pointCubes;
-
+        private readonly Dictionary<int, GameObject> _meshes = new ();
+        
         private void Awake()
         {
             Vector3 scale = Vector3.one / unit;
             Matrix4x4 matrix4X4 = Matrix4x4.TRS(transform.position, Quaternion.identity, scale);
-            _marchingCubes = new MarchingCubes(x, y, z, matrix4X4);
-            _meshFilter = GetComponent<MeshFilter>();
-            _meshFilter.sharedMesh = _marchingCubes.mesh;
+            _building = new BlockBuilding(x, y, z, matrix4X4, this);
             transform.localScale = scale;
             _pointCubes = new PointCube[x + 1, y + 1, z + 1];
             for (int i = 1; i < x; i++)
@@ -47,13 +44,21 @@ namespace MarchingCubes.Sample
                     quad.z = j;
                 }
             }
+            _meshes.Clear();
+            foreach (Transform child in meshes)
+            {
+                if (int.TryParse(child.name, out int mask))
+                {
+                    _meshes.Add(mask, child.gameObject);
+                }
+            }
         }
-        
+
         private void OnDestroy()
         {
             _pointCubes = null;
         }
-        
+
         public void OnClicked(PointElement element, bool left, in Vector3 normal)
         {
             if (left)
@@ -80,22 +85,22 @@ namespace MarchingCubes.Sample
                 }
             }
         }
-        
+
         private void OnDrawGizmos()
         {
             if (showPoint)
             {
-                _marchingCubes?.DrawPoints();
+                _building?.DrawPoints();
             }
         }
-        
+
         private void CreateCube(int x, int y, int z)
         {
-            if(x <= 0 || y <= 0 || z <= 0) 
+            if (x <= 0 || y <= 0 || z <= 0)
                 return;
-            if(x >= _marchingCubes.X || y >= _marchingCubes.Y || z >= _marchingCubes.Z) 
+            if (x >= _building.X || y >= _building.Y || z >= _building.Z)
                 return;
-            
+
             ref var cube = ref _pointCubes[x, y, z];
             if (null == cube)
             {
@@ -104,26 +109,32 @@ namespace MarchingCubes.Sample
                 t.SetParent(this.transform);
                 t.SetLocalPositionAndRotation(new Vector3(x, y, z), Quaternion.identity);
                 t.localScale = Vector3.one;
-                
+
                 cube = go.GetComponent<PointCube>();
                 cube.marchingCubes = this;
                 cube.x = x;
                 cube.y = y;
                 cube.z = z;
                 _pointCubes[x, y, z] = cube;
-                _marchingCubes.MarkPoint(x,y,z, true);
-                _marchingCubes.RebuildMesh();
-                _meshFilter.sharedMesh = _marchingCubes.mesh;
+                _building.SetPointStatus(x, y, z, true);
             }
         }
-        
+
         private void DestroyCube(PointCube cube)
         {
-            _marchingCubes.MarkPoint(cube.x, cube.y, cube.z, false);
-            _marchingCubes.RebuildMesh();
-            _meshFilter.sharedMesh = _marchingCubes.mesh;
+            _building.SetPointStatus(x, y, z, false);
             DestroyImmediate(cube.gameObject);
             _pointCubes[cube.x, cube.y, cube.z] = null;
+        }
+
+        GameObject IMeshStore.GetMesh(int cubeIndex)
+        {
+            if (_meshes.TryGetValue(cubeIndex, out var mesh))
+            {
+                return GameObject.Instantiate(mesh);
+            }
+            
+            return null;
         }
     }
 }
