@@ -13,68 +13,23 @@ namespace MarchingCubes
     public sealed class CubeMesh
     {
         public readonly int X, Y, Z;
-        public float isoLevel;
         private readonly Point[,,] _points;
         private readonly Cube[,,] _cubes;
-        private Matrix4x4 _localToWorld;
-     
-
+        private readonly IMarchingCubeReceiver _receiver;
+        
         public Mesh mesh;
         private readonly List<Vector3> _vertices;
         private readonly List<Vector2> _uvs;
         private readonly Triangle[] tempTriangles;
-
-        public Matrix4x4 localToWorld
-        {
-            get => _localToWorld;
-            set => _localToWorld = value;
-        }
-
-        struct Cube
-        {
-            public readonly sbyte x, y, z;
-            private readonly CubeMesh mesh;
-
-            public ref readonly Point this[int index]
-            {
-                get
-                {
-                    ref (int x, int y, int z) v = ref CubeTable.Vertices[index];
-                    return ref mesh._points[x + v.x, y + v.y, z + v.z];
-                }
-            }
-
-            public Cube(CubeMesh mesh, int x, int y, int z)
-            {
-                this.mesh = mesh;
-                this.x = (sbyte)x;
-                this.y = (sbyte)y;
-                this.z = (sbyte)z;
-            }
-        }
-
-        public void DrawPoints()
-        {
-            Color color = Gizmos.color;
-            Gizmos.matrix = localToWorld;
-
-            foreach (var point in _points)
-            {
-                Gizmos.color = point.iso > 0 ? Color.red : Color.green;
-                Gizmos.DrawSphere(point.position, 0.1f);
-            }
-
-            Gizmos.color = color;
-            Gizmos.matrix = Matrix4x4.identity;
-        }
-
-        public CubeMesh(int x, int y, int z, Matrix4x4 localToWorld)
+        
+        public CubeMesh(int x, int y, int z, IMarchingCubeReceiver receiver)
         {
             this.X = x;
             this.Y = y;
             this.Z = z;
-            isoLevel = 0.5f;
-            _localToWorld = localToWorld;
+            this._receiver = receiver;
+            
+            // points
             _points = new Point[X + 1, Y + 1, Z + 1];
             for (int i = 0; i <= X; i++)
             {
@@ -84,7 +39,8 @@ namespace MarchingCubes
                         _points[i, j, k] = new Point(i, j, k);
                 }
             }
-
+            
+            // cubes
             _cubes = new Cube[X, Y, Z];
             for (int i = 0; i < X; i++)
             {
@@ -94,7 +50,7 @@ namespace MarchingCubes
                         _cubes[i, j, k] = new Cube(this, i, j, k);
                 }
             }
-
+            
             tempTriangles = new Triangle[5];
             _vertices = new List<Vector3>(128);
             _uvs = new List<Vector2>(128);
@@ -113,10 +69,11 @@ namespace MarchingCubes
         private int Polygon(in Cube cube, Triangle[] triangles)
         {
             int cubeIndex = 0;
+            float isoLevel = _receiver.GetIsoLevel();
             for (int v = 0; v < CubeTable.VertexCount; v++)
             {
                 ref readonly var point = ref cube[v];
-                if (point.iso > isoLevel)
+                if (_receiver.IsoPass(point.iso))
                     cubeIndex |= 1 << v;
             }
             
@@ -150,6 +107,9 @@ namespace MarchingCubes
             return nTri;
         }
         
+        /// <summary>
+        /// 不共边上的顶点
+        /// </summary>
         public void Rebuild()
         {
             _vertices.Clear();
@@ -197,6 +157,31 @@ namespace MarchingCubes
             mesh.uv = _uvs.ToArray();
             mesh.triangles = indices;
             mesh.RecalculateNormals();
+            
+            _receiver.OnRebuildCompleted();
+        }
+        
+        struct Cube
+        {
+            public readonly sbyte x, y, z;
+            private readonly CubeMesh mesh;
+            
+            public ref readonly Point this[int index]
+            {
+                get
+                {
+                    ref (int x, int y, int z) v = ref CubeTable.Vertices[index];
+                    return ref mesh._points[x + v.x, y + v.y, z + v.z];
+                }
+            }
+
+            public Cube(CubeMesh mesh, int x, int y, int z)
+            {
+                this.mesh = mesh;
+                this.x = (sbyte)x;
+                this.y = (sbyte)y;
+                this.z = (sbyte)z;
+            }
         }
     }
 }

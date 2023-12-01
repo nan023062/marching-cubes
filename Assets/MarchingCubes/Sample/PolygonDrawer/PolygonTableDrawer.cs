@@ -51,15 +51,25 @@ namespace MarchingCubes
         }
         
 
-        class OneCube
+        class OneCube : IMarchingCubeReceiver
         {
             public readonly int index;
             private readonly CubeMesh mesh;
+            private readonly Matrix4x4 _localToWorld;
+            
+            float IMarchingCubeReceiver.GetIsoLevel() => 0.5f;
+            
+            public bool IsoPass(float iso) => iso > 0.5f;
+            
+            void IMarchingCubeReceiver.OnRebuildCompleted()
+            {
+            }
             
             public OneCube(int index, Vector3 position)
             {
                 this.index = index;
-                mesh = new CubeMesh(1, 1, 1, Matrix4x4.Translate(position));
+                _localToWorld = Matrix4x4.TRS(position, Quaternion.identity, Vector3.one);
+                mesh = new CubeMesh(1, 1, 1, this);
                 for (int v = 0; v < CubeTable.VertexCount; v++)
                 {
                     if ((index & (1 << v)) > 0)
@@ -73,7 +83,7 @@ namespace MarchingCubes
             
             public void Draw()
             {
-                Gizmos.matrix = mesh.localToWorld;
+                Gizmos.matrix = _localToWorld;
                 if (index > 0)
                 {
                     Gizmos.color = Color.green;

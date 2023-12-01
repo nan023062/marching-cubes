@@ -16,7 +16,7 @@ namespace MarchingCubes
         public const int EdgeCount = 12;
         public const int CubeKind = 256;
         public const float epsilon = 0.00001f;
-
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool AlmostEqual(this float v1, float v2)
         {
@@ -48,7 +48,26 @@ namespace MarchingCubes
             (4, 5), (5, 6), (6, 7), (7, 4),
             (0, 4), (1, 5), (2, 6), (3, 7)
         };
-
+        
+        /// <summary>
+        /// 12条边索引的轴向及在Cube内偏移
+        /// </summary>
+        public static readonly Edge[] EdgesOffset = new Edge[EdgeCount]
+        {
+            new (0,0,1 , Axis.X), // 0
+            new (1,0,0 , Axis.Z), // 1
+            new (0,0,0 , Axis.X), // 2 
+            new (0,0,0 , Axis.Z), // 3
+            new (0,1,1 , Axis.X), // 4 
+            new (1,1,0 , Axis.Z), // 5
+            new (0,1,0 , Axis.X), // 6
+            new (0,1,0 , Axis.Z), // 7
+            new (0,0,1 , Axis.Y), // 8
+            new (1,0,1 , Axis.Y), // 9
+            new (1,0,0 , Axis.Y), // 10
+            new (0,0,0 , Axis.Y), // 11
+        };
+        
         /// <summary>
         /// Smooths densities between 0.0f and 1.0f
         /// ISO Level / Height is 0.5f
@@ -107,7 +126,7 @@ namespace MarchingCubes
             0xf00, 0Xe09, 0Xd03, 0Xc0a, 0Xb06, 0Xa0f, 0X905, 0X80c,
             0x70c, 0X605, 0X50f, 0X406, 0X30a, 0X203, 0X109, 0X0
         };
-
+        
         /// <summary>
         /// 256种情况的三角面表
         /// </summary>
