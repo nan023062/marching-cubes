@@ -8,6 +8,7 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEngine;
+using UnityEngine.Profiling;
 
 namespace MarchingCubes
 {
@@ -23,7 +24,7 @@ namespace MarchingCubes
         private readonly Edge[] _tempEdges;
         private readonly EdgeTriangle[] _tempTriangles;
         private int _tempVertexCount;
-        private readonly Dictionary<long, EdgeVertex> _edgeVerteices;
+        private readonly Dictionary<long, EdgeVertex> _edgeVertices;
         
         public CubeMeshSmooth(int x, int y, int z, IMarchingCubeReceiver receiver)
         {
@@ -32,7 +33,7 @@ namespace MarchingCubes
             this.Z = z;
             this._receiver = receiver;
             _tempVertexCount = 0;
-            _edgeVerteices = new Dictionary<long, EdgeVertex>();
+            _edgeVertices = new Dictionary<long, EdgeVertex>();
             
             // points
             _points = new Point[X + 1, Y + 1, Z + 1];
@@ -93,13 +94,13 @@ namespace MarchingCubes
                     _tempEdges[edgeIndex] = edge;
                     
                     // 缓存边顶点坐标
-                    if(!_edgeVerteices.ContainsKey(edge))
+                    if(!_edgeVertices.ContainsKey(edge))
                     {
                         ref readonly var t = ref CubeTable.Edges[edgeIndex];
                         ref readonly Point p1 = ref cube[t.p1];
                         ref readonly Point p2 = ref cube[t.p2];
                         Vector3 pos = CubeTable.InterpolateVerts(p1.position, p2.position, p1.iso, p2.iso, isoLevel);
-                        _edgeVerteices.Add(edge, new EdgeVertex
+                        _edgeVertices.Add(edge, new EdgeVertex
                         {
                             vertexIndex = _tempVertexCount++,
                             vertex = new Vertex
@@ -132,8 +133,9 @@ namespace MarchingCubes
         /// </summary>
         public void Rebuild()
         {
+            Profiler.BeginSample("Rebuild---1");
             // 遍历cube， 刷新边顶点缓存和triangles
-            _edgeVerteices.Clear();
+            _edgeVertices.Clear();
             _tempVertexCount = 0;
             _triangles.Clear();
             for (int i = 0; i < X; i++)
@@ -150,13 +152,13 @@ namespace MarchingCubes
                             {
                                 ref var triangle = ref _tempTriangles[l];
                                 
-                                _edgeVerteices.TryGetValue(triangle.v1, out var edgeVertex1);
+                                _edgeVertices.TryGetValue(triangle.v1, out var edgeVertex1);
                                 _triangles.Add(edgeVertex1.vertexIndex);
                                 
-                                _edgeVerteices.TryGetValue(triangle.v2, out var edgeVertex2);
+                                _edgeVertices.TryGetValue(triangle.v2, out var edgeVertex2);
                                 _triangles.Add(edgeVertex2.vertexIndex);
                                  
-                                _edgeVerteices.TryGetValue(triangle.v3, out var edgeVertex3);
+                                _edgeVertices.TryGetValue(triangle.v3, out var edgeVertex3);
                                 _triangles.Add(edgeVertex3.vertexIndex);
                             }
                         }
@@ -172,7 +174,7 @@ namespace MarchingCubes
                 mesh = null;
                 mesh = new Mesh();
             }
-            foreach (var vertex in _edgeVerteices.Values)
+            foreach (var vertex in _edgeVertices.Values)
             {
                 vertices[vertex.vertexIndex] = vertex.vertex.position;
                 uvs[vertex.vertexIndex] = vertex.vertex.uv;
@@ -182,6 +184,7 @@ namespace MarchingCubes
             mesh.uv = uvs;
             mesh.triangles = _triangles.ToArray();
             mesh.RecalculateNormals();
+            Profiler.EndSample();
             _receiver.OnRebuildCompleted();
         }
         

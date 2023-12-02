@@ -155,7 +155,7 @@ MonoBehaviour:
   x: 60
   y: 20
   z: 60
-  radius: 20
+  radius: 5
 --- !u!4 &41546396
 Transform:
   m_ObjectHideFlags: 0

@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.InteropServices;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -6,94 +9,226 @@ namespace MarchingCubes.Sample
 {
     public class RealtimeTerrain : MonoBehaviour
     {
-        public const int ChunkSize = 32;
+        public const int ChunkCell = 32;
         public const int ChunkHeight = 16;
-        public const int ChunkHeightMapSize = ChunkSize * 8;
-        
-        [SerializeField, Header( "Chunk Prefab")]
+        public const float CellSize = 0.5f;
+        public const int Offset = 5;
+        public const int ViewSize = Offset * 2 + 1;
+
+        [SerializeField, Header("Spot")] private Transform _spot;
+
+        [SerializeField, Header("Chunk Prefab")]
         private RealtimeTerrainChunk _chunkPrefab;
         
-        private int _gridX, _gridZ;
         private bool _initialized;
-        private RealtimeTerrainChunk _centerChunk;
-        private float[,] _heightMap;
-        
-        [UnityEngine.Range( 0f, 256f)]
-        public float scale = 1f;
-        public Texture2D _heightMapTexture;
-        private void Awake()
-        {
-            _heightMapTexture = new Texture2D(ChunkHeightMapSize + 1, ChunkHeightMapSize + 1, TextureFormat.R8, false);
-            _heightMap = new float[ChunkHeightMapSize + 1, ChunkHeightMapSize + 1];
-            ResetHeightMap();
-            GetComponent<Renderer>().sharedMaterial.mainTexture = _heightMapTexture;
-        }
-        
-        [ContextMenu("Reset Height Map")]
-        private void ResetHeightMap()
-        {
-            for (int i = 0; i <= ChunkHeightMapSize; i++)
-            {
-                for (int j = 0; j <= ChunkHeightMapSize; j++)
-                {
-                    float x = i / (float)ChunkHeightMapSize * scale;
-                    float z = j / (float)ChunkHeightMapSize * scale;
-                    float noise = Mathf.PerlinNoise(x, z);
-                    _heightMapTexture.SetPixel(i, j, new Color(noise, noise, noise));
-                    float height = noise;
-                    _heightMap[i, j] = height * ChunkHeight;
-                }
-            }
-            _heightMapTexture.Apply();
-        }
-        
+        private ViewPort _viewPort;
+        private readonly Dictionary<long, Chunk> _chunks = new();
+        private readonly LinkedList<long> _dirtyChunks = new();
+
         public void Update()
         {
-            Camera mainCamera = Camera.main;
-            if (mainCamera != null)
+            if (_spot != null)
             {
-                Vector3 spot = mainCamera.transform.position;
-                int gridX = Mathf.FloorToInt(spot.x / ChunkSize);
-                int gridZ = Mathf.FloorToInt(spot.z / ChunkSize);
-                if (_initialized && (gridX != _gridX || gridZ != _gridZ))
+                float chunkSize = ChunkCell * CellSize;
+                Vector3 spot = _spot.position;
+                int chunkX = Mathf.FloorToInt(spot.x / chunkSize);
+                int chunkZ = Mathf.FloorToInt(spot.z / chunkSize);
+                ViewPort viewPort = new ViewPort(new ChunkId(chunkX, chunkZ));
+                if (_initialized && _viewPort != viewPort)
                 {
-                    UpdateChunks(gridX, gridZ);
+                    UpdateViewChunks(viewPort);
                 }
                 else if (!_initialized)
                 {
-                    UpdateChunks(gridX, gridZ);
+                    _initialized = true;
+                    UpdateViewChunks(viewPort);
+                }
+
+
+                TickDirtyChunks();
+            }
+        }
+
+        // 实现 以 _spot 为中心，每次移动超过一个 ChunkCell 就更新周围 5 * 5 个 Chunk
+        private void UpdateViewChunks(in ViewPort viewPort)
+        {
+            ViewPort oldViewPort = _viewPort;
+            _viewPort = viewPort;
+            
+            // 1. 从旧的视野中移除不在新视野中的 Chunk
+            for (int x = oldViewPort.x0; x <= oldViewPort.x1; x++)
+            {
+                for (int z = oldViewPort.z0; z <= oldViewPort.z1; z++)
+                {
+                    ChunkId id = new ChunkId(x, z);
+                    if (_chunks.TryGetValue(id, out Chunk chunk))
+                    {
+                        chunk.used = false;
+                    }
+                }
+            }
+            
+            // 2. 从新的视野中添加不在旧视野中的 Chunk
+            for (int x = viewPort.x0; x <= viewPort.x1; x++)
+            {
+                for (int z = viewPort.z0; z <= viewPort.z1; z++)
+                {
+                    ChunkId id = new ChunkId(x, z);
+                    if (_chunks.TryGetValue(id, out Chunk chunk))
+                    {
+                        chunk.used = true;
+                    }
+                    else
+                    {
+                        _chunks.Add(id, new Chunk
+                        {
+                            used = true,
+                        });
+                    }
+                }
+            }
+            
+            // 3. 移除不再使用的 Chunk 生成新的 Chunk
+            foreach (KeyValuePair<long, Chunk> pair in _chunks)
+            {
+                Chunk chunk = pair.Value;
+                bool hasGen = null != chunk.obj;
+                if (chunk.used != hasGen)
+                {
+                    _dirtyChunks.AddLast(pair.Key);
                 }
             }
         }
         
-        private void UpdateChunks(int gridX, int gridZ)
+        private void TickDirtyChunks()
         {
-            _gridX = gridX;
-            _gridZ = gridZ;
-
-            if (_centerChunk == null)
+            while (_dirtyChunks.Count > 0)
             {
-                GameObject prefab = Object.Instantiate(_chunkPrefab.gameObject);
-                prefab.SetActive( true);
-                _centerChunk = prefab.GetComponent<RealtimeTerrainChunk>();
-                _centerChunk.Terrain = this;
+                ChunkId id = _dirtyChunks.First.Value;
+                _dirtyChunks.RemoveFirst();
+                if (_chunks.TryGetValue(id, out Chunk chunk))
+                {
+                    if (!chunk.used)
+                    {
+                        _chunks.Remove(id);
+                        if (null != chunk.obj)
+                        {
+                            Object.Destroy(chunk.obj.gameObject);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        if (chunk.obj == null)
+                        {
+                            GameObject go = Object.Instantiate(_chunkPrefab.gameObject, transform);
+                            go.name = $"Chunk_{id.x}_{id.z}";
+                            go.SetActive( true );
+                            chunk.obj = go.GetComponent<RealtimeTerrainChunk>();
+                            chunk.obj.Initialize();
+                            chunk.obj.RebuildTerrain(id.x, id.z);
+                            break;
+                        }  
+                    }
+                }
+            }
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        struct ChunkId
+        {
+            [FieldOffset(0)] private long _id;
+            [FieldOffset(0)] public int x;
+            [FieldOffset(4)] public int z;
+            
+            public ChunkId(int x, int z)
+            {
+                _id = 0;
+                this.x = x;
+                this.z = z;
             }
             
-            Transform chunkTransform = _centerChunk.transform;
-            chunkTransform.rotation = Quaternion.identity;
-            chunkTransform.position = new Vector3(gridX * ChunkSize, 0F, gridZ * ChunkSize);
-            _centerChunk.RebuildTerrain();
+            public static implicit operator long(ChunkId id)
+            {
+                return id._id;
+            }
+            
+            public static implicit operator ChunkId(long id)
+            {
+                return new ChunkId {_id = id};
+            }
+            
+            public override int GetHashCode()
+            {
+                return x ^ z;
+            }
+            
+            public static bool operator ==(ChunkId a, ChunkId b)
+            {
+                return a._id == b._id;
+            }
+            
+            public static bool operator !=(ChunkId a, ChunkId b)
+            {
+                return !(a == b);
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is ChunkId other && other._id == _id;
+            }
         }
         
-        public float GetTerrianHeight(in Vector3 worldPos)
+        class Chunk
         {
-            // 采样_heightMap
-            int x = Mathf.RoundToInt(worldPos.x);
-            int z = Mathf.FloorToInt(worldPos.z);
-            int halfSize = ChunkHeightMapSize / 2 ;
-            x = Mathf.Clamp( x + halfSize, 0, ChunkHeightMapSize);
-            z = Mathf.Clamp( z + halfSize, 0, ChunkHeightMapSize);
-            return _heightMap[x, z];
+            public bool used;
+            public RealtimeTerrainChunk obj;
+        }
+
+        readonly struct ViewPort : IEquatable<ViewPort>
+        {
+            public readonly int x0;
+            public readonly int z0;
+            public readonly int x1;
+            public readonly int z1;
+            
+            public ViewPort(ChunkId id)
+            {
+                x0 = id.x - Offset;
+                z0 = id.z - Offset;
+                x1 = id.x + Offset;
+                z1 = id.z + Offset;
+            }
+            
+            public bool Contains(int x, int z)
+            {
+                return x0 <= x && x <= x1 && z0 <= z && z <= z1;
+            }
+            
+            public static bool operator ==(ViewPort a, ViewPort b)
+            {
+                return a.x0 == b.x0 && a.z0 == b.z0 && a.x1 == b.x1 && a.z1 == b.z1;
+            }
+            
+            public static bool operator !=(ViewPort a, ViewPort b)
+            {
+                return !(a == b);
+            }
+
+            public bool Equals(ViewPort other)
+            {
+                return x0 == other.x0 && z0 == other.z0 && x1 == other.x1 && z1 == other.z1;
+            }
+            
+            public override bool Equals(object obj)
+            {
+                return obj is ViewPort other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                return HashCode.Combine(x0, z0, x1, z1);
+            }
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using UnityEngine.Profiling;
 
 namespace MarchingCubes.Sample
 {
@@ -11,14 +12,18 @@ namespace MarchingCubes.Sample
         private MeshCollider _meshCollider;
         private CubeMeshSmooth _cubeMesh;
         
-        public RealtimeTerrain Terrain;
+        [SerializeField]
+        private int chunkX;
         
-        float IMarchingCubeReceiver.GetIsoLevel()
-        {
-            return RealtimeTerrain.ChunkHeight;
-        }
+        [SerializeField]
+        private int chunkZ;
         
-        bool IMarchingCubeReceiver.IsoPass(float iso) => iso < RealtimeTerrain.ChunkHeight;
+        [Range( 0.001f, 1f),SerializeField]
+        private float perlinNoiseScale = 1f / 7;
+        
+        float IMarchingCubeReceiver.GetIsoLevel() => RealtimeTerrain.ChunkHeight + 0.1F;
+        
+        bool IMarchingCubeReceiver.IsoPass(float iso) => iso < RealtimeTerrain.ChunkHeight + 0.1F;
         
         void IMarchingCubeReceiver.OnRebuildCompleted()
         {
@@ -26,41 +31,46 @@ namespace MarchingCubes.Sample
             _meshCollider.sharedMesh = _cubeMesh.mesh;
         }
         
-        private void Awake()
+        public void Initialize()
         {
             _meshCollider = GetComponent<MeshCollider>();
             _meshFilter = GetComponent<MeshFilter>();
-            int cellWidth = RealtimeTerrain.ChunkSize;
-            int cellHeight = RealtimeTerrain.ChunkHeight;
-            _cubeMesh = new CubeMeshSmooth(cellWidth, cellHeight, cellWidth, this);
+            _cubeMesh = new CubeMeshSmooth(
+                RealtimeTerrain.ChunkCell, 
+                RealtimeTerrain.ChunkHeight, 
+                RealtimeTerrain.ChunkCell, this);
         }
         
-        private void OnDestroy()
+        public void RebuildTerrain(int chunkX, int chunkZ)
         {
-            _cubeMesh = null;
-        }
-        
-        public void RebuildTerrain()
-        {
-            // TODO: random terrain
-            // 当前设置
-            int cellWidth = RealtimeTerrain.ChunkSize;
-            int cellHeight = RealtimeTerrain.ChunkHeight;
-            for (int i = 0; i <= cellWidth; i++)
+            this.chunkX = chunkX;
+            this.chunkZ = chunkZ;
+            int chunkCell = RealtimeTerrain.ChunkCell;
+            float cellSize = RealtimeTerrain.CellSize;
+            float chunkSize = chunkCell * cellSize;
+            Transform chunkTransform = transform;
+            Vector3 localPosition = new Vector3(chunkX, 0F, chunkZ) * chunkSize;
+            chunkTransform.SetLocalPositionAndRotation(localPosition, Quaternion.identity);
+            chunkTransform.localScale = new Vector3(cellSize, cellSize, cellSize);
+
+            for (int i = 0; i <= chunkCell; i++)
             {
-                for (int j = 0; j <= cellHeight; j++)
+                for (int k = 0; k <= chunkCell; k++)
                 {
-                    for (int k = 0; k <= cellWidth; k++)
+                    float x = (chunkX * chunkCell + i) * perlinNoiseScale;
+                    float z = (chunkZ * chunkCell + k) * perlinNoiseScale;
+                    
+                    float height = Mathf.PerlinNoise(x, z) * RealtimeTerrain.ChunkHeight;
+                    for (int j = 0; j <= RealtimeTerrain.ChunkHeight; j++)
                     {
-                        Vector3 pos = new Vector3(i, j, k);
-                        pos = transform.TransformPoint(pos);
-                        float height = Terrain.GetTerrianHeight(pos);
                         _cubeMesh.SetPointISO(i, j, k, height + j);  
                     }
                 }
             }
             
+            Profiler.BeginSample("Rebuild");
             _cubeMesh.Rebuild();
+            Profiler.EndSample();
         }
     }
 }
