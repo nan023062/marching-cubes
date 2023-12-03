@@ -63,12 +63,22 @@ namespace MarchingCubes
             mesh = new Mesh();
         }
         
+        public float GetPointISO(int x, int y, int z)
+        {
+            x = Mathf.Clamp(x, 0, X);
+            y = Mathf.Clamp(y, 0, Y);
+            z = Mathf.Clamp(z, 0, Z);
+            ref readonly var point = ref _points[x, y, z];
+            return point.iso;
+        }
+        
         public void SetPointISO(int x, int y, int z, float iso)
         {
             x = Mathf.Clamp(x, 0, X);
             y = Mathf.Clamp(y, 0, Y);
             z = Mathf.Clamp(z, 0, Z);
-            _points[x, y, z].iso = iso;
+            ref var point = ref _points[x, y, z];
+            point.iso = iso;
         }
         
         private int Polygon(in Cube cube, EdgeTriangle[] triangles)

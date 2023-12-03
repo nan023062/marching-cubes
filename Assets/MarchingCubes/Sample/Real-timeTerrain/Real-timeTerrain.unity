@@ -327,7 +327,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   chunkX: 0
   chunkZ: 0
-  perlinNoiseScale: 0.072
+  perlinNoiseScale: 0.051
 --- !u!33 &1719758617
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -588,6 +588,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: Player
+      objectReference: {fileID: 0}
+    - target: {fileID: 6727159241753704444, guid: a81c89f6effa9fa4cb3967dfcc504cb3,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6727159242732599188, guid: a81c89f6effa9fa4cb3967dfcc504cb3,
         type: 3}

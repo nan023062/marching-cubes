@@ -28,7 +28,7 @@ namespace MarchingCubes.Sample
             Vector3 euler = mainCamera.eulerAngles;
             _yaw = euler.y;
             _pitch = euler.x;
-            _cameraDistance = Vector3.Distance(transform.position, mainCamera.position);
+            _cameraDistance = -1f;
         }
         
         private void Update()
@@ -42,7 +42,7 @@ namespace MarchingCubes.Sample
             
             _pitch = Mathf.Clamp(_pitch, -85f, 85f);
             _cameraDistance -= Input.GetAxis("Mouse ScrollWheel") * zoomSensitivity * deltaTime;
-            _cameraDistance = Mathf.Clamp(_cameraDistance, 1f, 10f);
+            _cameraDistance = Mathf.Clamp(_cameraDistance, -1f, 10f);
         }
         
         private void LateUpdate()

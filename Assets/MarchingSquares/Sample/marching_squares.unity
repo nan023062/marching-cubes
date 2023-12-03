@@ -255,7 +255,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   wheelMul: 0.1
-  moveSensitivity: 200
+  moveSensitivity: 60
   sensitivityX: 300
   sensitivityY: 300
   minimumY: -70

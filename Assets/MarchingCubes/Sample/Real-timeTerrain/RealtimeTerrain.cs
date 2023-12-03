@@ -55,36 +55,32 @@ namespace MarchingCubes.Sample
             ViewPort oldViewPort = _viewPort;
             _viewPort = viewPort;
             
-            // 1. 从旧的视野中移除不在新视野中的 Chunk
-            for (int x = oldViewPort.x0; x <= oldViewPort.x1; x++)
+            int minX = Math.Min(viewPort.x0, oldViewPort.x0);
+            int maxX = Math.Max(viewPort.x1, oldViewPort.x1);
+            int minZ = Math.Min(viewPort.z0, oldViewPort.z0);
+            int maxZ = Math.Max(viewPort.z1, oldViewPort.z1);
+
+            for (int x = minX; x <= maxX; x++)
             {
-                for (int z = oldViewPort.z0; z <= oldViewPort.z1; z++)
+                for (int z = minZ; z <= maxZ; z++)
                 {
                     ChunkId id = new ChunkId(x, z);
-                    if (_chunks.TryGetValue(id, out Chunk chunk))
+                    if (_viewPort.Contains(x, z))
+                    {
+                        if (!_chunks.TryGetValue(id, out Chunk chunk))
+                        {
+                            chunk = new Chunk { used = true, };
+                            _chunks.Add(id, chunk);
+                        }
+                        else
+                        {
+                            chunk.used = true;
+                        }
+                    }   
+                    else if (_chunks.TryGetValue(id, out Chunk chunk))
                     {
                         chunk.used = false;
-                    }
-                }
-            }
-            
-            // 2. 从新的视野中添加不在旧视野中的 Chunk
-            for (int x = viewPort.x0; x <= viewPort.x1; x++)
-            {
-                for (int z = viewPort.z0; z <= viewPort.z1; z++)
-                {
-                    ChunkId id = new ChunkId(x, z);
-                    if (_chunks.TryGetValue(id, out Chunk chunk))
-                    {
-                        chunk.used = true;
-                    }
-                    else
-                    {
-                        _chunks.Add(id, new Chunk
-                        {
-                            used = true,
-                        });
-                    }
+                    } 
                 }
             }
             

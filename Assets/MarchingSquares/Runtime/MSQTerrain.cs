@@ -17,7 +17,7 @@ namespace MarchingSquares
     {
         public readonly int width, length, height;
         public readonly float unit;
-        private readonly Chunk[,] _chunks;
+        private readonly Point[,] _points;
         public readonly Matrix4x4 localToWorld;
         public readonly Matrix4x4 worldToLocal;
         public readonly ITextureLoader loader;
@@ -35,11 +35,11 @@ namespace MarchingSquares
             loader = textureLoader;
             localToWorld = Matrix4x4.TRS(position, Quaternion.identity, Vector3.one * unit);
             worldToLocal = localToWorld.inverse;
-            _chunks = new Chunk[length + 1, width + 1];
+            _points = new Point[length + 1, width + 1];
             for (int i = 0; i <= length; i++)
             {
                 for (int j = 0; j <= width; j++)
-                    _chunks[i, j] = new Chunk();
+                    _points[i, j] = new Point();
             }
 
             // generate mesh
@@ -142,11 +142,11 @@ namespace MarchingSquares
             while (_queue.Count > 0)
             {
                 (int x, int z) = _queue.Dequeue();
-                ref Chunk origin = ref _chunks[x, z];
+                ref Point origin = ref _points[x, z];
                 // 递归相邻4个chunk
                 if (x > 0)
                 {
-                    ref readonly var chunk = ref _chunks[x - 1, z];
+                    ref readonly var chunk = ref _points[x - 1, z];
                     int d = chunk.high - origin.high;
                     if (d > 1) DetectChunkUpdated(x - 1, z, -1);
                     else if (d < -1) DetectChunkUpdated(x - 1, z, 1);
@@ -154,7 +154,7 @@ namespace MarchingSquares
 
                 if (x < length)
                 {
-                    ref readonly var chunk = ref _chunks[x + 1, z];
+                    ref readonly var chunk = ref _points[x + 1, z];
                     int d = chunk.high - origin.high;
                     if (d > 1) DetectChunkUpdated(x + 1, z, -1);
                     else if (d < -1) DetectChunkUpdated(x + 1, z, 1);
@@ -162,7 +162,7 @@ namespace MarchingSquares
 
                 if (z > 0)
                 {
-                    ref readonly var chunk = ref _chunks[x, z - 1];
+                    ref readonly var chunk = ref _points[x, z - 1];
                     int d = chunk.high - origin.high;
                     if (d > 1) DetectChunkUpdated(x, z - 1, -1);
                     else if (d < -1) DetectChunkUpdated(x, z - 1, 1);
@@ -170,7 +170,7 @@ namespace MarchingSquares
 
                 if (z < width)
                 {
-                    ref readonly var chunk = ref _chunks[x, z + 1];
+                    ref readonly var chunk = ref _points[x, z + 1];
                     int d = chunk.high - origin.high;
                     if (d > 1) DetectChunkUpdated(x, z + 1, -1);
                     else if (d < -1) DetectChunkUpdated(x, z + 1, 1);
@@ -203,7 +203,7 @@ namespace MarchingSquares
 
         private void DetectChunkUpdated(int x, int z, int d)
         {
-            ref var chunk = ref _chunks[x, z];
+            ref var chunk = ref _points[x, z];
             sbyte high = (sbyte)Math.Clamp(d + chunk.high, -64, 64);
             if (high != chunk.high)
             {
@@ -250,7 +250,7 @@ namespace MarchingSquares
 
         private bool PaintChunkTexture(int x, int z, int layer, bool add)
         {
-            ref var chunk = ref _chunks[x, z];
+            ref var chunk = ref _points[x, z];
             int bit = 1 << layer;
             
             int texLayer = chunk.texLayer;
@@ -300,19 +300,19 @@ namespace MarchingSquares
             // 确定当前grid的纹理索引
             int index = 0;
             
-            ref readonly var chunkLB = ref _chunks[x, z];
+            ref readonly var chunkLB = ref _points[x, z];
             if ((chunkLB.texLayer & bit) > 0)
                 index |= 1 << 3;
             
-            ref readonly var chunkLT = ref _chunks[x, z + 1];
+            ref readonly var chunkLT = ref _points[x, z + 1];
             if ((chunkLT.texLayer & bit) > 0)
                 index |= 1 << 2;
             
-            ref readonly var chunkRT = ref _chunks[x + 1, z + 1];
+            ref readonly var chunkRT = ref _points[x + 1, z + 1];
             if ((chunkRT.texLayer & bit) > 0)
                 index |= 1 << 1;
             
-            ref readonly var chunkRB = ref _chunks[x + 1, z];
+            ref readonly var chunkRB = ref _points[x + 1, z];
             if ((chunkRB.texLayer & bit) > 0)
                 index |= 1 << 0;
 
@@ -347,7 +347,7 @@ namespace MarchingSquares
             {
                 for (int j = 0; j <= width; j++)
                 {
-                    ref readonly var point1 = ref _chunks[i, j];
+                    ref readonly var point1 = ref _points[i, j];
                     Vector3 p1 = new Vector3(i, point1.high, j);
                     Gizmos.DrawSphere(p1, 0.05F);
                 }
