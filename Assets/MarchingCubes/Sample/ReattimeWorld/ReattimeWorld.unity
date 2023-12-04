@@ -656,8 +656,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2074269426}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.2, z: 1.255}
-  m_LocalScale: {x: 2, y: 2, z: 2}
+  m_LocalPosition: {x: 0, y: 1, z: 1.61}
+  m_LocalScale: {x: 4, y: 4, z: 4}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1056438901}
@@ -675,7 +675,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15a3b62f7de8434b98f0ad86f496deae, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _radius: 1.2
+  _radius: 2
 --- !u!23 &2074269429
 MeshRenderer:
   m_ObjectHideFlags: 0
