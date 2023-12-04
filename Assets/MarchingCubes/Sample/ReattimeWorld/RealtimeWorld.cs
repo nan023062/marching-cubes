@@ -15,11 +15,14 @@ namespace MarchingCubes.Sample
 {
     public class RealtimeWorld : MonoBehaviour
     {
-        public const int ChunkCell = 32;
-        public const float CellSize = 0.25f;
+        public const int ChunkCellNum = 32;
+        public const int CellOffset = 1;
+        public const int ChunkMaxCellNum = ChunkCellNum + 2 * CellOffset;
+        public static readonly Vector3 PosOffset = new Vector3(-CellOffset, -CellOffset, -CellOffset) * Size;
+        public const float Size = 0.25f;
         public const int Offset = 1;
         public const int ViewSize = Offset * 2 + 1;
-
+        
         public static RealtimeWorld Instance { private set; get; }
 
         [SerializeField, Header("Spot")] private Transform _spot;
@@ -27,21 +30,48 @@ namespace MarchingCubes.Sample
         [SerializeField, Header("Chunk Prefab")]
         private RealtimeWorldChunk _chunkPrefab;
         
+        [SerializeField, Header("World Capacity")]
+        private short _halfCapacity = 64;
+        
         private bool _initialized;
         private ViewPort _viewPort;
         private readonly Dictionary<long, Chunk> _chunks = new();
         private readonly LinkedList<long> _dirtyChunks = new();
+        private float[,,] _isoValues;
+        private ChunkId _min, _max;
+        private int _pointLength, _halfPointLength;
 
         private void Awake()
         {
             Instance = this;
+            _halfPointLength = _halfCapacity * ChunkCellNum;
+            _pointLength = _halfPointLength * 2 + 1;
+            _isoValues = new float[_pointLength, _pointLength, _pointLength];
+            _min = new ChunkId((short)-_halfCapacity,(short)-_halfCapacity, (short)-_halfCapacity);
+            _max = new ChunkId(_halfCapacity,_halfCapacity, _halfCapacity);
+            for (int x = 0; x < _pointLength; x++)
+            {
+                for (int y = 0; y < _pointLength; y++)
+                {
+                    for (int z = 0; z < _pointLength; z++)
+                        _isoValues[x, y, z] = float.MaxValue;
+                }
+            }
+        }
+        
+        public float GetPointIso(int x, int y, int z)
+        {
+            x = Mathf.Clamp(x + _halfPointLength, 0, _pointLength - 1);
+            y = Mathf.Clamp(y + _halfPointLength, 0, _pointLength - 1);
+            z = Mathf.Clamp(z + _halfPointLength, 0, _pointLength - 1);
+            return _isoValues[x, y, z];
         }
 
         private void Update()
         {
             if (_spot != null)
             {
-                float chunkSize = ChunkCell * CellSize;
+                float chunkSize = ChunkCellNum * Size;
                 Vector3 spot = _spot.position;
                 short chunkX = (short)Mathf.FloorToInt(spot.x / chunkSize);
                 short chunkY = (short)Mathf.FloorToInt(spot.y / chunkSize);
@@ -142,7 +172,7 @@ namespace MarchingCubes.Sample
                             go.name = $"Chunk<{id.x}_{id.y}_{id.z}>";
                             go.SetActive(true);
                             chunk.obj = go.GetComponent<RealtimeWorldChunk>();
-                            chunk.obj.Initialize( id.x, id.y, id.z, id != 0);
+                            chunk.obj.Initialize(this, id.x, id.y, id.z, id != 0);
                         }
                         else if (!chunk.obj.gameObject.activeSelf)
                         {
@@ -155,28 +185,63 @@ namespace MarchingCubes.Sample
             }
         }
         
-        public void SetBlock(Vector3 position, float radius)
+        public void SetBlock(in Vector3 position, float radius)
         {
-            Vector3 min = position - Vector3.one * radius;
-            ChunkId minId = PositionToChunkId(min);
-            Vector3 max = position + Vector3.one * radius;
-            ChunkId maxId = PositionToChunkId(max);
+            Vector3 center = position;
+            Vector3 radius3 = new Vector3(radius, radius, radius);
+            Vector3 minCorner = center - radius3;
+            Vector3 maxCorner = center + radius3;
             
-            for (short x = minId.x; x <= maxId.x; x++)
+            // 1 更新iso 
+            Vector3 min = minCorner / Size;
+            Vector3 max = maxCorner / Size;
+            Coord coord0 = new Coord(Mathf.FloorToInt(min.x), Mathf.FloorToInt(min.y), Mathf.FloorToInt(min.z));
+            Coord coord1 = new Coord(Mathf.FloorToInt(max.x), Mathf.FloorToInt(max.y), Mathf.FloorToInt(max.z));
+
+            bool changed = false;
+
+            for (int x = coord0.x; x <= coord1.x; x++)
             {
-                for (short y = minId.y; y <= maxId.y; y++)
+                for (int y = coord0.y; y <= coord1.y; y++)
                 {
-                    for (short z = minId.z; z <= maxId.z; z++)
+                    for (int z = coord0.z; z <= coord1.z; z++)
                     {
-                        ChunkId id = new ChunkId(x, y, z);
-                        if (_chunks.TryGetValue(id, out Chunk chunk))
+                        Vector3 p = new Vector3(x, y, z) * Size;
+                        float iso = Vector3.Distance(p, center);
+                        int x0 = Mathf.Clamp(x + _halfPointLength, 0, _pointLength - 1);
+                        int y0 = Mathf.Clamp(y + _halfPointLength, 0, _pointLength - 1);
+                        int z0 = Mathf.Clamp(z + _halfPointLength, 0, _pointLength - 1);
+                        float oldIso = _isoValues[x0, y0, z0];
+                        if( iso < oldIso)
                         {
-                            // ReSharper disable once Unity.PerformanceCriticalCodeNullComparison
-                            if (null != chunk.obj)
+                            changed = true;
+                            _isoValues[x0, y0, z0] = iso;
+                        }
+                    }
+                }
+            }
+
+            // 2 更新影响的chunk
+            if (changed)
+            {
+                ChunkId minId = PositionToChunkId(minCorner);
+                ChunkId maxId = PositionToChunkId(maxCorner);
+                for (short x = minId.x; x <= maxId.x; x++)
+                {
+                    for (short y = minId.y; y <= maxId.y; y++)
+                    {
+                        for (short z = minId.z; z <= maxId.z; z++)
+                        {
+                            ChunkId id = new ChunkId(x, y, z);
+                            if (_chunks.TryGetValue(id, out Chunk chunk))
                             {
-                                bool dirty = chunk.obj.SetBlock(position, radius);
-                                if( dirty )
-                                    _dirtyChunks.AddLast(id);
+                                // ReSharper disable once Unity.PerformanceCriticalCodeNullComparison
+                                if (null != chunk.obj)
+                                {
+                                    bool dirty = chunk.obj.SetBlock(coord0, coord1, radius);
+                                    if( dirty )
+                                        _dirtyChunks.AddLast(id);
+                                }
                             }
                         }
                     }
@@ -186,7 +251,7 @@ namespace MarchingCubes.Sample
         
         private ChunkId PositionToChunkId(Vector3 position)
         {
-            float chunkSize = ChunkCell * CellSize;
+            float chunkSize = ChunkCellNum * Size;
             short chunkX = (short)Mathf.FloorToInt(position.x / chunkSize);
             short chunkY = (short)Mathf.FloorToInt(position.y / chunkSize);
             short chunkZ = (short)Mathf.FloorToInt(position.z / chunkSize);

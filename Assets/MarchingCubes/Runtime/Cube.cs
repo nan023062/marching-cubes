@@ -55,6 +55,18 @@ namespace MarchingCubes
         Y,
         Z
     }
+
+    public struct Coord
+    {
+        public int x, y, z;
+        
+        public Coord(int x, int y, int z)
+        {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+    }
     
     public struct Point
     {

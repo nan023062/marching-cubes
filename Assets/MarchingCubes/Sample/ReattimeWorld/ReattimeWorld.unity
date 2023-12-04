@@ -613,6 +613,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   _spot: {fileID: 1056438901}
   _chunkPrefab: {fileID: 2103838848}
+  _halfCapacity: 8
 --- !u!4 &1340520812
 Transform:
   m_ObjectHideFlags: 0
@@ -795,7 +796,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 5db74373796a3504ea427ed36706c831, type: 2}
+  - {fileID: -8429602205177196161, guid: 0086b3303b830a745a2ce5237b474629, type: 3}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
