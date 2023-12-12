@@ -5,7 +5,7 @@ using UnityEngine;
 namespace MineOasis
 {
     [BurstCompile]
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [UpdateInGroup(typeof(MineOasisSystemGroup))]
     public partial struct RenderingSystem : ISystem
     {
         public void OnCreate(ref SystemState state)

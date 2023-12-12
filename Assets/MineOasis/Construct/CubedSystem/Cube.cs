@@ -9,4 +9,11 @@ namespace MineOasis
         public float3 Size;
         public quaternion Rotation;
     }
+    
+    public struct RotateSpeed : IComponentData
+    {
+        public float RadiansPerSecond;
+    }
+    
+    
 }

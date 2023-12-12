@@ -7,19 +7,17 @@ using UnityEngine;
 namespace MineOasis
 {    
     [BurstCompile]
-    [UpdateInGroup(typeof(PresentationSystemGroup))]
+    [UpdateInGroup(typeof(MineOasisSystemGroup))]
     public partial struct CubeSystem : ISystem
     {
         public void OnCreate(ref SystemState state)
         {
             //state.RequireForUpdate<Cube>();
             //state.RequireForUpdate<Renderer>();
-            Debug.Log($"CubeSystem.OnCreate");
         }
 
         public void OnDestroy(ref SystemState state)
         {
-            Debug.Log($"CubeSystem.OnDestroy");
         }
         
         [BurstCompile]
