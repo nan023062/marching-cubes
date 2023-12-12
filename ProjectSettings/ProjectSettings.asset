@@ -791,7 +791,8 @@ PlayerSettings:
   webGLThreadsSupport: 0
   webGLDecompressionFallback: 0
   webGLPowerPreference: 2
-  scriptingDefineSymbols: {}
+  scriptingDefineSymbols:
+    Standalone: DOTS_ADD_PARTIAL_KEYWORD
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend: {}

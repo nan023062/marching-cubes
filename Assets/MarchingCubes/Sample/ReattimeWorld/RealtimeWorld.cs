@@ -20,13 +20,13 @@ namespace MarchingCubes.Sample
         public const int ChunkMaxCellNum = ChunkCellNum + 2 * CellOffset;
         public static readonly Vector3 PosOffset = new Vector3(-CellOffset, -CellOffset, -CellOffset) * Size;
         public const float Size = 0.25f;
-        public const int Offset = 1;
+        public const int Offset = 2;
         public const int ViewSize = Offset * 2 + 1;
         
         public static RealtimeWorld Instance { private set; get; }
 
         [SerializeField, Header("Spot")] private Transform _spot;
-
+        
         [SerializeField, Header("Chunk Prefab")]
         private RealtimeWorldChunk _chunkPrefab;
         
