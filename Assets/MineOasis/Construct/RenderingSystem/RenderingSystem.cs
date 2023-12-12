@@ -1,5 +1,6 @@
 using Unity.Burst;
 using Unity.Entities;
+using UnityEngine;
 
 namespace MineOasis
 {
@@ -9,16 +10,21 @@ namespace MineOasis
     {
         public void OnCreate(ref SystemState state)
         {
+            //state.RequireForUpdate<Cube>();
+            state.RequireForUpdate<Renderer>();
+            Debug.Log($"RenderingSystem.OnCreate()");
         }
 
         public void OnDestroy(ref SystemState state)
         {
+            Debug.Log($"RenderingSystem.OnDestroy()");
         }
 
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
-            
+            float deltaTime = state.WorldUnmanaged.Time.DeltaTime;
+            Debug.Log($"RenderingSystem.OnUpdate({deltaTime})");
         }
     }
 }

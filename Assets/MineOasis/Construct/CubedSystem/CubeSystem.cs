@@ -2,6 +2,7 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Mathematics;
+using UnityEngine;
 
 namespace MineOasis
 {    
@@ -11,15 +12,16 @@ namespace MineOasis
     {
         public void OnCreate(ref SystemState state)
         {
-            state.RequireForUpdate<Cube>();
-            state.RequireForUpdate<Renderer>();
+            //state.RequireForUpdate<Cube>();
+            //state.RequireForUpdate<Renderer>();
+            Debug.Log($"CubeSystem.OnCreate");
         }
 
         public void OnDestroy(ref SystemState state)
         {
-            
+            Debug.Log($"CubeSystem.OnDestroy");
         }
-
+        
         [BurstCompile]
         public void OnUpdate(ref SystemState state)
         {
@@ -29,6 +31,8 @@ namespace MineOasis
             {
                 cube.ValueRW.Center += new float3(0.05f, 0.05f, 0.05f) * deltaTime;
             }
+            
+            Debug.Log($"CubeSystem.OnUpdate({deltaTime})");
         }
     }
 }
