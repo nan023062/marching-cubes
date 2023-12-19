@@ -12,7 +12,7 @@ namespace MineOasis
         {
             //state.RequireForUpdate<Cube>();
             state.RequireForUpdate<Renderer>();
-            Debug.Log($"RenderingSystem.OnCreate()");
+            //Debug.Log($"RenderingSystem.OnCreate()");
         }
 
         public void OnDestroy(ref SystemState state)
@@ -24,7 +24,7 @@ namespace MineOasis
         public void OnUpdate(ref SystemState state)
         {
             float deltaTime = state.WorldUnmanaged.Time.DeltaTime;
-            Debug.Log($"RenderingSystem.OnUpdate({deltaTime})");
+            //Debug.Log($"RenderingSystem.OnUpdate({deltaTime})");
         }
     }
 }

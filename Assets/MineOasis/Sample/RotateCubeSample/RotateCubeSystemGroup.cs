@@ -16,13 +16,13 @@ namespace MineOasis
     }
     
     [UpdateInGroup( typeof( MineOasisSystemGroup ) )]
-    public partial class CubeRotateSystemGroup : SceneSystemGroup
+    public partial class CubeRotateSystemGroup : ComponentSystemGroup
     {
         
     }
     
     [UpdateInGroup( typeof( MineOasisSystemGroup ) )]
-    public partial class CubeRotateWithIJobEntitySystemGroup : SceneSystemGroup
+    public partial class CubeRotateWithIJobEntitySystemGroup : ComponentSystemGroup
     {
         
     }

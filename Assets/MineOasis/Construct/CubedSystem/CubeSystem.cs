@@ -30,7 +30,7 @@ namespace MineOasis
                 cube.ValueRW.Center += new float3(0.05f, 0.05f, 0.05f) * deltaTime;
             }
             
-            Debug.Log($"CubeSystem.OnUpdate({deltaTime})");
+            //Debug.Log($"CubeSystem.OnUpdate({deltaTime})");
         }
     }
 }
