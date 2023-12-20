@@ -1,26 +1,16 @@
+//****************************************************************************
+// File: GreenCubeRotateSystem.cs
+// Author: Li Nan
+// Date: 2023-12-20 12:00
+// Version: 1.0
+//****************************************************************************
+
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Transforms;
-using UnityEngine;
 
 namespace MineOasis.Sample.RotateCubeSample
 {
-    struct GreenCubeTag : IComponentData
-    {
-        
-    }
-    
-    public class GreenCubeAuthoring : MonoBehaviour 
-    {
-        public class Baker : Baker<GreenCubeAuthoring>
-        {
-            public override void Bake(GreenCubeAuthoring authoring)
-            {
-                var entity = GetEntity(TransformUsageFlags.Dynamic);
-                AddComponent(entity, new GreenCubeTag());
-            }
-        }
-    }
     
     [BurstCompile]
     [UpdateInGroup( typeof( CubeRotateSystemGroup ) )]

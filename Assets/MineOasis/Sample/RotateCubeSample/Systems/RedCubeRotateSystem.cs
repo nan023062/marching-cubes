@@ -1,26 +1,16 @@
+//****************************************************************************
+// File: RedCubeRotateSystem.cs
+// Author: Li Nan
+// Date: 2023-12-20 12:00
+// Version: 1.0
+//****************************************************************************
+
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Transforms;
-using UnityEngine;
 
 namespace MineOasis.Sample.RotateCubeSample
 {
-    struct RedCubeTag : IComponentData
-    {
-        
-    }
-    
-    public class RedCubeAuthoring : MonoBehaviour 
-    {
-        public class Baker : Baker<RedCubeAuthoring>
-        {
-            public override void Bake(RedCubeAuthoring authoring)
-            {
-                var entity = GetEntity(TransformUsageFlags.Dynamic);
-                AddComponent(entity, new RedCubeTag());
-            }
-        }
-    }
     
     [BurstCompile]
     [UpdateInGroup( typeof( CubeRotateSystemGroup ) )]

@@ -1,30 +1,23 @@
 //****************************************************************************
-// File: RotateCubeAuthoring.cs
+// File: RotateComponent.cs
 // Author: Li Nan
-// Date: 2023-12-19 12:00
+// Date: 2023-12-20 12:00
 // Version: 1.0
 //****************************************************************************
 
-using System;
 using Unity.Entities;
 using Unity.Mathematics;
 using UnityEngine;
 
 namespace MineOasis.Sample.RotateCubeSample
 {
-    struct RotateSpeed : IComponentData
-    {
-        public float rotateSpeed;
-    }
-    
-    
-    public class RotateCubeAuthoring : MonoBehaviour
+    public class RotateComponent : MonoBehaviour
     {
         [Range(0, 360)] public float rotateSpeed = 360F;
         
-        public class Baker : Baker<RotateCubeAuthoring>
+        public class Baker : Baker<RotateComponent>
         {
-            public override void Bake(RotateCubeAuthoring authoring)
+            public override void Bake(RotateComponent authoring)
             {
                 var entity = GetEntity(TransformUsageFlags.Dynamic);
                 AddComponent(entity, new RotateSpeed()

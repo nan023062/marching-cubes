@@ -20,10 +20,4 @@ namespace MineOasis
     {
         
     }
-    
-    [UpdateInGroup( typeof( MineOasisSystemGroup ) )]
-    public partial class CubeRotateWithIJobEntitySystemGroup : ComponentSystemGroup
-    {
-        
-    }
 }

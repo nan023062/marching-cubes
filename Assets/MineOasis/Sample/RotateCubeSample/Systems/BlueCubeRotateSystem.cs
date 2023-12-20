@@ -1,26 +1,16 @@
+//****************************************************************************
+// File: BlueCubeRotateSystem.cs
+// Author: Li Nan
+// Date: 2023-12-20 12:00
+// Version: 1.0
+//****************************************************************************
+
 using Unity.Burst;
 using Unity.Entities;
 using Unity.Transforms;
-using UnityEngine;
 
 namespace MineOasis.Sample.RotateCubeSample
 {
-    struct BlueCubeTag : IComponentData
-    {
-        
-    }
-    
-    public class BlueCubeAuthoring : MonoBehaviour 
-    {
-        public class Baker : Baker<BlueCubeAuthoring>
-        {
-            public override void Bake(BlueCubeAuthoring authoring)
-            {
-                var entity = GetEntity(TransformUsageFlags.Dynamic);
-                AddComponent(entity, new BlueCubeTag());
-            }
-        }
-    }
     
     [BurstCompile]
     [UpdateInGroup( typeof( CubeRotateSystemGroup ) )]

@@ -11,8 +11,8 @@ GameObject:
   - component: {fileID: 4228694155265063636}
   - component: {fileID: 8565417587587665144}
   - component: {fileID: 6184542396611618430}
-  - component: {fileID: -339741048179857958}
   - component: {fileID: -4831557732183948802}
+  - component: {fileID: 4922873423043271677}
   m_Layer: 0
   m_Name: p_greencube
   m_TagString: Untagged
@@ -85,19 +85,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &-339741048179857958
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5893937465019346372}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d1ebe3ace81e4ed4894da3c4bbaddcec, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  rotateSpeed: 360
 --- !u!114 &-4831557732183948802
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -110,3 +97,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9363d3a202484778abb1fe19896c60a6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &4922873423043271677
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5893937465019346372}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e08db8678d524b2eb63cc1493785c3ea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  rotateSpeed: 360

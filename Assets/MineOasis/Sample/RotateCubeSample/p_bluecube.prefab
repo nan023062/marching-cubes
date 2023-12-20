@@ -11,8 +11,8 @@ GameObject:
   - component: {fileID: 4228694155265063636}
   - component: {fileID: 8565417587587665144}
   - component: {fileID: 6184542396611618430}
-  - component: {fileID: -835206722448937886}
   - component: {fileID: -9050817549553899199}
+  - component: {fileID: 470879197096889364}
   m_Layer: 0
   m_Name: p_bluecube
   m_TagString: Untagged
@@ -85,19 +85,6 @@ MeshRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_AdditionalVertexStreams: {fileID: 0}
---- !u!114 &-835206722448937886
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5893937465019346372}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: d1ebe3ace81e4ed4894da3c4bbaddcec, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  rotateSpeed: 360
 --- !u!114 &-9050817549553899199
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -108,5 +95,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0e96b1dbe2f24318b612462f0fb6a2e2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &470879197096889364
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5893937465019346372}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e08db8678d524b2eb63cc1493785c3ea, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
