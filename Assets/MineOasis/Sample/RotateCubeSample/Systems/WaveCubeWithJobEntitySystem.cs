@@ -15,7 +15,6 @@ using UnityEngine;
 
 namespace MineOasis.Sample.RotateCubeSample
 {
-    
     partial struct WaveCubeWithJobEntity : IJobEntity
     {
         [ReadOnly] public float time;
@@ -32,6 +31,7 @@ namespace MineOasis.Sample.RotateCubeSample
     }
 
     [BurstCompile]
+    [RequireMatchingQueriesForUpdate]
     [UpdateInGroup( typeof( CubeRotateSystemGroup ) )]
     public partial struct WaveCubeWithJobEntitySystem : ISystem
     {

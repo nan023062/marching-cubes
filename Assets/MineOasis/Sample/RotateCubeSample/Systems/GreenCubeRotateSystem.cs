@@ -13,6 +13,7 @@ namespace MineOasis.Sample.RotateCubeSample
 {
     
     [BurstCompile]
+    [RequireMatchingQueriesForUpdate]
     [UpdateInGroup( typeof( CubeRotateSystemGroup ) )]
     public partial struct GreenCubeRotateSystem : ISystem
     {
