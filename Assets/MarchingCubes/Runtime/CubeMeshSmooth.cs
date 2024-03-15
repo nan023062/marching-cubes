@@ -92,7 +92,7 @@ namespace MarchingCubes
                     cubeIndex |= 1 << v;
             }
             
-            int edgeMask = CubeTable.cubeTable[cubeIndex];
+            int edgeMask = CubeTable.GetCubeKindEdgeMask(cubeIndex);
             if (edgeMask == 0)
                 return 0;
             
@@ -125,7 +125,7 @@ namespace MarchingCubes
             }
             
             int nTri = 0;
-            int[] cubeTri = CubeTable.triTable[cubeIndex];
+            ref readonly int[] cubeTri = ref CubeTable.GetCubeKindTriangles(cubeIndex);
             for (int i = 0; cubeTri[i] != -1; i += 3)
             {
                 ref var triangle = ref triangles[nTri];

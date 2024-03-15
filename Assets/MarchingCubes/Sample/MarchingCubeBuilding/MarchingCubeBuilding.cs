@@ -16,7 +16,7 @@ namespace MarchingCubes.Sample
         [SerializeField] GameObject pointCubePrefab;
         [SerializeField] GameObject pointQuadPrefab;
         [SerializeField] private bool showPoint;
-        [SerializeField] Transform meshes;
+        [SerializeField] Transform mesh256;
         
         private BlockBuilding _building;
         private PointCube[,,] _pointCubes;
@@ -45,14 +45,23 @@ namespace MarchingCubes.Sample
                 }
             }
             _meshes.Clear();
-            foreach (Transform child in meshes)
+            FetchMeshesRecursive(mesh256);
+        }
+        
+        private void FetchMeshesRecursive(Transform transform)
+        {
+            if (transform == null)
+                return;
+            
+            foreach (Transform child in transform)
             {
-                if (int.TryParse(child.name, out int mask))
-                {
-                    _meshes.Add(mask, child.gameObject);
-                }
+                if (int.TryParse(child.name, out int cubeIndex))
+                    _meshes.Add(cubeIndex, child.gameObject);
+                
+                FetchMeshesRecursive(child);
             }
         }
+
 
         private void OnDestroy()
         {

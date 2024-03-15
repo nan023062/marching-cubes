@@ -48,6 +48,21 @@ namespace MarchingCubes
         V6,
         V7
     }
+    
+    [Flags]
+    public enum CubeVertexMask
+    {
+        Null = 0x00,
+        V0 = 0x01,
+        V1 = 0x02,
+        V2 = 0x04,
+        V3 = 0x08,
+        V4 = 0x10,
+        V5 = 0x20,
+        V6 = 0x40,
+        V7 = 0x80,
+        All = 0xFF
+    }
 
     public enum Axis : byte
     {

@@ -104,7 +104,7 @@ namespace MarchingCubes.Sample
             int maxY = Mathf.Clamp(y + 1, 0, Y - 1);
             int minZ = Mathf.Clamp(z, 0, Z - 1);
             int maxZ = Mathf.Clamp(z + 1, 0, Z - 1);
-
+            
             for (int i = minX; i <= maxX; i++)
             {
                 for (int j = minY; j <= maxY; j++)

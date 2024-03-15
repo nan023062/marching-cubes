@@ -5,6 +5,7 @@
 // Version: 1.0
 //****************************************************************************
 
+using System;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
@@ -21,6 +22,11 @@ namespace MarchingCubes
         public static bool AlmostEqual(this float v1, float v2)
         {
             return Mathf.Abs(v1 - v2) < epsilon;
+        }
+        
+        public static Vector3 ToVector3(this (int x, int y, int z) v)
+        {
+            return new Vector3(v.x, v.y, v.z);
         }
         
         /// <summary>
@@ -87,11 +93,11 @@ namespace MarchingCubes
             float t2 = (isoLevel - s1) / (s2 - s1);
             return v1 + t2 * (v2 - v1);
         }
-
+        
         /// <summary>
         /// 256种情况的边索引表
         /// </summary>
-        public static readonly int[] cubeTable = new int[CubeTable.CubeKind]
+        private static readonly int[] cubeEdgeTable = new int[CubeTable.CubeKind]
         {
             0x0, 0X109, 0X203, 0X30a, 0X406, 0X50f, 0X605, 0X70c,
             0x80c, 0X905, 0Xa0f, 0Xb06, 0Xc0a, 0Xd03, 0Xe09, 0Xf00,
@@ -127,10 +133,20 @@ namespace MarchingCubes
             0x70c, 0X605, 0X50f, 0X406, 0X30a, 0X203, 0X109, 0X0
         };
         
+        public static int GetCubeKindEdgeMask(int cubeKindIndex)
+        {
+            return cubeEdgeTable[cubeKindIndex];
+        }
+            
+        public static ref readonly int[] GetCubeKindTriangles(int cubeKindIndex)
+        {
+            return ref triTable[cubeKindIndex];
+        }
+        
         /// <summary>
         /// 256种情况的三角面表
         /// </summary>
-        public static readonly int[][] triTable = new int[CubeTable.CubeKind][]
+        private static readonly int[][] triTable = new int[CubeTable.CubeKind][]
         {
             new int[]
             {
