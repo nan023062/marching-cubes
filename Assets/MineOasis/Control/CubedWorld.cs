@@ -14,12 +14,12 @@ namespace MineOasis
         private GameObjectPool<InputCube> _cubePool;
         private GameObjectPool<BuildZone> _zonePool;
 
-        private readonly List<BuildZone> _zones = new();
+        private readonly List<BuildZone> _zones = new List<BuildZone>();
         private BuildZone _selectedZone;
         private int3 _cells;
 
-        private readonly Dictionary<int, InputQuad> _quads = new();
-        private readonly Dictionary<int, InputCube> _cubes = new();
+        private readonly Dictionary<int, InputQuad> _quads = new Dictionary<int, InputQuad>();
+        private readonly Dictionary<int, InputCube> _cubes = new Dictionary<int, InputCube>();
 
         public Matrix4x4 localToWorldMatrix { private set; get; }
         public Matrix4x4 worldToLocalMatrix { private set; get; }

@@ -35,8 +35,8 @@ namespace MarchingCubes.Sample
         
         private bool _initialized;
         private ViewPort _viewPort;
-        private readonly Dictionary<long, Chunk> _chunks = new();
-        private readonly LinkedList<long> _dirtyChunks = new();
+        private readonly Dictionary<long, Chunk> _chunks = new Dictionary<long, Chunk>();
+        private readonly LinkedList<long> _dirtyChunks = new LinkedList<long>();
         private float[,,] _isoValues;
         private ChunkId _min, _max;
         private int _pointLength, _halfPointLength;
@@ -358,7 +358,16 @@ namespace MarchingCubes.Sample
 
             public override int GetHashCode()
             {
-                return HashCode.Combine(x0, y0, z0, x1, y1, z1);
+                unchecked
+                {
+                    int hash = x0;
+                    hash = (hash * 397) ^ y0;
+                    hash = (hash * 397) ^ z0;
+                    hash = (hash * 397) ^ x1;
+                    hash = (hash * 397) ^ y1;
+                    hash = (hash * 397) ^ z1;
+                    return hash;
+                }
             }
         }
     }

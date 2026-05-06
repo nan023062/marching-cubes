@@ -1,0 +1,14 @@
+{
+  "name": "reviewer",
+  "title": "评审官",
+  "role": "对抗性批判审查者（subagent）",
+  "type": "management",
+  "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+  "model": "opus",
+  "summary": "以 subagent 形式就地调起，对所有 agent 的任务交付做对抗性审查；不走 channel，审完即地返回报告，由调用方 agent + 用户决定是否继续修改或提交下一步",
+  "dependencies": [
+    { "target": "architect", "type": "被调起·设计审查", "description": "架构师完成设计/建档后以 Agent tool 调起 reviewer 做对抗审查" },
+    { "target": "worker", "type": "被调起·实现审查", "description": "码农完成实现后由架构师合规验收时以 Agent tool 调起 reviewer 做代码质量对抗审查" },
+    { "target": "manager", "type": "被调起·治理审查", "description": "人事管理提出升格提案时以 Agent tool 调起 reviewer 做独立质疑" }
+  ]
+}

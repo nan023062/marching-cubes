@@ -27,7 +27,8 @@ namespace MarchingCubes
                 vertexRoots[i] = child;
                 child.SetParent(root);
                 Vector3 pos = new Vector3(0, 0, i * 3);
-                child.SetLocalPositionAndRotation( pos, Quaternion.identity);
+                child.localPosition = pos;
+                child.localRotation = Quaternion.identity;
                 child.localScale = Vector3.one;
             }
             
@@ -70,7 +71,8 @@ namespace MarchingCubes
                 {
                     Transform child = vertexRoot.GetChild(j);
                     Vector3 pos = new Vector3( j * 2, 0, 0);
-                    child.SetLocalPositionAndRotation(pos, Quaternion.identity);
+                    child.localPosition = pos;
+                    child.localRotation = Quaternion.identity;
                     child.localScale = Vector3.one;
                 }
             }

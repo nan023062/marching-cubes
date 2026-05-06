@@ -50,7 +50,8 @@ namespace MarchingCubes.Sample
             float chunkSize = chunkCell * cellSize;
             Transform chunkTransform = transform;
             Vector3 localPosition = new Vector3(chunkX, 0F, chunkZ) * chunkSize;
-            chunkTransform.SetLocalPositionAndRotation(localPosition, Quaternion.identity);
+            chunkTransform.localPosition = localPosition;
+            chunkTransform.localRotation = Quaternion.identity;
             chunkTransform.localScale = new Vector3(cellSize, cellSize, cellSize);
 
             for (int i = 0; i <= chunkCell; i++)

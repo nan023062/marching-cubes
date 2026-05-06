@@ -88,7 +88,7 @@ namespace MarchingCubes
         public readonly sbyte x, y, z;
         public float iso;
         
-        public Vector3 position => new(x, y, z);
+        public Vector3 position => new Vector3(x, y, z);
 
         public Point(int x, int y, int z)
         {

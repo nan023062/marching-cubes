@@ -1,0 +1,5 @@
+{
+  "name": "技术部",
+  "summary": "架构设计、代码实现、技术决策",
+  "roles": { "arch-auditor": "architect" }
+}

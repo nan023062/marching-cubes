@@ -60,18 +60,18 @@ namespace MarchingCubes
         /// </summary>
         public static readonly Edge[] EdgesOffset = new Edge[EdgeCount]
         {
-            new (0,0,1 , Axis.X), // 0
-            new (1,0,0 , Axis.Z), // 1
-            new (0,0,0 , Axis.X), // 2 
-            new (0,0,0 , Axis.Z), // 3
-            new (0,1,1 , Axis.X), // 4 
-            new (1,1,0 , Axis.Z), // 5
-            new (0,1,0 , Axis.X), // 6
-            new (0,1,0 , Axis.Z), // 7
-            new (0,0,1 , Axis.Y), // 8
-            new (1,0,1 , Axis.Y), // 9
-            new (1,0,0 , Axis.Y), // 10
-            new (0,0,0 , Axis.Y), // 11
+            new Edge(0,0,1 , Axis.X), // 0
+            new Edge(1,0,0 , Axis.Z), // 1
+            new Edge(0,0,0 , Axis.X), // 2 
+            new Edge(0,0,0 , Axis.Z), // 3
+            new Edge(0,1,1 , Axis.X), // 4 
+            new Edge(1,1,0 , Axis.Z), // 5
+            new Edge(0,1,0 , Axis.X), // 6
+            new Edge(0,1,0 , Axis.Z), // 7
+            new Edge(0,0,1 , Axis.Y), // 8
+            new Edge(1,0,1 , Axis.Y), // 9
+            new Edge(1,0,0 , Axis.Y), // 10
+            new Edge(0,0,0 , Axis.Y), // 11
         };
         
         /// <summary>

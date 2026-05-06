@@ -52,7 +52,8 @@ namespace MarchingCubes.Sample
             Transform chunkTransform = transform;
             Vector3 localPosition = new Vector3(chunkX, chunkY, chunkZ) * chunkSize;
             localPosition += RealtimeWorld.PosOffset;
-            chunkTransform.SetLocalPositionAndRotation(localPosition, Quaternion.identity);
+            chunkTransform.localPosition = localPosition;
+            chunkTransform.localRotation = Quaternion.identity;
             chunkTransform.localScale = new Vector3(size, size, size);
             
             _meshCollider = GetComponent<MeshCollider>();

@@ -1,0 +1,13 @@
+{
+  "name": "manager",
+  "title": "人事管理",
+  "role": "Agent 全生命周期治理者 · 团队关系与经验沉淀",
+  "type": "management",
+  "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep"],
+  "model": "sonnet",
+  "summary": "短期 session → 中期记忆压缩 → 长期 identity/soul + skill 升格。统一治理所有记忆（agent + module），升格需架构师审计。擅长读人、理关系、沉淀团队经验。",
+  "dependencies": [
+    { "target": "*", "type": "读 session+中期、编辑中期", "description": "扫描 mindspace/**/ 下所有已注册 agent 的 sessions/ 和 memory/，新 agent 加入自动覆盖（通配符语法见 cbim/structure/contract.md § dependencies.target 字段语义）" },
+    { "target": "role:arch-auditor", "type": "长期升格审计", "description": "升格 identity/soul/skill 时需具备 arch-auditor 角色的 agent 确认；当前由 tech/org.json § roles 绑定到 architect（角色绑定语法见 cbim/structure/contract.md § dependencies.target 字段语义）" }
+  ]
+}

@@ -1,17 +1,11 @@
-//****************************************************************************
-// File: Sample.cs
-// Author: Li Nan
-// Date: 2023-08-30 12:00
-// Version: 1.0
-//****************************************************************************
 using UnityEngine;
 
-namespace MarchingSquares  
+namespace MarchingSquares
 {
     [RequireComponent(typeof(MeshCollider))]
     [RequireComponent(typeof(MeshRenderer))]
     [RequireComponent(typeof(MeshFilter))]
-    public class MarchingQuad25Sample : MonoBehaviour, ITextureLoader
+    public class MarchingQuad25Sample : MonoBehaviour
     {
         [SerializeField]
         private int width = 50;
@@ -20,16 +14,19 @@ namespace MarchingSquares
         [SerializeField]
         private int pow = 8;
 
-        [SerializeField,Header("纹理")]
-        private int textureLayer = 0;
-        
+        [SerializeField, Header("涂刷类型 0=泥 1=草 2=岩 3=雪 4=腐")]
+        [Range(0, 4)]
+        private int textureLayer = 1;
+
         private MSQTerrain _terrain;
         private MeshCollider _meshCollider;
         private MeshRenderer _meshRenderer;
         private MeshFilter _meshFilter;
         [SerializeField] private Brush bush;
-        [SerializeField] private MSQTexture[] _textureLayers;
-        
+        [SerializeField] private Material cliffMaterial;
+        private MeshFilter _cliffFilter;
+        private MeshRenderer _cliffRenderer;
+
         public void Awake()
         {
             _meshCollider = GetComponent<MeshCollider>();
@@ -37,10 +34,18 @@ namespace MarchingSquares
             _meshFilter = GetComponent<MeshFilter>();
             Transform t = transform;
             float unit = 1f / pow;
-            _terrain = new MSQTerrain(width, width, height, unit, t.position, this);
+            _terrain = new MSQTerrain(width, width, height, unit, t.position);
             t.localScale = _terrain.localToWorld.lossyScale;
             _meshFilter.sharedMesh = _terrain.mesh;
             _meshCollider.sharedMesh = _terrain.mesh;
+
+            var cliffGO = new GameObject("CliffWalls");
+            cliffGO.transform.SetParent(t, false);
+            _cliffFilter = cliffGO.AddComponent<MeshFilter>();
+            _cliffRenderer = cliffGO.AddComponent<MeshRenderer>();
+            _cliffFilter.sharedMesh = _terrain.cliffMesh;
+            if (cliffMaterial != null)
+                _cliffRenderer.sharedMaterial = cliffMaterial;
         }
 
         private void Update()
@@ -51,7 +56,6 @@ namespace MarchingSquares
             int layerMask = 1 << LayerMask.NameToLayer("MarchingQuads");
             if (Physics.Raycast(ray, out var hit, 1000, layerMask))
             {
-                var h = hit.collider;
                 pos = hit.point;
                 t.localScale = _terrain.localToWorld.lossyScale;
                 t.rotation = _terrain.localToWorld.rotation;
@@ -69,42 +73,25 @@ namespace MarchingSquares
             pos.z = Mathf.RoundToInt(pos.z / unit) * unit;
             t.position = pos;
 
-            if (Input.GetMouseButtonUp(1))
+            if (Input.GetMouseButton(0) || Input.GetMouseButton(1))
             {
+                bool dirty;
                 if (bush.colorBrush)
                 {
-                    if (_terrain.PaintTexture(bush, textureLayer, false))
-                    {
-                        _meshFilter.sharedMesh = _terrain.mesh;
-                        _meshCollider.sharedMesh = _terrain.mesh;
-                    }
+                    int type = Input.GetMouseButton(0) ? textureLayer : 0;
+                    dirty = _terrain.PaintTerrainType(bush, type);
                 }
                 else
                 {
-                    if(_terrain.BrushMapHigh(bush, -1))
-                    {
-                        _meshFilter.sharedMesh = _terrain.mesh;
-                        _meshCollider.sharedMesh = _terrain.mesh;
-                    }
+                    int delta = Input.GetMouseButton(0) ? 1 : -1;
+                    dirty = _terrain.BrushMapHigh(bush, delta);
                 }
-            }
-            else if (Input.GetMouseButtonUp(0))
-            {
-                if (bush.colorBrush)
+
+                if (dirty)
                 {
-                    if (_terrain.PaintTexture(bush, textureLayer, true))
-                    {
-                        _meshFilter.sharedMesh = _terrain.mesh;
-                        _meshCollider.sharedMesh = _terrain.mesh;
-                    }
-                }
-                else
-                {
-                    if(_terrain.BrushMapHigh(bush, 1))
-                    {
-                        _meshFilter.sharedMesh = _terrain.mesh;
-                        _meshCollider.sharedMesh = _terrain.mesh;
-                    }
+                    _meshFilter.sharedMesh = _terrain.mesh;
+                    _meshCollider.sharedMesh = _terrain.mesh;
+                    _cliffFilter.sharedMesh = _terrain.cliffMesh;
                 }
             }
         }
@@ -114,12 +101,9 @@ namespace MarchingSquares
             if (null != _terrain)
             {
                 Color color = Gizmos.color;
-            
                 Gizmos.color = Color.black;
                 Gizmos.matrix = _terrain.localToWorld;
-                
                 _terrain.OnDrawGizmos();
-                
                 Gizmos.matrix = Matrix4x4.identity;
                 Gizmos.color = color;
             }
@@ -130,11 +114,6 @@ namespace MarchingSquares
             Destroy(_meshCollider.gameObject);
             _meshCollider = null;
             _terrain = null;
-        }
-        
-        public MSQTexture GetTexture(int layer)
-        {
-            return _textureLayers[layer];
         }
     }
 }

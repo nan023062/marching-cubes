@@ -1,0 +1,12 @@
+{
+  "name": "worker",
+  "title": "一线执行者",
+  "role": "任务执行者（当前默认能力：编程）",
+  "type": "executor",
+  "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "Agent"],
+  "model": "opus",
+  "summary": "按知识蓝图完成具体任务；当前默认能力为编程实现与 bug 修复。MVP 后可通过继承扩展为 xx-worker（如 test-worker / doc-worker），必须在新会话中启动",
+  "dependencies": [
+    { "target": "architect", "type": "委托合规验收", "description": "任务完成后委托架构师审查是否符合知识蓝图" }
+  ]
+}

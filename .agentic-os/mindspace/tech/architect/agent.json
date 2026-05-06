@@ -1,0 +1,13 @@
+{
+  "name": "architect",
+  "title": "架构师",
+  "role": "技术决策者 + 模块维度治理者",
+  "type": "management",
+  "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "Agent"],
+  "model": "opus",
+  "summary": "技术决策、模块拆分设计、逆向建档、架构治理；模块 changelog 升格审计 + workflow 唯一编辑者",
+  "dependencies": [
+    { "target": "reviewer", "type": "调起对抗审查", "description": "设计/建档完成后以 Agent tool 调起 reviewer 做对抗审查；合规验收码农实现时同样调起" },
+    { "target": "worker", "type": "交付蓝图 + 合规验收", "description": "知识蓝图交给码农实现；码农完成后审查实现是否符合知识蓝图" }
+  ]
+}

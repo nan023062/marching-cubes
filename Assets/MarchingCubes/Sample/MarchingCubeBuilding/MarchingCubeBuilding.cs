@@ -20,7 +20,7 @@ namespace MarchingCubes.Sample
         
         private BlockBuilding _building;
         private PointCube[,,] _pointCubes;
-        private readonly Dictionary<int, GameObject> _meshes = new ();
+        private readonly Dictionary<int, GameObject> _meshes = new Dictionary<int, GameObject>();
         
         private void Awake()
         {
@@ -36,7 +36,8 @@ namespace MarchingCubes.Sample
                     GameObject go = Instantiate(pointQuadPrefab);
                     Transform t = go.transform;
                     t.SetParent(this.transform);
-                    t.SetLocalPositionAndRotation(new Vector3(i, 0.5f, j), Quaternion.identity);
+                    t.localPosition  = new Vector3(i, 0.5f, j);
+                    t.localRotation = Quaternion.identity;
                     t.localScale = new Vector3(1, 0, 1);
                     var quad = go.GetComponent<PointQuad>();
                     quad.marchingCubes = this;
@@ -116,7 +117,8 @@ namespace MarchingCubes.Sample
                 GameObject go = Instantiate(pointCubePrefab);
                 Transform t = go.transform;
                 t.SetParent(this.transform);
-                t.SetLocalPositionAndRotation(new Vector3(x, y, z), Quaternion.identity);
+                t.localPosition = new Vector3(x, y, z);
+                t.localRotation = Quaternion.identity;
                 t.localScale = Vector3.one;
 
                 cube = go.GetComponent<PointCube>();

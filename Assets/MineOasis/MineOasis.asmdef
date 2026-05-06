@@ -1,0 +1,22 @@
+{
+    "name": "MineOasis",
+    "rootNamespace": "MineOasis",
+    "references": [
+        "Unity.Entities",
+        "Unity.Transforms",
+        "Unity.Burst",
+        "Unity.Mathematics",
+        "Unity.Collections"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "ENABLE_MINE_OASIS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

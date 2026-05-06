@@ -98,12 +98,12 @@ namespace MarchingCubes.Sample
             z = Mathf.Clamp(z, 0, Z);
             _points[x, y, z].iso = active ? 1 : 0;
             
-            int minX = Mathf.Clamp(x, 0, X - 1);
-            int maxX = Mathf.Clamp(x + 1, 0, X - 1);
-            int minY = Mathf.Clamp(y, 0, Y - 1);
-            int maxY = Mathf.Clamp(y + 1, 0, Y - 1);
-            int minZ = Mathf.Clamp(z, 0, Z - 1);
-            int maxZ = Mathf.Clamp(z + 1, 0, Z - 1);
+            int minX = Mathf.Clamp(x -1, 0, X - 1);
+            int maxX = Mathf.Clamp(x, 0, X - 1);
+            int minY = Mathf.Clamp(y - 1, 0, Y - 1);
+            int maxY = Mathf.Clamp(y, 0, Y - 1);
+            int minZ = Mathf.Clamp(z - 1, 0, Z - 1);
+            int maxZ = Mathf.Clamp(z, 0, Z - 1);
             
             for (int i = minX; i <= maxX; i++)
             {

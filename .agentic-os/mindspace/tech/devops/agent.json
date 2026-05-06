@@ -1,0 +1,21 @@
+{
+  "name": "devops",
+  "title": "发布工程师",
+  "role": "Release Engineering · CI/CD 全链路执行者",
+  "type": "executor",
+  "tools": ["Read", "Write", "Edit", "Bash", "Glob", "Grep", "Agent"],
+  "model": "opus",
+  "summary": "worker 变体，专精发布工程。端到端编排版本发布（版本策略建议 → changelog release anchor 写入 → CI/CD 维护 → 打包分发 → 依赖卫生）。架构师确认最终版本号；devops 独占写入 changelog release anchor；manager 管理 changelog 历史其余内容。必须在新会话中启动。",
+  "dependencies": [
+    {
+      "target": "tech/architect",
+      "type": "版本确认 + workflow 重大变更 review",
+      "description": "semver 级别建议（patch/minor/major/pre-release）需架构师确认；.github/workflows/ 架构性改动需架构师 review；workspace/devops/workflows/ SOP 由架构师维护，devops 按 SOP 执行"
+    },
+    {
+      "target": "hr/manager",
+      "type": "changelog 协作边界",
+      "description": "devops 独占写入 changelog release anchor（## [YYYY-MM-DD] release v<semver> — <topic>）；manager 独占管理其余 changelog 历史内容（合并/去重/剔除/修订）；两者职责不重叠"
+    }
+  ]
+}
