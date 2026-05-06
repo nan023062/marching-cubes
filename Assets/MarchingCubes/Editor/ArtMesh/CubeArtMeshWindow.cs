@@ -371,6 +371,8 @@ namespace MarchingCubes.Editor
                 EditorGUILayout.LabelField($"Case: {ci}", EditorStyles.boldLabel);
                 EditorGUILayout.LabelField($"Canonical: {canonical}");
                 EditorGUILayout.LabelField($"Rotation: ({euler.x:F0}, {euler.y:F0}, {euler.z:F0})");
+                bool isFlipped = _config.GetFlipped(ci);
+                EditorGUILayout.LabelField($"Flipped: {(isFlipped ? "Yes" : "No")}");
 
                 EditorGUILayout.Space(6);
 
@@ -651,8 +653,11 @@ namespace MarchingCubes.Editor
         {
             if (_config == null) return;
 
-            CubeSymmetry.ComputeSymmetryTable(out int[] canonicalIndex, out Quaternion[] canonicalRotation);
-            _config.SetSymmetryData(canonicalIndex, canonicalRotation);
+            CubeSymmetry.ComputeSymmetryTable(
+                out int[] canonicalIndex,
+                out Quaternion[] canonicalRotation,
+                out bool[] canonicalFlipped);
+            _config.SetSymmetryData(canonicalIndex, canonicalRotation, canonicalFlipped);
             EditorUtility.SetDirty(_config);
             AssetDatabase.SaveAssets();
             Repaint();
@@ -691,7 +696,7 @@ namespace MarchingCubes.Editor
             {
                 if (i == 0) continue; // empty case
 
-                if (!_config.TryGetEntry(i, out GameObject prefab, out Quaternion rotation))
+                if (!_config.TryGetEntry(i, out GameObject prefab, out Quaternion rotation, out bool isFlipped))
                     continue;
 
                 string path = $"{OutputDir}/cm_art_{i}.prefab";
@@ -701,10 +706,12 @@ namespace MarchingCubes.Editor
                 GameObject child = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
                 child.transform.SetParent(wrapper.transform);
 
-                // Apply rotation: child.localPosition = center - rotation * center
-                child.transform.localPosition = s_cubeCenter - rotation * s_cubeCenter;
+                // Apply forward transform: flip first, then rotate.
+                // When flipped, the prefab origin (0,0,0) maps to (1,0,0) after LR mirror.
+                Vector3 prefabOrigin = isFlipped ? new Vector3(1f, 0f, 0f) : Vector3.zero;
+                child.transform.localPosition = rotation * (prefabOrigin - s_cubeCenter) + s_cubeCenter;
                 child.transform.localRotation = rotation;
-                child.transform.localScale = Vector3.one;
+                child.transform.localScale = isFlipped ? new Vector3(-1f, 1f, 1f) : Vector3.one;
 
                 PrefabUtility.SaveAsPrefabAsset(wrapper, path);
                 Object.DestroyImmediate(wrapper);

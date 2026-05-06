@@ -14,31 +14,41 @@ namespace MarchingCubes.Editor
         private const float k_snapThreshold = 0.01f;
 
         /// <summary>
-        /// Returns the 4 Y-axis rotations (0/90/180/270 degrees).
-        /// Only horizontal rotations are used: up/down are artistically distinct
-        /// and must not be treated as equivalent.
+        /// Returns the 8 D4 transforms: 4 Y-axis rotations × (no flip / LR flip).
+        /// "Flip" = mirror across x=0.5 plane (scale.x = -1 applied to mesh).
+        /// Convention: flip is applied FIRST, then rotation.
         /// </summary>
-        public static Quaternion[] Generate24Rotations()
+        private static void GetD4Transforms(out Quaternion[] rotations, out bool[] flips)
         {
-            return new Quaternion[]
+            rotations = new Quaternion[]
             {
                 Quaternion.Euler(0f,   0f, 0f),
                 Quaternion.Euler(0f,  90f, 0f),
                 Quaternion.Euler(0f, 180f, 0f),
                 Quaternion.Euler(0f, 270f, 0f),
+                Quaternion.Euler(0f,   0f, 0f),
+                Quaternion.Euler(0f,  90f, 0f),
+                Quaternion.Euler(0f, 180f, 0f),
+                Quaternion.Euler(0f, 270f, 0f),
             };
+            flips = new bool[] { false, false, false, false, true, true, true, true };
         }
 
         /// <summary>
-        /// For each vertex Vi, rotate it around cube center and find which Vj it maps to.
-        /// Returns array where perm[i] = j.
+        /// For each vertex Vi, optionally mirror then rotate it around cube center
+        /// and find which Vj it maps to. Returns array where perm[i] = j.
+        /// When flip=true, LR mirror permutation (V0-V1, V2-V3, V4-V5, V6-V7) is applied first.
         /// </summary>
-        public static int[] GetVertexPermutation(Quaternion rotation)
+        public static int[] GetVertexPermutation(Quaternion rotation, bool flip)
         {
+            // LR mirror permutation: V0<->V1, V2<->V3, V4<->V5, V6<->V7
+            int[] mirrorPerm = new int[] { 1, 0, 3, 2, 5, 4, 7, 6 };
+
             int[] perm = new int[8];
             for (int i = 0; i < 8; i++)
             {
-                var v = CubeTable.Vertices[i];
+                int src = flip ? mirrorPerm[i] : i;
+                var v = CubeTable.Vertices[src];
                 Vector3 pos = new Vector3(v.x, v.y, v.z);
                 Vector3 rotated = RotateAroundCenter(pos, rotation);
                 perm[i] = FindNearestVertex(rotated);
@@ -63,25 +73,31 @@ namespace MarchingCubes.Editor
 
         /// <summary>
         /// For each cube index 0-255, finds the minimum equivalent index (canonical)
-        /// under all 24 rotations. Returns canonical indices and the rotation that
-        /// maps canonical -> ci (i.e., Inverse of the rotation ci -> canonical).
+        /// under all 8 D4 transforms (4 Y rotations × no-flip/LR-flip).
+        /// Stores the FORWARD transform (canonical → ci): apply (rotation, flip) to the
+        /// canonical prefab to produce the shape for ci.
         /// </summary>
-        public static void ComputeSymmetryTable(out int[] canonicalIndex, out Quaternion[] canonicalRotation)
+        public static void ComputeSymmetryTable(
+            out int[] canonicalIndex,
+            out Quaternion[] canonicalRotation,
+            out bool[] canonicalFlipped)
         {
-            Quaternion[] rotations = Generate24Rotations();
-            Debug.Log($"[CubeSymmetry] Generated {rotations.Length} unique rotations");
+            GetD4Transforms(out Quaternion[] rotations, out bool[] flips);
+            Debug.Log($"[CubeSymmetry] D4 transforms: {rotations.Length}");
 
             int[][] perms = new int[rotations.Length][];
             for (int r = 0; r < rotations.Length; r++)
-                perms[r] = GetVertexPermutation(rotations[r]);
+                perms[r] = GetVertexPermutation(rotations[r], flips[r]);
 
-            canonicalIndex = new int[256];
+            canonicalIndex   = new int[256];
             canonicalRotation = new Quaternion[256];
+            canonicalFlipped  = new bool[256];
 
             for (int ci = 0; ci < 256; ci++)
             {
                 int bestIndex = ci;
                 Quaternion bestRot = Quaternion.identity;
+                bool bestFlip = false;
 
                 for (int r = 0; r < rotations.Length; r++)
                 {
@@ -89,16 +105,18 @@ namespace MarchingCubes.Editor
                     if (mapped < bestIndex)
                     {
                         bestIndex = mapped;
+                        // Store the forward transform: maps canonical back to ci.
+                        // Apply transform[r] to canonical to get ci.
                         bestRot = rotations[r];
+                        bestFlip = flips[r];
                     }
                 }
 
-                canonicalIndex[ci] = bestIndex;
-                // Store inverse: rotation that takes canonical prefab and places it as ci
-                canonicalRotation[ci] = Quaternion.Inverse(bestRot);
+                canonicalIndex[ci]    = bestIndex;
+                canonicalRotation[ci] = bestRot;
+                canonicalFlipped[ci]  = bestFlip;
             }
 
-            // Count distinct canonical cases
             var canonicals = new HashSet<int>();
             for (int ci = 0; ci < 256; ci++)
                 canonicals.Add(canonicalIndex[ci]);

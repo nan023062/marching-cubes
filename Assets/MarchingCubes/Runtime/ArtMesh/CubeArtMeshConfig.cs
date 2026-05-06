@@ -27,6 +27,9 @@ namespace MarchingCubes
         [SerializeField] private float[] _qz = new float[256];
         [SerializeField] private float[] _qw = new float[256];
 
+        // Whether the forward transform for each cube index includes an LR flip
+        [SerializeField] private bool[] _isFlipped = new bool[256];
+
         private void OnEnable()
         {
             EnsureInitialized();
@@ -44,6 +47,8 @@ namespace MarchingCubes
             if (_qy == null || _qy.Length != 256) _qy = new float[256];
             if (_qz == null || _qz.Length != 256) _qz = new float[256];
             if (_qw == null || _qw.Length != 256) _qw = new float[256];
+            if (_isFlipped == null || _isFlipped.Length != 256)
+                _isFlipped = new bool[256];
 
             for (int i = 0; i < 256; i++)
             {
@@ -59,12 +64,14 @@ namespace MarchingCubes
         /// <summary>
         /// Called by editor tool after computing symmetry table.
         /// </summary>
-        public void SetSymmetryData(int[] canonicalIndex, Quaternion[] canonicalRotation)
+        public void SetSymmetryData(int[] canonicalIndex, Quaternion[] canonicalRotation, bool[] canonicalFlipped)
         {
             if (canonicalIndex == null || canonicalIndex.Length != 256)
                 throw new System.ArgumentException("canonicalIndex must have length 256");
             if (canonicalRotation == null || canonicalRotation.Length != 256)
                 throw new System.ArgumentException("canonicalRotation must have length 256");
+            if (canonicalFlipped == null || canonicalFlipped.Length != 256)
+                throw new System.ArgumentException("canonicalFlipped must have length 256");
 
             EnsureInitialized();
 
@@ -76,19 +83,22 @@ namespace MarchingCubes
                 _qy[i] = q.y;
                 _qz[i] = q.z;
                 _qw[i] = q.w;
+                _isFlipped[i] = canonicalFlipped[i];
             }
         }
 
         /// <summary>
         /// Returns true if a prefab can be resolved for this cube index (via canonical).
-        /// Out prefab is the canonical prefab; out rotation transforms canonical into this index.
+        /// Out prefab is the canonical prefab; out rotation and isFlipped are the forward
+        /// transform that maps canonical to this cube index.
         /// </summary>
-        public bool TryGetEntry(int cubeIndex, out GameObject prefab, out Quaternion rotation)
+        public bool TryGetEntry(int cubeIndex, out GameObject prefab, out Quaternion rotation, out bool isFlipped)
         {
             if (cubeIndex < 0 || cubeIndex >= 256)
             {
                 prefab = null;
                 rotation = Quaternion.identity;
+                isFlipped = false;
                 return false;
             }
 
@@ -98,7 +108,18 @@ namespace MarchingCubes
             Entry entry = _entries[canonical];
             prefab = (entry != null) ? entry.prefab : null;
             rotation = new Quaternion(_qx[cubeIndex], _qy[cubeIndex], _qz[cubeIndex], _qw[cubeIndex]);
+            isFlipped = _isFlipped[cubeIndex];
             return prefab != null;
+        }
+
+        /// <summary>
+        /// Returns whether the forward transform for this cube index includes an LR flip.
+        /// </summary>
+        public bool GetFlipped(int cubeIndex)
+        {
+            if (cubeIndex < 0 || cubeIndex >= 256) return false;
+            EnsureInitialized();
+            return _isFlipped[cubeIndex];
         }
 
         public bool HasEntry(int cubeIndex)
