@@ -196,7 +196,8 @@ namespace MarchingCubes.Editor
 
                 EditorGUI.DrawRect(rect, bg);
 
-                // Thumbnail
+                // Thumbnail + vertex gizmo layout
+                bool hasThumbnail = false;
                 if (_config != null)
                 {
                     int canonical = _config.GetCanonicalIndex(cubeIndex);
@@ -206,14 +207,35 @@ namespace MarchingCubes.Editor
                         Texture2D thumb = AssetPreview.GetAssetPreview(entry.prefab);
                         if (thumb != null)
                         {
+                            hasThumbnail = true;
+                            // Upper ~60% for thumbnail
+                            float thumbHeight = (rect.height - 14f) * 0.60f;
                             float padding = 4f;
                             GUI.DrawTexture(
                                 new Rect(rect.x + padding, rect.y + padding,
-                                    rect.width - padding * 2f, rect.height - padding * 2f - 14f),
+                                    rect.width - padding * 2f, thumbHeight - padding),
                                 thumb, ScaleMode.ScaleToFit);
                         }
                     }
                 }
+
+                // Vertex gizmo rect
+                Rect gizmoRect;
+                if (hasThumbnail)
+                {
+                    // Lower ~30% above index label
+                    float thumbHeight = (rect.height - 14f) * 0.60f;
+                    float gizmoTop = rect.y + thumbHeight;
+                    float gizmoHeight = (rect.height - 14f) * 0.30f;
+                    gizmoRect = new Rect(rect.x, gizmoTop, rect.width, gizmoHeight);
+                }
+                else
+                {
+                    // Full cell minus padding and index label
+                    gizmoRect = new Rect(rect.x, rect.y, rect.width, rect.height - 14f);
+                }
+
+                DrawVertexGizmo(gizmoRect, cubeIndex, cellSize);
 
                 // Index label
                 GUI.Label(new Rect(rect.x + 2f, rect.yMax - 14f, rect.width - 4f, 13f),
@@ -227,6 +249,77 @@ namespace MarchingCubes.Editor
                 CleanupPreview();
                 GUI.changed = true;
                 Repaint();
+            }
+        }
+
+        private void DrawVertexGizmo(Rect gizmoRect, int cubeIndex, float cellSize)
+        {
+            const float diagramPadding = 6f;
+            const float isoXRange = 0.85f;
+            const float isoYRange = 0.80f;
+
+            Rect diagramRect = new Rect(
+                gizmoRect.x + diagramPadding,
+                gizmoRect.y + diagramPadding,
+                gizmoRect.width - diagramPadding * 2f,
+                gizmoRect.height - diagramPadding * 2f);
+
+            if (diagramRect.width <= 0f || diagramRect.height <= 0f)
+                return;
+
+            // Compute 2D screen positions for each vertex
+            var screenPositions = new Vector2[CubeTable.VertexCount];
+            for (int v = 0; v < CubeTable.VertexCount; v++)
+            {
+                var vert = CubeTable.Vertices[v];
+                float vx = vert.x;
+                float vy = vert.y;
+                float vz = vert.z;
+
+                float isoX =  vx * 0.50f - vz * 0.35f;
+                float isoY = -vy * 0.60f - vx * 0.20f - vz * 0.20f + 0.80f;
+
+                float nx = isoX / isoXRange;
+                float ny = isoY / isoYRange;
+
+                screenPositions[v] = new Vector2(
+                    diagramRect.x + nx * diagramRect.width,
+                    diagramRect.y + ny * diagramRect.height);
+            }
+
+            // Draw edges
+            Handles.BeginGUI();
+            Handles.color = new Color(0.4f, 0.4f, 0.4f, 0.8f);
+            for (int e = 0; e < CubeTable.EdgeCount; e++)
+            {
+                var edge = CubeTable.Edges[e];
+                Vector2 p1 = screenPositions[edge.p1];
+                Vector2 p2 = screenPositions[edge.p2];
+                Handles.DrawLine(new Vector3(p1.x, p1.y, 0f), new Vector3(p2.x, p2.y, 0f));
+            }
+            Handles.EndGUI();
+
+            // Draw vertices
+            float dotRadius = Mathf.Max(2.5f, cellSize * 0.045f);
+            for (int v = 0; v < CubeTable.VertexCount; v++)
+            {
+                bool active = ((cubeIndex >> v) & 1) == 1;
+                Vector2 pos = screenPositions[v];
+
+                if (active)
+                {
+                    float size = dotRadius * 2f;
+                    EditorGUI.DrawRect(
+                        new Rect(pos.x - dotRadius, pos.y - dotRadius, size, size),
+                        new Color(1f, 0.6f, 0.1f));
+                }
+                else
+                {
+                    float size = dotRadius;
+                    EditorGUI.DrawRect(
+                        new Rect(pos.x - size * 0.5f, pos.y - size * 0.5f, size, size),
+                        new Color(0.3f, 0.3f, 0.3f, 0.6f));
+                }
             }
         }
 
