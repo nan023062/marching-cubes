@@ -288,16 +288,21 @@ namespace MarchingCubes.Editor
             }
 
             // Draw edges
+            // GUI.BeginClip 将 scissor 裁剪到 gizmoRect，并将坐标原点移到 gizmoRect.position
+            Vector2 gizmoOrigin = new Vector2(gizmoRect.x, gizmoRect.y);
+            GUI.BeginClip(gizmoRect);
             Handles.BeginGUI();
             Handles.color = new Color(0.4f, 0.4f, 0.4f, 0.8f);
             for (int e = 0; e < CubeTable.EdgeCount; e++)
             {
                 var edge = CubeTable.Edges[e];
-                Vector2 p1 = screenPositions[edge.p1];
-                Vector2 p2 = screenPositions[edge.p2];
+                // clip 内坐标原点 = gizmoRect.position，需减去 gizmoOrigin
+                Vector2 p1 = screenPositions[edge.p1] - gizmoOrigin;
+                Vector2 p2 = screenPositions[edge.p2] - gizmoOrigin;
                 Handles.DrawLine(new Vector3(p1.x, p1.y, 0f), new Vector3(p2.x, p2.y, 0f));
             }
             Handles.EndGUI();
+            GUI.EndClip();
 
             // Draw vertices
             float dotRadius = Mathf.Max(2.5f, cellSize * 0.045f);
