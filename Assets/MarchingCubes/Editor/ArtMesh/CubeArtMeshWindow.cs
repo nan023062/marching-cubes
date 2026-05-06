@@ -255,9 +255,6 @@ namespace MarchingCubes.Editor
         private void DrawVertexGizmo(Rect gizmoRect, int cubeIndex, float cellSize)
         {
             const float diagramPadding = 6f;
-            const float isoXRange = 0.85f;
-            const float isoYRange = 0.80f;
-
             Rect diagramRect = new Rect(
                 gizmoRect.x + diagramPadding,
                 gizmoRect.y + diagramPadding,
@@ -279,8 +276,14 @@ namespace MarchingCubes.Editor
                 float isoX =  vx * 0.50f - vz * 0.35f;
                 float isoY = -vy * 0.60f - vx * 0.20f - vz * 0.20f + 0.80f;
 
-                float nx = isoX / isoXRange;
-                float ny = isoY / isoYRange;
+                // isoX 实际范围 [-0.35, 0.50]，isoY 实际范围 [-0.20, 0.80]
+                // min-max 归一化保证所有 8 个顶点映射到 [0,1]
+                const float isoXMin = -0.35f;
+                const float isoXMax =  0.50f;
+                const float isoYMin = -0.20f;
+                const float isoYMax =  0.80f;
+                float nx = (isoX - isoXMin) / (isoXMax - isoXMin);
+                float ny = (isoY - isoYMin) / (isoYMax - isoYMin);
 
                 screenPositions[v] = new Vector2(
                     diagramRect.x + nx * diagramRect.width,
@@ -442,8 +445,12 @@ namespace MarchingCubes.Editor
                 diagramRect.width - padding * 2f, diagramRect.height - padding * 2f);
 
             // 投影（与格子内一致的公式）
-            const float isoXRange = 0.85f;
-            const float isoYRange = 0.80f;
+            // isoX 实际范围 [-0.35, 0.50]，isoY 实际范围 [-0.20, 0.80]
+            // min-max 归一化保证所有 8 个顶点映射到 [0,1]
+            const float isoXMin = -0.35f;
+            const float isoXMax =  0.50f;
+            const float isoYMin = -0.20f;
+            const float isoYMax =  0.80f;
             var screenPos = new Vector2[CubeTable.VertexCount];
             for (int v = 0; v < CubeTable.VertexCount; v++)
             {
@@ -451,9 +458,11 @@ namespace MarchingCubes.Editor
                 float vx = vert.x, vy = vert.y, vz = vert.z;
                 float isoX =  vx * 0.50f - vz * 0.35f;
                 float isoY = -vy * 0.60f - vx * 0.20f - vz * 0.20f + 0.80f;
+                float nx = (isoX - isoXMin) / (isoXMax - isoXMin);
+                float ny = (isoY - isoYMin) / (isoYMax - isoYMin);
                 screenPos[v] = new Vector2(
-                    inner.x + (isoX / isoXRange) * inner.width,
-                    inner.y + (isoY / isoYRange) * inner.height);
+                    inner.x + nx * inner.width,
+                    inner.y + ny * inner.height);
             }
 
             // 边（详情面板不在 ScrollView，Handles 坐标直接使用，无需 GUI.BeginClip）
