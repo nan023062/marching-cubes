@@ -5,7 +5,7 @@ to: worker
 date: 2026-05-06
 status: resolved
 priority: normal
-slug: vertex-gizmo-clip-fix
+topic: DrawVertexGizmo — Handles 线条未 clip 到格子范围修复
 ---
 
 # Task: DrawVertexGizmo — Handles 线条未 clip 到格子范围修复

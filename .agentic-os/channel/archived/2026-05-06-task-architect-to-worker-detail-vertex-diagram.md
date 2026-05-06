@@ -5,7 +5,7 @@ to: worker
 date: 2026-05-06
 status: resolved
 priority: normal
-slug: detail-vertex-diagram
+topic: 右侧详情面板补顶点示意图
 ---
 
 # Task: 右侧详情面板补顶点示意图

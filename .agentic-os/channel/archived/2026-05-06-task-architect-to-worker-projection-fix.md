@@ -5,7 +5,7 @@ to: worker
 date: 2026-05-06
 status: resolved
 priority: normal
-slug: projection-fix
+topic: 修复顶点投影归一化范围（两处）
 ---
 
 # Task: 修复顶点投影归一化范围（两处）

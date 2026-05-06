@@ -5,7 +5,7 @@ to: worker
 date: 2026-05-06
 status: resolved
 priority: normal
-slug: art-mesh-tool
+topic: Art Mesh Marching Cube 配置工具
 ---
 
 # Task: Art Mesh Marching Cube 配置工具

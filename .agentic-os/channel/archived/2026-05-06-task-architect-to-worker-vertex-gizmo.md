@@ -5,7 +5,7 @@ to: worker
 date: 2026-05-06
 status: resolved
 priority: normal
-slug: vertex-gizmo
+topic: CubeArtMeshWindow — 格子内补顶点示意图
 ---
 
 # Task: CubeArtMeshWindow — 格子内补顶点示意图

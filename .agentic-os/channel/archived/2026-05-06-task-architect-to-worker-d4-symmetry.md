@@ -5,7 +5,7 @@ to: worker
 date: 2026-05-06
 status: resolved
 priority: normal
-slug: d4-symmetry
+topic: 改为 D₄ 对称（Y 旋转 + 水平镜像）→ 55 canonical
 ---
 
 # Task: 改为 D₄ 对称（Y 旋转 + 水平镜像）→ 55 canonical

@@ -5,7 +5,7 @@ to: worker
 date: 2026-05-06
 status: resolved
 priority: normal
-slug: mesh-splitter
+topic: 大 Mesh 模板生成 + 分割工具（方案 A/B）
 ---
 
 # Task: 大 Mesh 模板生成 + 分割工具（方案 A/B）

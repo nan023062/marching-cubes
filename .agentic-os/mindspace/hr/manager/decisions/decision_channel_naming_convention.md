@@ -103,7 +103,46 @@ done
 
 ---
 
-## 5. 派 Task 职能归属（关键决策）
+## 5. Frontmatter 必填字段说明（2026-05-06 追加）
+
+> **触发事件**：全部 8 个 channel task 文件使用 `slug:` 作为 frontmatter 字段，导致解析器持续报 `missing required field 'topic'`（日志 `2026-05-06.jsonl`，每 5 秒一次）。
+
+### `slug` vs `topic` 区分
+
+| 位置 | 字段名 | 说明 |
+|------|--------|------|
+| **文件名** | `<slug>` | kebab-case 主题摘要，仅用于文件命名（见 §2）|
+| **frontmatter** | `topic:` | 必填，一句话主题（中文可）；**不是** `slug:` |
+
+**错误写法**（已全量修复）：
+```yaml
+slug: art-mesh-tool
+```
+
+**正确写法**：
+```yaml
+topic: Art Mesh Marching Cube 配置工具
+```
+
+`slug` 不是合法的 frontmatter 字段。解析器只认 `topic`。
+
+### 完整必填 frontmatter 字段
+
+```yaml
+type: task|message|review
+from: <agent>
+to: <agent>
+date: YYYY-MM-DD
+topic: <一句话主题>
+status: open|in_progress|on_hold|resolved|cancelled
+priority: urgent|high|normal|low
+```
+
+`module` / `seq` / `blocked_by` / `related` 为可选字段（见 task-dispatch-template.md）。
+
+---
+
+## 6. 派 Task 职能归属（关键决策）
 
 ### 历史问题
 

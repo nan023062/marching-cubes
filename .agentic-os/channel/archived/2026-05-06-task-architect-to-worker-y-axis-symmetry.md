@@ -5,7 +5,7 @@ to: worker
 date: 2026-05-06
 status: resolved
 priority: normal
-slug: y-axis-symmetry
+topic: CubeSymmetry — 改为只用 Y 轴旋转（4 种）
 ---
 
 # Task: CubeSymmetry — 改为只用 Y 轴旋转（4 种）
