@@ -413,11 +413,98 @@ namespace MarchingCubes.Editor
                     CleanupPreview();
                 }
 
-                EditorGUILayout.Space(8);
+                EditorGUILayout.Space(6);
+                DrawDetailVertexDiagram(ci);
+                EditorGUILayout.Space(6);
 
                 // Preview area 160x160
                 Rect previewRect = GUILayoutUtility.GetRect(160f, 160f);
                 DrawPreview(previewRect, canonical, rot);
+            }
+        }
+
+        private void DrawDetailVertexDiagram(int cubeIndex)
+        {
+            EditorGUILayout.LabelField("Vertex Topology", EditorStyles.boldLabel);
+
+            // 获取正方形绘制区域（宽 = DetailPanelWidth - 20，高同宽）
+            float size = DetailPanelWidth - 20f;
+            Rect diagramRect = GUILayoutUtility.GetRect(size, size);
+
+            if (Event.current.type != EventType.Repaint) return;
+
+            // 背景
+            EditorGUI.DrawRect(diagramRect, new Color(0.15f, 0.15f, 0.15f));
+
+            const float padding = 16f;
+            Rect inner = new Rect(
+                diagramRect.x + padding, diagramRect.y + padding,
+                diagramRect.width - padding * 2f, diagramRect.height - padding * 2f);
+
+            // 投影（与格子内一致的公式）
+            const float isoXRange = 0.85f;
+            const float isoYRange = 0.80f;
+            var screenPos = new Vector2[CubeTable.VertexCount];
+            for (int v = 0; v < CubeTable.VertexCount; v++)
+            {
+                var vert = CubeTable.Vertices[v];
+                float vx = vert.x, vy = vert.y, vz = vert.z;
+                float isoX =  vx * 0.50f - vz * 0.35f;
+                float isoY = -vy * 0.60f - vx * 0.20f - vz * 0.20f + 0.80f;
+                screenPos[v] = new Vector2(
+                    inner.x + (isoX / isoXRange) * inner.width,
+                    inner.y + (isoY / isoYRange) * inner.height);
+            }
+
+            // 边（详情面板不在 ScrollView，Handles 坐标直接使用，无需 GUI.BeginClip）
+            GUI.BeginClip(diagramRect);
+            Vector2 origin = new Vector2(diagramRect.x, diagramRect.y);
+            Handles.BeginGUI();
+            Handles.color = new Color(0.5f, 0.5f, 0.5f, 0.9f);
+            for (int e = 0; e < CubeTable.EdgeCount; e++)
+            {
+                var edge = CubeTable.Edges[e];
+                Vector2 p1 = screenPos[edge.p1] - origin;
+                Vector2 p2 = screenPos[edge.p2] - origin;
+                Handles.DrawLine(new Vector3(p1.x, p1.y, 0f), new Vector3(p2.x, p2.y, 0f));
+            }
+            Handles.EndGUI();
+            GUI.EndClip();
+
+            // 顶点点 + 标签
+            float dotR = 7f;
+            for (int v = 0; v < CubeTable.VertexCount; v++)
+            {
+                bool active = ((cubeIndex >> v) & 1) == 1;
+                Vector2 pos = screenPos[v];
+
+                if (active)
+                {
+                    EditorGUI.DrawRect(
+                        new Rect(pos.x - dotR, pos.y - dotR, dotR * 2f, dotR * 2f),
+                        new Color(1f, 0.6f, 0.1f));
+                    // 标签：白色，偏右上
+                    GUI.Label(new Rect(pos.x + dotR, pos.y - dotR - 2f, 28f, 16f),
+                        "V" + v,
+                        new GUIStyle(EditorStyles.miniLabel)
+                        {
+                            normal = { textColor = new Color(1f, 0.85f, 0.4f) },
+                            fontStyle = FontStyle.Bold
+                        });
+                }
+                else
+                {
+                    float r = dotR * 0.5f;
+                    EditorGUI.DrawRect(
+                        new Rect(pos.x - r, pos.y - r, r * 2f, r * 2f),
+                        new Color(0.35f, 0.35f, 0.35f, 0.8f));
+                    GUI.Label(new Rect(pos.x + r, pos.y - r - 2f, 24f, 14f),
+                        "V" + v,
+                        new GUIStyle(EditorStyles.miniLabel)
+                        {
+                            normal = { textColor = new Color(0.5f, 0.5f, 0.5f) }
+                        });
+                }
             }
         }
 
