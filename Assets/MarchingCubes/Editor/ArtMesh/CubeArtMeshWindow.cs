@@ -25,6 +25,12 @@ namespace MarchingCubes.Editor
         private Vector2 _scrollPos;
         private int _highlightDebugIndex;
 
+        // --- splitter state ---
+        private bool _splitterPlan256 = true;
+        private Mesh _splitterSourceMesh;
+        private string _splitterOutputFolder = "Assets/MarchingCubes/Sample/Resources/ArtCubeMesh";
+        private Material _splitterMaterial;
+
         // Preview
         private PreviewRenderUtility _previewUtil;
         private bool _previewUtilFailed;
@@ -68,6 +74,8 @@ namespace MarchingCubes.Editor
 
             EditorGUILayout.Space(4);
             DrawDebugPanel();
+            EditorGUILayout.Space(4);
+            DrawSplitterPanel();
         }
 
         // -----------------------------------------------------------------------
@@ -737,6 +745,82 @@ namespace MarchingCubes.Editor
                     AssetDatabase.CreateFolder(sampleParent, "Resources");
                 }
                 AssetDatabase.CreateFolder(parent, "ArtCubeMesh");
+            }
+        }
+
+        // -----------------------------------------------------------------------
+        // Splitter panel
+        // -----------------------------------------------------------------------
+
+        private void DrawSplitterPanel()
+        {
+            EditorGUILayout.LabelField("--- Mesh Workflow ---", EditorStyles.boldLabel);
+
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                // Plan toggle buttons
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    bool clickA = GUILayout.Toggle(!_splitterPlan256, "Plan A: 55 canonical", EditorStyles.miniButtonLeft);
+                    bool clickB = GUILayout.Toggle(_splitterPlan256,  "Plan B: 256 cases",    EditorStyles.miniButtonRight);
+                    if (clickA) _splitterPlan256 = false;
+                    if (clickB) _splitterPlan256 = true;
+                }
+
+                EditorGUILayout.Space(4);
+
+                // Generate Template button
+                if (GUILayout.Button("Generate Template"))
+                {
+                    GameObject root = CubeArtMeshSplitter.GenerateTemplate(_splitterPlan256, _config);
+                    if (root != null)
+                        EditorGUIUtility.PingObject(root);
+                }
+
+                EditorGUILayout.Space(4);
+
+                // Source mesh field
+                _splitterSourceMesh = (Mesh)EditorGUILayout.ObjectField(
+                    "Source Mesh", _splitterSourceMesh, typeof(Mesh), false);
+
+                // Output folder + browse button
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    _splitterOutputFolder = EditorGUILayout.TextField("Output Folder", _splitterOutputFolder);
+                    if (GUILayout.Button("Browse", GUILayout.Width(60)))
+                    {
+                        string selected = EditorUtility.OpenFolderPanel("Select Output Folder", "Assets", "");
+                        if (!string.IsNullOrEmpty(selected))
+                        {
+                            // Convert absolute path to relative (project-relative Assets/... path)
+                            string dataPath = Application.dataPath;
+                            if (selected.StartsWith(dataPath))
+                                _splitterOutputFolder = "Assets" + selected.Substring(dataPath.Length);
+                            else
+                                _splitterOutputFolder = selected;
+                        }
+                    }
+                }
+
+                // Optional material field
+                _splitterMaterial = (Material)EditorGUILayout.ObjectField(
+                    "Material (optional)", _splitterMaterial, typeof(Material), false);
+
+                EditorGUILayout.Space(4);
+
+                // Split & Assign button
+                GUI.enabled = _config != null && _splitterSourceMesh != null && !string.IsNullOrEmpty(_splitterOutputFolder);
+                if (GUILayout.Button("Split & Assign"))
+                {
+                    CubeArtMeshSplitter.SplitAndAssign(
+                        _splitterSourceMesh,
+                        _splitterPlan256,
+                        _config,
+                        _splitterOutputFolder,
+                        _splitterMaterial);
+                    Repaint();
+                }
+                GUI.enabled = true;
             }
         }
     }
