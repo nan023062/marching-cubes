@@ -1,0 +1,23 @@
+{
+  "type": "code",
+  "name": "marching-cubes",
+  "workspaceType": "csharp-unity",
+  "summary": "3D Marching Cubes 等值面提取算法，提供平面与平滑两种网格构建器，以及多个交互示例场景",
+  "workspace": ["Assets/MarchingCubes"],
+  "dependencies": [],
+  "boundary": "semi-open",
+  "publicApi": [
+    "CubeTable — 256 种查表（edgeTable + triTable）+ 工具函数",
+    "CubeMesh — 基础网格构建器（每 cube 独立三角面，不共顶点）",
+    "CubeMeshSmooth — 平滑网格构建器（Edge 哈希共享顶点，消除接缝）",
+    "IMarchingCubeReceiver — iso 层级 + 重建回调接口",
+    "Point, Edge, Vertex, Triangle — 核心数据结构",
+    "Coord, Axis, CubeVertexMask — 辅助枚举/结构"
+  ],
+  "constraints": [
+    "CubeTable 是纯静态只读查表，运行时不可修改",
+    "CubeMesh/CubeMeshSmooth 通过 IMarchingCubeReceiver 与上层业务解耦",
+    "Edge 使用 StructLayout(Explicit) 将 (x,y,z,axis) 映射为 long，确保哈希唯一性，内存布局不可轻易修改",
+    "C# 语法兼容约束：禁止 new()、SetLocalPositionAndRotation()、HashCode.Combine()"
+  ]
+}

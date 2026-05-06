@@ -1,0 +1,14 @@
+{
+  "type": "code",
+  "name": "dual-contouring",
+  "workspaceType": "csharp-unity",
+  "summary": "Dual Contouring 等值面提取算法占位模块，当前仅有骨架类，实现为空",
+  "workspace": ["Assets/DualContouring"],
+  "dependencies": [],
+  "boundary": "closed",
+  "publicApi": [],
+  "constraints": [
+    "当前仅有骨架类 DualContouring.cs，实现体为空",
+    "命名空间 DualContouring 独立，不依赖 MarchingCubes 或其他模块"
+  ]
+}

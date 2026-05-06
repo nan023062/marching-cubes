@@ -1,0 +1,28 @@
+{
+  "type": "code",
+  "name": "mine-oasis",
+  "workspaceType": "csharp-unity-dots",
+  "summary": "基于 Unity DOTS/ECS（Entities 1.x）的体素建造世界原型，使用 Burst 编译的 ISystem 实现高性能方块渲染与输入",
+  "workspace": ["Assets/MineOasis"],
+  "dependencies": [
+    { "target": "unity.entities", "type": "Association" },
+    { "target": "unity.burst", "type": "Association" },
+    { "target": "unity.mathematics", "type": "Association" }
+  ],
+  "boundary": "semi-open",
+  "publicApi": [
+    "CubedWorld — MonoBehaviour 入口（构建/销毁 ECS 世界，管理对象池）",
+    "Block / CompositeBlock / SingleBlock — ECS IComponentData 建材组件",
+    "Zone — 区域几何（BuildZone MonoBehaviour）",
+    "RenderingSystem — Burst ISystem（MineOasisSystemGroup）",
+    "BlockSystem — Burst ISystem",
+    "GameObjectPool<T> — 泛型 MonoBehaviour 对象池"
+  ],
+  "constraints": [
+    "ECS System 必须实现为 [BurstCompile] partial struct : ISystem",
+    "System 挂载于 MineOasisSystemGroup，禁止直接挂 SimulationSystemGroup",
+    "MonoBehaviour（CubedWorld）与 ECS 通过 World.DefaultGameObjectInjectionWorld 桥接",
+    "RotateCubeSample/ 是独立 DOTS 学习示例，不属于 MineOasis 核心业务，不暴露给外部",
+    "asmdef 文件（MineOasis.asmdef）必须引用 Unity.Entities、Unity.Burst、Unity.Mathematics"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "type": "code",
+  "name": "marching-squares",
+  "workspaceType": "csharp-unity",
+  "summary": "2.5D Marching Squares 地形系统，支持高度刷绘、地形类型混合（splatmap）和悬崖壁面独立网格生成",
+  "workspace": ["Assets/MarchingSquares"],
+  "dependencies": [],
+  "boundary": "semi-open",
+  "publicApi": [
+    "MSQTerrain — 地形主类（partial，分布于 MSQTerrain.cs / Chunk.cs）",
+    "MSQTerrain.Point — 数据点（high:sbyte + terrainType:byte）",
+    "MSQTerrain.BrushMapHigh(Brush, int) — 高度刷绘",
+    "MSQTerrain.PaintTerrainType(Brush, int) — 地形类型刷绘",
+    "MSQTerrain.mesh — 地形 Mesh 输出",
+    "MSQTerrain.cliffMesh — 悬崖壁面 Mesh 输出",
+    "MSQTerrain.localToWorld / worldToLocal — 坐标变换矩阵",
+    "Brush — 笔刷结构（半径 + colorBrush 模式标志）"
+  ],
+  "constraints": [
+    "MSQTerrain 是 partial class，必须同时编译 MSQTerrain.cs 和 Chunk.cs",
+    "纹理系统已从 tile-atlas（ITextureLoader + MSQTexture）迁移为 splatmap（uv0~uv3 四通道 + Color32 vertex weights）",
+    "TerrainTypeCount = 5（泥/草/岩/雪/腐），EncodeType = type * 51（映射到 byte 0-204）",
+    "悬崖网格（cliffMesh）与地形网格（mesh）必须分开挂载独立 MeshRenderer 渲染",
+    "MSQTexture.cs 已废弃，仅保留历史注释说明迁移原因"
+  ]
+}
