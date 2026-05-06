@@ -14,30 +14,19 @@ namespace MarchingCubes.Editor
         private const float k_snapThreshold = 0.01f;
 
         /// <summary>
-        /// Enumerates rx,ry,rz in {0,1,2,3} (multiples of 90 degrees), deduplicates
-        /// by vertex permutation signature, and returns the 24 unique rotations.
+        /// Returns the 4 Y-axis rotations (0/90/180/270 degrees).
+        /// Only horizontal rotations are used: up/down are artistically distinct
+        /// and must not be treated as equivalent.
         /// </summary>
         public static Quaternion[] Generate24Rotations()
         {
-            var seen = new HashSet<string>();
-            var rotations = new List<Quaternion>(24);
-
-            for (int rx = 0; rx < 4; rx++)
+            return new Quaternion[]
             {
-                for (int ry = 0; ry < 4; ry++)
-                {
-                    for (int rz = 0; rz < 4; rz++)
-                    {
-                        Quaternion q = Quaternion.Euler(rx * 90f, ry * 90f, rz * 90f);
-                        int[] perm = GetVertexPermutation(q);
-                        string sig = PermutationSignature(perm);
-                        if (seen.Add(sig))
-                            rotations.Add(q);
-                    }
-                }
-            }
-
-            return rotations.ToArray();
+                Quaternion.Euler(0f,   0f, 0f),
+                Quaternion.Euler(0f,  90f, 0f),
+                Quaternion.Euler(0f, 180f, 0f),
+                Quaternion.Euler(0f, 270f, 0f),
+            };
         }
 
         /// <summary>
