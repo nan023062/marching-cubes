@@ -630,7 +630,7 @@ class MC_OT_SetupTerrain(bpy.types.Operator):
             if wire_obj.name in bpy.context.scene.collection.objects:
                 bpy.context.scene.collection.objects.unlink(wire_obj)
 
-            # 控制点球
+            # 控制点球 + 顶点编号标签
             for v in range(8):
                 dx, dy, dz = UNITY_VERTS[v]
                 bx, by, bz = u2b(cx+dx, cy+dy, cz+dz)
@@ -638,6 +638,22 @@ class MC_OT_SetupTerrain(bpy.types.Operator):
                 _add_locked(ctrl_col, f"_pt{n}_{v}",
                             _make_sphere(f"_pt{n}_{v}", bx, by, bz, 0.07 if active else 0.04),
                             MAT_ACTIVE if active else MAT_INACTIVE)
+
+                # V0~V7 编号标签（贴近球，偏向 cube 外侧）
+                vl = bpy.data.curves.new(f"_vl{n}_{v}", type='FONT')
+                vl.body = f"V{v}"; vl.size = 0.10; vl.align_x = 'CENTER'
+                vl_obj = bpy.data.objects.new(f"_vl{n}_{v}", vl)
+                # 偏移方向：沿顶点相对 cube 中心的方向外推一点
+                cx_bl, cy_bl, cz_bl = u2b(cx + 0.5, cy + 0.5, cz + 0.5)
+                off_x = (bx - cx_bl) * 0.25
+                off_y = (by - cy_bl) * 0.25
+                off_z = (bz - cz_bl) * 0.25 + 0.06
+                vl_obj.location = (bx + off_x, by + off_y, bz + off_z)
+                vl_obj.hide_select = True
+                vl_obj.lock_location = vl_obj.lock_rotation = vl_obj.lock_scale = (True,True,True)
+                ctrl_col.objects.link(vl_obj)
+                if vl_obj.name in bpy.context.scene.collection.objects:
+                    bpy.context.scene.collection.objects.unlink(vl_obj)
 
             # 接缝锚点球
             for k, (ea, eb) in enumerate(EDGES):
