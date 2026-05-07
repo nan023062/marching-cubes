@@ -4,6 +4,14 @@
 
 3D Marching Cubes 等值面提取算法实现。核心提供两种网格构建器（平面/平滑），通过查表驱动，支持任意 iso 场输入；Sample 目录提供多个可运行的交互场景。
 
+## 子模块
+
+| 子模块 | 路径 | 职责 |
+|--------|------|------|
+| art-mesh-blender | `Blender/ArtMesh/` | Blender Python 工具：DCC 侧建模参考生成 + 批量 FBX 导出，衔接 ArtMesh Unity 工作流 |
+
+子模块关系：art-mesh-blender 是 marching-cubes 的工具扩展，单向依赖（Blender 工具产出 FBX → Unity ArtMesh 消费），无反向依赖。
+
 ## 内部结构
 
 ```

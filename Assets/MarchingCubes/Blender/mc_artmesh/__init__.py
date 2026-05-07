@@ -1,0 +1,799 @@
+"""
+MC ArtMesh — Blender Add-on  v1.5
+Marching Cubes art mesh creation workflow.
+
+安装方法：
+  将 mc_artmesh/ 文件夹打成 mc_artmesh.zip，
+  Blender > Preferences > Add-ons > Install > 选择 zip > 启用
+
+面板位置：
+  3D Viewport > N-Panel > MC ArtMesh
+
+生成结构：
+  MC_ArtMesh_Ref/
+    MC_Ctrl       — 线框 + 控制点球 + 接缝锚点 + 标签
+    MC_IsoSurface — 等值面 ghost mesh（蓝色）
+  MC_ArtMesh_Cubes/ — 顶点八分体填充 case mesh（每个 canonical case 一个）
+"""
+
+bl_info = {
+    "name":        "MC ArtMesh",
+    "author":      "MarchingCubes Project",
+    "version":     (1, 5),
+    "blender":     (3, 6, 0),
+    "location":    "3D Viewport › N-Panel › MC ArtMesh",
+    "description": "Marching Cubes art mesh — D4 canonical cases, octant-fill mesh, FBX export",
+    "category":    "Mesh",
+}
+
+import bpy
+import bmesh
+import math
+import os
+from mathutils import Vector
+from .cube_table import TRI_TABLE, get_iso_triangles
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 顶点 / 棱约定（必须与 Unity CubeTable.cs 完全一致）
+# ─────────────────────────────────────────────────────────────────────────────
+
+UNITY_VERTS = [
+    (0, 0, 1),  # V0
+    (1, 0, 1),  # V1
+    (1, 0, 0),  # V2
+    (0, 0, 0),  # V3
+    (0, 1, 1),  # V4
+    (1, 1, 1),  # V5
+    (1, 1, 0),  # V6
+    (0, 1, 0),  # V7
+]
+
+EDGES = [
+    (0, 1), (1, 2), (2, 3), (3, 0),
+    (4, 5), (5, 6), (6, 7), (7, 4),
+    (0, 4), (1, 5), (2, 6), (3, 7),
+]
+
+
+def u2b(ux, uy, uz):
+    return (ux, uz, uy)
+
+
+def b2u(bx, by, bz):
+    return (bx, bz, by)
+
+
+BL_VERTS = [u2b(*v) for v in UNITY_VERTS]
+
+BL_EDGE_MIDS = tuple(
+    ((BL_VERTS[a][0] + BL_VERTS[b][0]) / 2,
+     (BL_VERTS[a][1] + BL_VERTS[b][1]) / 2,
+     (BL_VERTS[a][2] + BL_VERTS[b][2]) / 2)
+    for a, b in EDGES
+)
+
+# Collection 名称常量
+REF_COL_NAME   = "MC_ArtMesh_Ref"
+CTRL_COL_NAME  = "MC_Ctrl"
+ISO_COL_NAME   = "MC_IsoSurface"
+CUBES_COL_NAME = "MC_ArtMesh_Cubes"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# D4 Canonical Case 计算
+# ─────────────────────────────────────────────────────────────────────────────
+
+_MIRROR_PERM    = [1, 0, 3, 2, 5, 4, 7, 6]
+_D4_TRANSFORMS  = [
+    (0, False), (90, False), (180, False), (270, False),
+    (0, True),  (90, True),  (180, True),  (270, True),
+]
+_CANON_MAP_CACHE  = None
+_CANONICALS_CACHE = None
+_D4_PERMS_CACHE   = None
+
+
+def _qrot_y(v, deg):
+    r = math.radians(deg)
+    c, s = math.cos(r), math.sin(r)
+    x, y, z = v[0] - 0.5, v[1] - 0.5, v[2] - 0.5
+    return (round(c*x + s*z + 0.5, 6), round(y + 0.5, 6), round(-s*x + c*z + 0.5, 6))
+
+
+def _find_nearest_vert(v):
+    best, best_d = 0, float('inf')
+    for j, u in enumerate(UNITY_VERTS):
+        d = (v[0]-u[0])**2 + (v[1]-u[1])**2 + (v[2]-u[2])**2
+        if d < best_d:
+            best_d, best = d, j
+    return best
+
+
+def _build_d4_perms():
+    global _D4_PERMS_CACHE
+    if _D4_PERMS_CACHE is not None:
+        return _D4_PERMS_CACHE
+    perms = []
+    for deg, flip in _D4_TRANSFORMS:
+        perm = []
+        for i in range(8):
+            src = _MIRROR_PERM[i] if flip else i
+            rv = _qrot_y(UNITY_VERTS[src], deg)
+            perm.append(_find_nearest_vert(rv))
+        perms.append(tuple(perm))
+    _D4_PERMS_CACHE = perms
+    return perms
+
+
+def _apply_perm(ci, perm):
+    r = 0
+    for v in range(8):
+        if ci & (1 << v):
+            r |= 1 << perm[v]
+    return r
+
+
+def get_canon_map():
+    global _CANON_MAP_CACHE
+    if _CANON_MAP_CACHE is not None:
+        return _CANON_MAP_CACHE
+    perms = _build_d4_perms()
+    canon = list(range(256))
+    for ci in range(256):
+        for perm in perms:
+            e = _apply_perm(ci, perm)
+            if e < canon[ci]:
+                canon[ci] = e
+    _CANON_MAP_CACHE = dict(enumerate(canon))
+    return _CANON_MAP_CACHE
+
+
+def get_d4_canonicals():
+    global _CANONICALS_CACHE
+    if _CANONICALS_CACHE is not None:
+        return _CANONICALS_CACHE
+    canon_map = get_canon_map()
+    _CANONICALS_CACHE = [i for i in range(1, 255) if canon_map[i] == i]
+    return _CANONICALS_CACHE
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Grid 构建
+# ─────────────────────────────────────────────────────────────────────────────
+
+GRID_COLS = 9
+
+
+def _compute_cube_index(grid, cx, cy, cz):
+    ci = 0
+    for n, (dx, dy, dz) in enumerate(UNITY_VERTS):
+        if grid.get((cx+dx, cy+dy, cz+dz), 0):
+            ci |= 1 << n
+    return ci
+
+
+def build_grid():
+    canonicals = get_d4_canonicals()
+    raw_grid = {}
+    for n, ci in enumerate(canonicals):
+        col, row = n % GRID_COLS, n // GRID_COLS
+        cx, cy, cz = col * 2, 0, row * 2
+        for v_idx, (dx, dy, dz) in enumerate(UNITY_VERTS):
+            raw_grid[(cx+dx, cy+dy, cz+dz)] = 1 if (ci >> v_idx) & 1 else 0
+
+    all_x = [k[0] for k in raw_grid]
+    all_y = [k[1] for k in raw_grid]
+    all_z = [k[2] for k in raw_grid]
+    max_x, max_y, max_z = max(all_x), max(all_y), max(all_z)
+
+    grid = {(x, y, z): raw_grid.get((x, y, z), 0)
+            for x in range(max_x+1)
+            for y in range(max_y+1)
+            for z in range(max_z+1)}
+    return grid, (max_x, max_y, max_z)
+
+
+def verify_grid(grid):
+    canonicals_set = set(get_d4_canonicals())
+    canon_map = get_canon_map()
+    all_x = [k[0] for k in grid]
+    all_z = [k[2] for k in grid]
+    covered = set()
+    for cx in range(max(all_x)):
+        for cz in range(max(all_z)):
+            ci = _compute_cube_index(grid, cx, 0, cz)
+            if 0 < ci < 255:
+                covered.add(canon_map[ci])
+    missing = canonicals_set - covered
+    assert not missing, f"grid 缺少 {len(missing)} 个 canonical case: {sorted(missing)}"
+    return True
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 接缝锚点
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _seam_anchors_world(ci, ox, oy, oz):
+    pts = []
+    b_ox, b_oy, b_oz = u2b(ox, oy, oz)
+    for ea, eb in EDGES:
+        if bool(ci & (1 << ea)) == bool(ci & (1 << eb)):
+            continue
+        bx1, by1, bz1 = BL_VERTS[ea]
+        bx2, by2, bz2 = BL_VERTS[eb]
+        pts.append(Vector((b_ox + (bx1+bx2)/2, b_oy + (by1+by2)/2, b_oz + (bz1+bz2)/2)))
+    return pts
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 材质
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _ensure_mat(name, rgb, strength=1.5, alpha=1.0):
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new('ShaderNodeOutputMaterial')
+    em  = nt.nodes.new('ShaderNodeEmission')
+    em.inputs['Color'].default_value    = (*rgb, 1.0)
+    em.inputs['Strength'].default_value = strength
+    nt.links.new(em.outputs['Emission'], out.inputs['Surface'])
+    mat.diffuse_color = (*rgb, alpha)
+    if alpha < 1.0:
+        mat.blend_method = 'BLEND'
+    return mat
+
+
+_MAT_NAMES = ("mc_active", "mc_inactive", "mc_seam", "mc_wire", "mc_iso",
+              "mc_cube_closed", "mc_cube_open")
+
+
+def _reset_mats():
+    for name in _MAT_NAMES:
+        if name in bpy.data.materials:
+            bpy.data.materials.remove(bpy.data.materials[name])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 几何辅助
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _make_sphere(name, cx, cy, cz, r, subdivisions=2):
+    m = bpy.data.meshes.new(name)
+    bm = bmesh.new()
+    bmesh.ops.create_icosphere(bm, subdivisions=subdivisions, radius=r)
+    for v in bm.verts:
+        v.co.x += cx; v.co.y += cy; v.co.z += cz
+    bm.to_mesh(m); bm.free(); m.update()
+    return m
+
+
+def _make_cube_wire(name, b_ox, b_oy, b_oz):
+    verts = [(b_ox+bx, b_oy+by, b_oz+bz) for bx, by, bz in BL_VERTS]
+    faces = [(3,2,1,0),(4,5,6,7),(0,1,5,4),(2,3,7,6),(1,2,6,5),(3,0,4,7)]
+    m = bpy.data.meshes.new(name)
+    bm = bmesh.new()
+    bvs = [bm.verts.new(p) for p in verts]
+    for f in faces:
+        try: bm.faces.new([bvs[i] for i in f])
+        except Exception: pass
+    bm.to_mesh(m); bm.free(); m.update()
+    return m
+
+
+def _add_locked(col, name, mesh, mat):
+    mesh.materials.append(mat)
+    obj = bpy.data.objects.new(name, mesh)
+    col.objects.link(obj)
+    if obj.name in bpy.context.scene.collection.objects:
+        bpy.context.scene.collection.objects.unlink(obj)
+    obj.hide_select   = True
+    obj.lock_location = (True, True, True)
+    obj.lock_rotation = (True, True, True)
+    obj.lock_scale    = (True, True, True)
+    return obj
+
+
+def _link_col(parent, child):
+    """将 child collection 挂到 parent collection 下（不挂到 scene 根）。"""
+    parent.children.link(child)
+    if child.name in bpy.context.scene.collection.children:
+        bpy.context.scene.collection.children.unlink(child)
+
+
+def _ensure_col(name, parent=None):
+    """获取或创建 collection，挂到 parent（或 scene 根）下。"""
+    if name in bpy.data.collections:
+        col = bpy.data.collections[name]
+    else:
+        col = bpy.data.collections.new(name)
+    if parent is not None:
+        if name not in [c.name for c in parent.children]:
+            _link_col(parent, col)
+    else:
+        if name not in [c.name for c in bpy.context.scene.collection.children]:
+            bpy.context.scene.collection.children.link(col)
+    return col
+
+
+def _remove_col(name):
+    if name in bpy.data.collections:
+        bpy.data.collections.remove(bpy.data.collections[name], do_unlink=True)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 顶点八分体填充（MC_ArtMesh_Cubes 方案）
+# ─────────────────────────────────────────────────────────────────────────────
+
+# 6 面定义：(邻居格偏移, 四角 key 列表（Blender 右手坐标系 CCW 外向法线）)
+_OCTANT_FACE_DEFS = [
+    ((+1, 0, 0), [(1,0,0),(1,1,0),(1,1,1),(1,0,1)]),  # +X
+    ((-1, 0, 0), [(0,0,0),(0,0,1),(0,1,1),(0,1,0)]),  # -X
+    ((0,+1, 0), [(0,1,0),(0,1,1),(1,1,1),(1,1,0)]),   # +Y
+    ((0,-1, 0), [(0,0,0),(1,0,0),(1,0,1),(0,0,1)]),   # -Y
+    ((0, 0,+1), [(0,0,1),(1,0,1),(1,1,1),(0,1,1)]),   # +Z
+    ((0, 0,-1), [(0,0,0),(0,1,0),(1,1,0),(1,0,0)]),   # -Z
+]
+
+
+def _make_case_mesh_vf(ci):
+    """
+    顶点八分体填充法：对每个 active 顶点填充其 0.5^3 角块，
+    相邻 active 顶点共享面自动合并，生成平整块状 mesh。
+    返回 (verts, faces)，坐标在 Blender [0,1]³ 内。
+    """
+    if not ci:
+        return [], []
+
+    active = set()
+    for v in range(8):
+        if ci & (1 << v):
+            bx, by, bz = BL_VERTS[v]
+            active.add((int(bx), int(by), int(bz)))
+
+    if not active:
+        return [], []
+
+    bm = bmesh.new()
+
+    for (gx, gy, gz) in active:
+        x0, x1 = gx * 0.5, (gx + 1) * 0.5
+        y0, y1 = gy * 0.5, (gy + 1) * 0.5
+        z0, z1 = gz * 0.5, (gz + 1) * 0.5
+
+        corners = {
+            (0,0,0): (x0,y0,z0), (1,0,0): (x1,y0,z0),
+            (0,1,0): (x0,y1,z0), (1,1,0): (x1,y1,z0),
+            (0,0,1): (x0,y0,z1), (1,0,1): (x1,y0,z1),
+            (0,1,1): (x0,y1,z1), (1,1,1): (x1,y1,z1),
+        }
+
+        for (ndx, ndy, ndz), keys in _OCTANT_FACE_DEFS:
+            if (gx+ndx, gy+ndy, gz+ndz) in active:
+                continue  # 邻居也是 active，此面为内部面，跳过
+            bm.faces.new([bm.verts.new(Vector(corners[k])) for k in keys])
+
+    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
+    bmesh.ops.triangulate(bm, faces=bm.faces[:])
+    bm.verts.ensure_lookup_table()
+    bm.faces.ensure_lookup_table()
+
+    out_verts = [tuple(v.co) for v in bm.verts]
+    out_faces  = [tuple(v.index for v in f.verts) for f in bm.faces]
+    bm.free()
+    return out_verts, out_faces
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Properties
+# ─────────────────────────────────────────────────────────────────────────────
+
+class MCProps(bpy.types.PropertyGroup):
+    output_dir: bpy.props.StringProperty(
+        name="Output Dir", default="//", subtype='DIR_PATH',
+        description="FBX 导出目录（// = .blend 文件同目录）",
+    )
+    snap_dist: bpy.props.FloatProperty(
+        name="Snap Distance", default=0.15, min=0.01, max=0.5, step=1,
+        description="边界顶点吸附到接缝锚点的最大距离",
+    )
+    coverage_text: bpy.props.StringProperty(default="")
+
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Operator: Setup Reference Scene
+# ─────────────────────────────────────────────────────────────────────────────
+
+class MC_OT_SetupTerrain(bpy.types.Operator):
+    bl_idname      = "mc.setup_terrain"
+    bl_label       = "Setup Reference Scene"
+    bl_description = "生成 MC_ArtMesh_Ref（MC_Ctrl + MC_IsoSurface）"
+
+    def execute(self, context):
+        grid, _ = build_grid()
+        verify_grid(grid)
+
+        # 清理旧 Ref collection
+        _remove_col(REF_COL_NAME)
+        _reset_mats()
+
+        MAT_ACTIVE   = _ensure_mat("mc_active",   (1.00, 0.00, 0.00))
+        MAT_INACTIVE = _ensure_mat("mc_inactive", (0.22, 0.22, 0.22))
+        MAT_SEAM     = _ensure_mat("mc_seam",     (1.00, 0.88, 0.10))
+        MAT_WIRE     = _ensure_mat("mc_wire",     (0.10, 0.65, 0.15))
+        MAT_ISO      = _ensure_mat("mc_iso",      (0.05, 0.35, 1.00), strength=0.7, alpha=0.6)
+
+        ref_root  = _ensure_col(REF_COL_NAME)
+        ctrl_root = _ensure_col(CTRL_COL_NAME,  parent=ref_root)
+        iso_root  = _ensure_col(ISO_COL_NAME,   parent=ref_root)
+
+        canonicals = get_d4_canonicals()
+        for n, ci in enumerate(canonicals):
+            col_n, row_n = n % GRID_COLS, n // GRID_COLS
+            cx, cy, cz   = col_n * 2, 0, row_n * 2
+            b_ox, b_oy, b_oz = u2b(cx, cy, cz)
+
+            # ── MC_Ctrl: 每个 case 一个子 collection
+            ctrl_col = bpy.data.collections.new(f"case_{ci}")
+            _link_col(ctrl_root, ctrl_col)
+
+            # 标签
+            lbl = bpy.data.curves.new(f"_lbl{n}", type='FONT')
+            lbl.body = f"ci={ci}"; lbl.size = 0.18; lbl.align_x = 'LEFT'
+            lbl_obj = bpy.data.objects.new(f"_lbl{n}", lbl)
+            lbl_obj.location = (b_ox, b_oy, b_oz + 1.15)
+            lbl_obj.hide_select = True
+            lbl_obj.lock_location = lbl_obj.lock_rotation = lbl_obj.lock_scale = (True,True,True)
+            ctrl_col.objects.link(lbl_obj)
+            if lbl_obj.name in bpy.context.scene.collection.objects:
+                bpy.context.scene.collection.objects.unlink(lbl_obj)
+
+            # 绿色线框
+            wire_mesh = _make_cube_wire(f"_w{n}", b_ox, b_oy, b_oz)
+            wire_mesh.materials.append(MAT_WIRE)
+            wire_obj = bpy.data.objects.new(f"_w{n}", wire_mesh)
+            wire_obj.display_type = 'WIRE'; wire_obj.hide_select = True
+            ctrl_col.objects.link(wire_obj)
+            if wire_obj.name in bpy.context.scene.collection.objects:
+                bpy.context.scene.collection.objects.unlink(wire_obj)
+
+            # 控制点球
+            for v in range(8):
+                dx, dy, dz = UNITY_VERTS[v]
+                bx, by, bz = u2b(cx+dx, cy+dy, cz+dz)
+                active = bool(ci & (1 << v))
+                _add_locked(ctrl_col, f"_pt{n}_{v}",
+                            _make_sphere(f"_pt{n}_{v}", bx, by, bz, 0.07 if active else 0.04),
+                            MAT_ACTIVE if active else MAT_INACTIVE)
+
+            # 接缝锚点球
+            for k, (ea, eb) in enumerate(EDGES):
+                if bool(ci & (1 << ea)) == bool(ci & (1 << eb)): continue
+                bx1,by1,bz1 = BL_VERTS[ea]; bx2,by2,bz2 = BL_VERTS[eb]
+                _add_locked(ctrl_col, f"_s{n}_{k}",
+                            _make_sphere(f"_s{n}_{k}",
+                                         b_ox+(bx1+bx2)/2, b_oy+(by1+by2)/2, b_oz+(bz1+bz2)/2,
+                                         0.05),
+                            MAT_SEAM)
+
+            # ── MC_IsoSurface: 等值面 ghost mesh
+            unity_tris = get_iso_triangles(ci)
+            if unity_tris:
+                iso_col = bpy.data.collections.new(f"case_{ci}")
+                _link_col(iso_root, iso_col)
+
+                gm = bpy.data.meshes.new(f"_iso{n}")
+                gb = bmesh.new()
+                for i in range(0, len(unity_tris), 3):
+                    fv = []
+                    for j in range(3):
+                        ux, uy, uz = unity_tris[i+j]
+                        bx2, by2, bz2 = u2b(ux, uy, uz)
+                        fv.append(gb.verts.new(Vector((b_ox+bx2, b_oy+by2, b_oz+bz2))))
+                    try: gb.faces.new(fv)
+                    except Exception: pass
+                bmesh.ops.remove_doubles(gb, verts=gb.verts[:], dist=1e-5)
+                gb.to_mesh(gm); gb.free(); gm.update()
+                _add_locked(iso_col, f"_iso{n}", gm, MAT_ISO)
+
+        for area in bpy.context.screen.areas:
+            if area.type == 'VIEW_3D':
+                for sp in area.spaces:
+                    if sp.type == 'VIEW_3D':
+                        sp.shading.type = 'MATERIAL'; break
+
+        self.report({'INFO'}, f"Setup done: {len(canonicals)} canonical cases.")
+        return {'FINISHED'}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Operator: Generate Cubes (MC_ArtMesh_Cubes)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class MC_OT_GenerateCubes(bpy.types.Operator):
+    bl_idname      = "mc.generate_cubes"
+    bl_label       = "Generate Cubes"
+    bl_description = "生成顶点八分体填充 case mesh → MC_ArtMesh_Cubes"
+
+    def execute(self, context):
+        _remove_col(CUBES_COL_NAME)
+        # 深蓝 = 封闭面（中平面 0.5，永久闭合）；浅灰 = 开放面（cube 边界，拼接后自然封闭）
+        MAT_CLOSED = _ensure_mat("mc_cube_closed", (0.04, 0.12, 0.55), strength=1.1)
+        MAT_OPEN   = _ensure_mat("mc_cube_open",   (0.60, 0.60, 0.60), strength=0.7)
+
+        cubes_root = _ensure_col(CUBES_COL_NAME)
+        canonicals = get_d4_canonicals()
+        EPS = 1e-4
+
+        for n, ci in enumerate(canonicals):
+            col_n, row_n = n % GRID_COLS, n // GRID_COLS
+            cx, cy, cz   = col_n * 2, 0, row_n * 2
+            b_ox, b_oy, b_oz = u2b(cx, cy, cz)
+
+            verts_local, faces_local = _make_case_mesh_vf(ci)
+            if not verts_local:
+                continue
+
+            verts_world = [(v[0]+b_ox, v[1]+b_oy, v[2]+b_oz) for v in verts_local]
+            mesh = bpy.data.meshes.new(f"cube_{ci}")
+            mesh.from_pydata(verts_world, [], faces_local)
+            mesh.materials.append(MAT_CLOSED)  # index 0
+            mesh.materials.append(MAT_OPEN)    # index 1
+
+            # 按面顶点坐标判断：所有顶点在某轴上共享 0.5 → 中平面（封闭面）
+            for poly in mesh.polygons:
+                pvs = [verts_world[vi] for vi in poly.vertices]
+                is_closed = (
+                    all(abs(v[0] - b_ox - 0.5) < EPS for v in pvs) or
+                    all(abs(v[1] - b_oy - 0.5) < EPS for v in pvs) or
+                    all(abs(v[2] - b_oz - 0.5) < EPS for v in pvs)
+                )
+                poly.material_index = 0 if is_closed else 1
+
+            mesh.update()
+
+            obj = bpy.data.objects.new(f"cube_{ci}", mesh)
+            cubes_root.objects.link(obj)
+            if obj.name in bpy.context.scene.collection.objects:
+                bpy.context.scene.collection.objects.unlink(obj)
+            obj.hide_select   = True
+            obj.lock_location = (True, True, True)
+            obj.lock_rotation = (True, True, True)
+            obj.lock_scale    = (True, True, True)
+
+        self.report({'INFO'}, f"Generated {len(canonicals)} case meshes → {CUBES_COL_NAME}")
+        return {'FINISHED'}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Operator: Check Coverage
+# ─────────────────────────────────────────────────────────────────────────────
+
+class MC_OT_CheckCoverage(bpy.types.Operator):
+    bl_idname      = "mc.check_coverage"
+    bl_label       = "Check Coverage"
+    bl_description = "检查当前 active 对象覆盖了多少 canonical case"
+
+    def execute(self, context):
+        canonicals = get_d4_canonicals()
+        canon_map  = get_canon_map()
+        grid, (nx, ny, nz) = build_grid()
+        props = context.scene.mc_props
+
+        obj = context.active_object
+        if obj is None or obj.type != 'MESH' or len(obj.data.vertices) == 0:
+            props.coverage_text = "0 / %d  (select a mesh)" % len(canonicals)
+            self.report({'WARNING'}, "请先选中一个有顶点的 Mesh 对象。")
+            return {'FINISHED'}
+
+        obj.data.calc_loop_triangles()
+        world_verts = [obj.matrix_world @ v.co for v in obj.data.vertices]
+        covered = set()
+        for tri in obj.data.loop_triangles:
+            vs = [world_verts[i] for i in tri.vertices]
+            bx = (vs[0].x+vs[1].x+vs[2].x)/3
+            by = (vs[0].y+vs[1].y+vs[2].y)/3
+            bz = (vs[0].z+vs[1].z+vs[2].z)/3
+            ux, uy, uz = b2u(bx, by, bz)
+            ci = _compute_cube_index(grid, int(math.floor(ux)), int(math.floor(uy)), int(math.floor(uz)))
+            if 0 < ci < 255:
+                covered.add(canon_map[ci])
+
+        total = len(canonicals); n_cov = len(covered)
+        props.coverage_text = f"{n_cov} / {total}"
+        missing = [ci for ci in canonicals if ci not in covered]
+        if missing:
+            self.report({'WARNING'}, f"{n_cov}/{total} covered. Missing: {missing}")
+        else:
+            self.report({'INFO'}, f"All {total} canonical cases covered!")
+        return {'FINISHED'}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Operator: Extract & Export FBX
+# ─────────────────────────────────────────────────────────────────────────────
+
+class MC_OT_ExtractCases(bpy.types.Operator):
+    bl_idname      = "mc.extract_cases"
+    bl_label       = "Extract & Export FBX"
+    bl_description = "从当前 active 对象切割 canonical case mesh 并导出 FBX"
+
+    def execute(self, context):
+        props      = context.scene.mc_props
+        canonicals = get_d4_canonicals()
+        canon_map  = get_canon_map()
+        grid, (nx, ny, nz) = build_grid()
+
+        obj = context.active_object
+        if obj is None or obj.type != 'MESH':
+            self.report({'ERROR'}, "请先选中 source mesh（如 ProceduralTerrain 或美术自建模型）。")
+            return {'CANCELLED'}
+        if len(obj.data.vertices) == 0:
+            self.report({'ERROR'}, f"'{obj.name}' 没有顶点。")
+            return {'CANCELLED'}
+
+        output_dir = bpy.path.abspath(props.output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+
+        snap_dist = props.snap_dist
+        EPS = 1e-4
+
+        obj.data.calc_loop_triangles()
+        world_verts = [obj.matrix_world @ v.co for v in obj.data.vertices]
+
+        cell_tris = {}
+        for tri in obj.data.loop_triangles:
+            vs = [world_verts[i] for i in tri.vertices]
+            bx = (vs[0].x+vs[1].x+vs[2].x)/3
+            by = (vs[0].y+vs[1].y+vs[2].y)/3
+            bz = (vs[0].z+vs[1].z+vs[2].z)/3
+            ux, uy, uz = b2u(bx, by, bz)
+            key = (int(math.floor(ux)), int(math.floor(uy)), int(math.floor(uz)))
+            cell_tris.setdefault(key, []).append(tri)
+
+        canonicals_set     = set(canonicals)
+        exported_canonical = {}
+        exported, skipped  = [], []
+
+        for cx in range(nx):
+            for cy in range(ny):
+                for cz in range(nz):
+                    ci = _compute_cube_index(grid, cx, cy, cz)
+                    if ci == 0 or ci == 255: continue
+                    canonical_ci = canon_map[ci]
+                    if canonical_ci not in canonicals_set: continue
+                    if canonical_ci in exported_canonical: continue
+
+                    tris = cell_tris.get((cx, cy, cz), [])
+                    if not tris:
+                        skipped.append(canonical_ci); continue
+
+                    b_ox, b_oy, b_oz = u2b(cx, cy, cz)
+                    anchors = _seam_anchors_world(ci, cx, cy, cz)
+
+                    vert_map, new_verts, new_faces = {}, [], []
+                    for tri in tris:
+                        tri_idx = []
+                        for li in tri.vertices:
+                            if li not in vert_map:
+                                wco = world_verts[li].copy()
+                                on_b = (abs(wco.x-b_ox)<EPS or abs(wco.x-(b_ox+1))<EPS or
+                                        abs(wco.y-b_oy)<EPS or abs(wco.y-(b_oy+1))<EPS or
+                                        abs(wco.z-b_oz)<EPS or abs(wco.z-(b_oz+1))<EPS)
+                                if on_b and anchors:
+                                    nearest = min(anchors, key=lambda a: (wco-a).length_squared)
+                                    if (wco-nearest).length < snap_dist:
+                                        wco = nearest.copy()
+                                wco.x -= b_ox; wco.y -= b_oy; wco.z -= b_oz
+                                vert_map[li] = len(new_verts); new_verts.append(wco)
+                            tri_idx.append(vert_map[li])
+                        new_faces.append(tri_idx)
+
+                    mesh = bpy.data.meshes.new(f"_exp_{canonical_ci}")
+                    mesh.from_pydata(new_verts, [], new_faces)
+                    mesh.update()
+                    exp_obj = bpy.data.objects.new(f"case_{canonical_ci}", mesh)
+                    bpy.context.scene.collection.objects.link(exp_obj)
+                    bpy.ops.object.select_all(action='DESELECT')
+                    exp_obj.select_set(True)
+                    bpy.context.view_layer.objects.active = exp_obj
+
+                    fbx_path = os.path.join(output_dir, f"case_{canonical_ci}.fbx")
+                    bpy.ops.export_scene.fbx(
+                        filepath=fbx_path, use_selection=True,
+                        axis_forward='-Z', axis_up='Y',
+                        apply_scale_options='FBX_SCALE_NONE',
+                        use_mesh_modifiers=True, mesh_smooth_type='FACE',
+                        add_leaf_bones=False,
+                    )
+                    bpy.context.scene.collection.objects.unlink(exp_obj)
+                    bpy.data.objects.remove(exp_obj)
+                    bpy.data.meshes.remove(mesh)
+                    exported_canonical[canonical_ci] = True
+                    exported.append(canonical_ci)
+
+        msg = f"Exported {len(exported)}/{len(canonicals)} cases → {output_dir}"
+        if skipped:
+            msg += f"  |  No mesh: {skipped}"
+        self.report({'INFO'}, msg)
+        return {'FINISHED'}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Panel
+# ─────────────────────────────────────────────────────────────────────────────
+
+class MC_PT_Panel(bpy.types.Panel):
+    bl_idname      = "MC_PT_Panel"
+    bl_label       = "MC ArtMesh"
+    bl_space_type  = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category    = 'MC ArtMesh'
+
+    def draw(self, context):
+        layout = self.layout
+        props  = context.scene.mc_props
+
+        # 1. Reference Scene
+        box = layout.box()
+        box.label(text="1. Reference Scene", icon='MESH_GRID')
+        box.operator("mc.setup_terrain", icon='SCENE_DATA')
+        box.label(text="MC_ArtMesh_Ref / MC_Ctrl + MC_IsoSurface", icon='INFO')
+
+        layout.separator()
+
+        # 2. Case Meshes
+        box = layout.box()
+        box.label(text="2. Case Meshes", icon='MESH_CUBE')
+        box.operator("mc.generate_cubes", icon='MESH_UVSPHERE')
+        box.label(text="→ MC_ArtMesh_Cubes", icon='INFO')
+
+        layout.separator()
+
+        # 3. Coverage
+        box = layout.box()
+        box.label(text="3. Coverage Check", icon='VIEWZOOM')
+        row = box.row()
+        row.operator("mc.check_coverage", icon='CHECKMARK')
+        if props.coverage_text:
+            row.label(text=props.coverage_text)
+        box.label(text="Select source mesh first", icon='INFO')
+
+        layout.separator()
+
+        # 5. Export
+        box = layout.box()
+        box.label(text="4. Export FBX", icon='EXPORT')
+        box.prop(props, "output_dir")
+        box.prop(props, "snap_dist")
+        box.operator("mc.extract_cases", icon='EXPORT')
+        box.label(text="Select source mesh, then Export", icon='INFO')
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Register / Unregister
+# ─────────────────────────────────────────────────────────────────────────────
+
+_CLASSES = [
+    MCProps,
+    MC_OT_SetupTerrain,
+    MC_OT_GenerateCubes,
+    MC_OT_CheckCoverage,
+    MC_OT_ExtractCases,
+    MC_PT_Panel,
+]
+
+
+def register():
+    for cls in _CLASSES:
+        bpy.utils.register_class(cls)
+    bpy.types.Scene.mc_props = bpy.props.PointerProperty(type=MCProps)
+
+
+def unregister():
+    for cls in reversed(_CLASSES):
+        bpy.utils.unregister_class(cls)
+    del bpy.types.Scene.mc_props
