@@ -100,14 +100,6 @@ namespace MarchingCubes.Editor
 
                 string fbxPath = $"{_fbxFolder.TrimEnd('/', '\\')}/case_{canonical}.fbx";
 
-                // 强制确保 bakeAxisConversion=true，保证顶点已是 Unity 坐标系
-                var imp = AssetImporter.GetAtPath(fbxPath) as ModelImporter;
-                if (imp != null && !imp.bakeAxisConversion)
-                {
-                    imp.bakeAxisConversion = true;
-                    imp.SaveAndReimport();   // 立即重新导入
-                }
-
                 var canonPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
                 if (canonPrefab == null) { skip++; continue; }
 
@@ -116,10 +108,17 @@ namespace MarchingCubes.Editor
                 var pComp = root.AddComponent<CubedMeshPrefab>();
                 pComp.mask = (CubeVertexMask)ci;
 
-                // 实例化 canonical FBX 作为子节点
-                // bakeAxisConversion 已确保，child.localRotation == identity
-                // → 只需应用 D4 旋转，不叠加 fbxBase
+                // 实例化 canonical FBX 子节点
                 var child = (GameObject)PrefabUtility.InstantiatePrefab(canonPrefab, root.transform);
+
+                // FBX 顶点实际在 Blender 局部坐标系（Y↔Z 未转换）。
+                // 直接在此处做 b2u（swap Y↔Z），同时修正三角面绕序，
+                // 完全不依赖 bakeAxisConversion 导入设置。
+                ApplyB2U(child);
+
+                // 子节点局部旋转重置为 identity（b2u 已修正坐标系）
+                // 只叠加 D4 对称旋转
+                child.transform.localRotation = Quaternion.identity;
                 child.transform.localPosition = S_CENTER - d4 * S_CENTER;
                 child.transform.localRotation  = d4;
                 child.transform.localScale     = isFlipped
@@ -144,6 +143,40 @@ namespace MarchingCubes.Editor
             AssetDatabase.Refresh();
             _log = $"✓ Built {ok} prefabs → {relOut}  (skipped {skip})";
             Repaint();
+        }
+
+        /// <summary>
+        /// 将 GameObject 层级内所有 MeshFilter 的顶点从 Blender 坐标系转换到 Unity 坐标系。
+        /// b2u: swap Y ↔ Z。反射变换会翻转三角面绕序，同步修正保证法线正确。
+        /// </summary>
+        static void ApplyB2U(GameObject go)
+        {
+            foreach (var mf in go.GetComponentsInChildren<MeshFilter>())
+            {
+                if (mf.sharedMesh == null) continue;
+                var src = mf.sharedMesh;
+
+                var verts = (Vector3[])src.vertices.Clone();
+                for (int i = 0; i < verts.Length; i++)
+                    verts[i] = new Vector3(verts[i].x, verts[i].z, verts[i].y);  // swap Y↔Z
+
+                var tris = (int[])src.triangles.Clone();
+                for (int i = 0; i < tris.Length; i += 3)
+                { int t = tris[i + 1]; tris[i + 1] = tris[i + 2]; tris[i + 2] = t; }  // reverse winding
+
+                var norms = (Vector3[])src.normals.Clone();
+                for (int i = 0; i < norms.Length; i++)
+                    norms[i] = new Vector3(norms[i].x, norms[i].z, norms[i].y);
+
+                var dst = new Mesh { name = src.name + "_b2u" };
+                dst.vertices  = verts;
+                dst.triangles = tris;
+                dst.normals   = norms;
+                if (src.uv      != null && src.uv.Length      > 0) dst.uv      = (Vector2[])src.uv.Clone();
+                if (src.colors32 != null && src.colors32.Length > 0) dst.colors32 = (Color32[])src.colors32.Clone();
+                dst.RecalculateBounds();
+                mf.sharedMesh = dst;
+            }
         }
 
         // ════════════════════════════════════════════════════════════════════
