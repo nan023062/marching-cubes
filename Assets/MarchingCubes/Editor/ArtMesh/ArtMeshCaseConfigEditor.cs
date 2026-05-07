@@ -99,6 +99,15 @@ namespace MarchingCubes.Editor
                 bool isFlipped = cfg.GetFlipped(ci);
 
                 string fbxPath = $"{_fbxFolder.TrimEnd('/', '\\')}/case_{canonical}.fbx";
+
+                // 强制确保 bakeAxisConversion=true，保证顶点已是 Unity 坐标系
+                var imp = AssetImporter.GetAtPath(fbxPath) as ModelImporter;
+                if (imp != null && !imp.bakeAxisConversion)
+                {
+                    imp.bakeAxisConversion = true;
+                    imp.SaveAndReimport();   // 立即重新导入
+                }
+
                 var canonPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
                 if (canonPrefab == null) { skip++; continue; }
 
@@ -108,13 +117,11 @@ namespace MarchingCubes.Editor
                 pComp.mask = (CubeVertexMask)ci;
 
                 // 实例化 canonical FBX 作为子节点
+                // bakeAxisConversion 已确保，child.localRotation == identity
+                // → 只需应用 D4 旋转，不叠加 fbxBase
                 var child = (GameObject)PrefabUtility.InstantiatePrefab(canonPrefab, root.transform);
-
-                // FBX 自带轴旋转（bakeAxisConversion 可能未生效时仍有值）
-                Quaternion fbxBase = child.transform.localRotation;
-                Quaternion total   = d4 * fbxBase;
-                child.transform.localPosition = S_CENTER - total * S_CENTER;
-                child.transform.localRotation  = total;
+                child.transform.localPosition = S_CENTER - d4 * S_CENTER;
+                child.transform.localRotation  = d4;
                 child.transform.localScale     = isFlipped
                     ? new Vector3(-1f, 1f, 1f) : Vector3.one;
 
