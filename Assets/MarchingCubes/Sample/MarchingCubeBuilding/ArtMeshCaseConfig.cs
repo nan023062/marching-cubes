@@ -3,9 +3,9 @@ using UnityEngine;
 namespace MarchingCubes
 {
     /// <summary>
-    /// ScriptableObject that stores art mesh prefab assignments for all 256 cube configurations.
-    /// Canonical index + rotation data is precomputed by CubeSymmetry and written here.
-    /// 53 D4 canonical cases → each assigned a Prefab; remaining 203 cases share via symmetry.
+    /// ScriptableObject: stores art-mesh prefab assignments for the 53 D4 canonical cases.
+    /// The symmetry table (canonical index + rotation for all 256 cases) is computed
+    /// automatically from the fixed D4 group on first access — no manual "Compute" step needed.
     /// </summary>
     [CreateAssetMenu(fileName = "ArtMeshCaseConfig", menuName = "MarchingCubes/Art Mesh Case Config")]
     public sealed class ArtMeshCaseConfig : ScriptableObject
@@ -17,150 +17,139 @@ namespace MarchingCubes
             public bool isManualOverride;
         }
 
+        // Prefab slots indexed by canonical cube index (only canonical slots matter)
         [SerializeField] private Entry[] _entries = new Entry[256];
 
-        // Canonical mapping: _canonicalIndex[i] = canonical cube index for cube i
-        [SerializeField] private int[] _canonicalIndex = new int[256];
+        // ── Runtime symmetry cache (not serialized, recomputed on OnEnable) ──────
+        [System.NonSerialized] private int[]        _canonicalIndex;
+        [System.NonSerialized] private Quaternion[] _canonicalRotation;
+        [System.NonSerialized] private bool[]       _canonicalFlipped;
 
-        // Rotation stored as 4 separate float arrays to avoid Euler gimbal lock
-        [SerializeField] private float[] _qx = new float[256];
-        [SerializeField] private float[] _qy = new float[256];
-        [SerializeField] private float[] _qz = new float[256];
-        [SerializeField] private float[] _qw = new float[256];
+        private void OnEnable() => EnsureEntries();
 
-        // Whether the forward transform for each cube index includes an LR flip
-        [SerializeField] private bool[] _isFlipped = new bool[256];
-
-        private void OnEnable()
-        {
-            EnsureInitialized();
-        }
-
-        private void EnsureInitialized()
+        private void EnsureEntries()
         {
             if (_entries == null || _entries.Length != 256)
                 _entries = new Entry[256];
-
-            if (_canonicalIndex == null || _canonicalIndex.Length != 256)
-                _canonicalIndex = new int[256];
-
-            if (_qx == null || _qx.Length != 256) _qx = new float[256];
-            if (_qy == null || _qy.Length != 256) _qy = new float[256];
-            if (_qz == null || _qz.Length != 256) _qz = new float[256];
-            if (_qw == null || _qw.Length != 256) _qw = new float[256];
-            if (_isFlipped == null || _isFlipped.Length != 256)
-                _isFlipped = new bool[256];
-
             for (int i = 0; i < 256; i++)
-            {
-                if (_entries[i] == null)
-                    _entries[i] = new Entry();
+                if (_entries[i] == null) _entries[i] = new Entry();
+        }
 
-                // Default rotation = identity (qw=1)
-                if (_qw[i] == 0f && _qx[i] == 0f && _qy[i] == 0f && _qz[i] == 0f)
-                    _qw[i] = 1f;
+        // ── D4 symmetry — computed once, deterministic for all instances ─────────
+        private void EnsureSymmetry()
+        {
+            if (_canonicalIndex != null) return;
+
+            // D4: 4 Y-axis rotations × (identity / LR-flip). Flip applied first.
+            float[] rotY   = { 0, 90, 180, 270, 0, 90, 180, 270 };
+            bool[]  flip   = { false, false, false, false, true, true, true, true };
+            int[]   mirror = { 1, 0, 3, 2, 5, 4, 7, 6 };   // LR mirror permutation
+            var     cen    = new Vector3(0.5f, 0.5f, 0.5f);
+
+            var rots  = new Quaternion[8];
+            var perms = new int[8][];
+            for (int t = 0; t < 8; t++)
+            {
+                rots[t]  = Quaternion.Euler(0, rotY[t], 0);
+                perms[t] = new int[8];
+                for (int i = 0; i < 8; i++)
+                {
+                    int src = flip[t] ? mirror[i] : i;
+                    var v   = CubeTable.Vertices[src];
+                    Vector3 rotated = rots[t] * (new Vector3(v.x, v.y, v.z) - cen) + cen;
+                    int best = 0; float bd = float.MaxValue;
+                    for (int j = 0; j < 8; j++)
+                    {
+                        var vj = CubeTable.Vertices[j];
+                        float d = (rotated - new Vector3(vj.x, vj.y, vj.z)).sqrMagnitude;
+                        if (d < bd) { bd = d; best = j; }
+                    }
+                    perms[t][i] = best;
+                }
+            }
+
+            _canonicalIndex    = new int[256];
+            _canonicalRotation = new Quaternion[256];
+            _canonicalFlipped  = new bool[256];
+
+            for (int ci = 0; ci < 256; ci++)
+            {
+                int  bestIdx  = ci;
+                var  bestRot  = Quaternion.identity;
+                bool bestFlip = false;
+                for (int t = 0; t < 8; t++)
+                {
+                    int mapped = 0;
+                    for (int i = 0; i < 8; i++)
+                        if ((ci & (1 << i)) != 0) mapped |= 1 << perms[t][i];
+                    if (mapped < bestIdx)
+                    {
+                        bestIdx  = mapped;
+                        bestRot  = rots[t];
+                        bestFlip = flip[t];
+                    }
+                }
+                _canonicalIndex[ci]    = bestIdx;
+                _canonicalRotation[ci] = bestRot;
+                _canonicalFlipped[ci]  = bestFlip;
             }
         }
 
-        /// <summary>
-        /// Called by editor tool after computing symmetry table.
-        /// </summary>
-        public void SetSymmetryData(int[] canonicalIndex, Quaternion[] canonicalRotation, bool[] canonicalFlipped)
+        // ── Public API ───────────────────────────────────────────────────────────
+
+        public bool TryGetEntry(int cubeIndex, out GameObject prefab,
+                                out Quaternion rotation, out bool isFlipped)
         {
-            if (canonicalIndex == null || canonicalIndex.Length != 256)
-                throw new System.ArgumentException("canonicalIndex must have length 256");
-            if (canonicalRotation == null || canonicalRotation.Length != 256)
-                throw new System.ArgumentException("canonicalRotation must have length 256");
-            if (canonicalFlipped == null || canonicalFlipped.Length != 256)
-                throw new System.ArgumentException("canonicalFlipped must have length 256");
-
-            EnsureInitialized();
-
-            for (int i = 0; i < 256; i++)
-            {
-                _canonicalIndex[i] = canonicalIndex[i];
-                Quaternion q = canonicalRotation[i];
-                _qx[i] = q.x;
-                _qy[i] = q.y;
-                _qz[i] = q.z;
-                _qw[i] = q.w;
-                _isFlipped[i] = canonicalFlipped[i];
-            }
-        }
-
-        /// <summary>
-        /// Returns true if a prefab can be resolved for this cube index (via canonical).
-        /// Out prefab is the canonical prefab; out rotation and isFlipped are the forward
-        /// transform that maps canonical to this cube index.
-        /// </summary>
-        public bool TryGetEntry(int cubeIndex, out GameObject prefab, out Quaternion rotation, out bool isFlipped)
-        {
-            if (cubeIndex < 0 || cubeIndex >= 256)
-            {
-                prefab = null;
-                rotation = Quaternion.identity;
-                isFlipped = false;
-                return false;
-            }
-
-            EnsureInitialized();
-
-            int canonical = _canonicalIndex[cubeIndex];
-            Entry entry = _entries[canonical];
-            prefab = (entry != null) ? entry.prefab : null;
-            rotation = new Quaternion(_qx[cubeIndex], _qy[cubeIndex], _qz[cubeIndex], _qw[cubeIndex]);
-            isFlipped = _isFlipped[cubeIndex];
-            return prefab != null;
-        }
-
-        /// <summary>
-        /// Returns whether the forward transform for this cube index includes an LR flip.
-        /// </summary>
-        public bool GetFlipped(int cubeIndex)
-        {
+            prefab = null; rotation = Quaternion.identity; isFlipped = false;
             if (cubeIndex < 0 || cubeIndex >= 256) return false;
-            EnsureInitialized();
-            return _isFlipped[cubeIndex];
+            EnsureEntries(); EnsureSymmetry();
+            int canonical = _canonicalIndex[cubeIndex];
+            prefab    = _entries[canonical]?.prefab;
+            rotation  = _canonicalRotation[cubeIndex];
+            isFlipped = _canonicalFlipped[cubeIndex];
+            return prefab != null;
         }
 
         public bool HasEntry(int cubeIndex)
         {
-            if (cubeIndex < 0 || cubeIndex >= 256)
-                return false;
-
-            EnsureInitialized();
-
-            int canonical = _canonicalIndex[cubeIndex];
-            Entry entry = _entries[canonical];
-            return entry != null && entry.prefab != null;
+            if (cubeIndex < 0 || cubeIndex >= 256) return false;
+            EnsureEntries(); EnsureSymmetry();
+            return _entries[_canonicalIndex[cubeIndex]]?.prefab != null;
         }
 
         public int GetCanonicalIndex(int cubeIndex)
         {
             if (cubeIndex < 0 || cubeIndex >= 256) return cubeIndex;
-            EnsureInitialized();
+            EnsureEntries(); EnsureSymmetry();
             return _canonicalIndex[cubeIndex];
         }
 
         public bool IsCanonical(int cubeIndex)
         {
             if (cubeIndex < 0 || cubeIndex >= 256) return false;
-            EnsureInitialized();
+            EnsureEntries(); EnsureSymmetry();
             return _canonicalIndex[cubeIndex] == cubeIndex;
         }
 
         public Entry GetEntry(int cubeIndex)
         {
             if (cubeIndex < 0 || cubeIndex >= 256) return null;
-            EnsureInitialized();
+            EnsureEntries();
             return _entries[cubeIndex];
+        }
+
+        public bool GetFlipped(int cubeIndex)
+        {
+            if (cubeIndex < 0 || cubeIndex >= 256) return false;
+            EnsureSymmetry();
+            return _canonicalFlipped[cubeIndex];
         }
 
         public Quaternion GetRotation(int cubeIndex)
         {
             if (cubeIndex < 0 || cubeIndex >= 256) return Quaternion.identity;
-            EnsureInitialized();
-            return new Quaternion(_qx[cubeIndex], _qy[cubeIndex], _qz[cubeIndex], _qw[cubeIndex]);
+            EnsureSymmetry();
+            return _canonicalRotation[cubeIndex];
         }
     }
 }

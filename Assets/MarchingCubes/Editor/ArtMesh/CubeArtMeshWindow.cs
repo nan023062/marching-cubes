@@ -99,9 +99,6 @@ namespace MarchingCubes.Editor
 
                 GUI.enabled = _config != null;
 
-                if (GUILayout.Button("Compute Symmetry", EditorStyles.toolbarButton))
-                    ComputeSymmetry();
-
                 if (GUILayout.Button("Validate", EditorStyles.toolbarButton))
                     ValidateConfig();
 
@@ -656,20 +653,6 @@ namespace MarchingCubes.Editor
         // -----------------------------------------------------------------------
         // Actions
         // -----------------------------------------------------------------------
-
-        private void ComputeSymmetry()
-        {
-            if (_config == null) return;
-
-            CubeSymmetry.ComputeSymmetryTable(
-                out int[] canonicalIndex,
-                out Quaternion[] canonicalRotation,
-                out bool[] canonicalFlipped);
-            _config.SetSymmetryData(canonicalIndex, canonicalRotation, canonicalFlipped);
-            EditorUtility.SetDirty(_config);
-            AssetDatabase.SaveAssets();
-            Repaint();
-        }
 
         private void ValidateConfig()
         {
