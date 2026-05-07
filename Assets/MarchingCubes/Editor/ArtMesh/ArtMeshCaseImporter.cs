@@ -9,17 +9,33 @@ namespace MarchingCubes
     /// <summary>
     /// Editor window: batch-import case_*.fbx from an external directory into the project,
     /// and optionally auto-assign the imported prefabs to an ArtMeshCaseConfig asset.
+    /// Target directory is derived from the Config asset location (Config_dir/Cases/),
+    /// or falls back to Assets/MarchingCubes/ArtMesh/Cases.
     /// </summary>
     public class ArtMeshCaseImporter : EditorWindow
     {
-        private string _sourceDir  = "";
-        private string _targetPath = "Assets/MarchingCubes/ArtMesh/Cases";
+        private string            _sourceDir = "";
         private ArtMeshCaseConfig _config;
-        private Vector2 _scroll;
-        private string  _log = "";
+        private Vector2           _scroll;
+        private string            _log = "";
 
         [MenuItem("MarchingCubes/Art Mesh Case Importer")]
         static void Open() => GetWindow<ArtMeshCaseImporter>("Case Importer");
+
+        // ── 目标路径：从 Config 位置推断，否则用默认值 ────────────────────────
+        string TargetAssetPath
+        {
+            get
+            {
+                if (_config != null)
+                {
+                    string configPath = AssetDatabase.GetAssetPath(_config);
+                    string dir = Path.GetDirectoryName(configPath).Replace('\\', '/');
+                    return dir + "/Cases";
+                }
+                return "Assets/MarchingCubes/ArtMesh/Cases";
+            }
+        }
 
         void OnGUI()
         {
@@ -27,7 +43,7 @@ namespace MarchingCubes
             EditorGUILayout.Space();
 
             // ① Source directory
-            EditorGUILayout.LabelField("① Source Directory (contains case_*.fbx)");
+            EditorGUILayout.LabelField("① Source Directory (Blender 导出的 case_*.fbx)");
             using (new EditorGUILayout.HorizontalScope())
             {
                 _sourceDir = EditorGUILayout.TextField(_sourceDir);
@@ -37,15 +53,13 @@ namespace MarchingCubes
 
             EditorGUILayout.Space();
 
-            // ② Target path inside project
-            EditorGUILayout.LabelField("② Target Path in Project (under Assets/)");
-            _targetPath = EditorGUILayout.TextField(_targetPath);
-
-            EditorGUILayout.Space();
-
-            // ③ Optional config asset
+            // ② Config asset
             _config = (ArtMeshCaseConfig)EditorGUILayout.ObjectField(
-                "③ Config Asset (auto-assign)", _config, typeof(ArtMeshCaseConfig), false);
+                "② Config Asset (可选，自动赋值)", _config, typeof(ArtMeshCaseConfig), false);
+
+            // 显示推断出的目标路径（只读提示）
+            using (new EditorGUI.DisabledScope(true))
+                EditorGUILayout.TextField("   → 导入目标", TargetAssetPath);
 
             EditorGUILayout.Space();
 
@@ -73,20 +87,18 @@ namespace MarchingCubes
                 Repaint(); return;
             }
 
-            // Resolve full filesystem path for target
-            string normalTarget = _targetPath.TrimEnd('/', '\\');
-            string relative = normalTarget.StartsWith("Assets")
-                ? normalTarget.Substring("Assets".Length).TrimStart('/', '\\')
-                : normalTarget;
+            string targetAsset = TargetAssetPath;
+            string relative    = targetAsset.StartsWith("Assets")
+                ? targetAsset.Substring("Assets".Length).TrimStart('/', '\\')
+                : targetAsset;
             string fullTarget = Path.Combine(Application.dataPath, relative);
 
             if (!Directory.Exists(fullTarget))
             {
                 Directory.CreateDirectory(fullTarget);
-                _log += $"Created: {normalTarget}\n";
+                _log += $"Created: {targetAsset}\n";
             }
 
-            // Collect case_*.fbx
             var regex = new Regex(@"case_(\d+)\.fbx$", RegexOptions.IgnoreCase);
             string[] files = Directory.GetFiles(_sourceDir, "case_*.fbx");
 
@@ -96,7 +108,6 @@ namespace MarchingCubes
                 Repaint(); return;
             }
 
-            // Copy files
             var importedCases = new List<int>();
             foreach (string src in files)
             {
@@ -104,42 +115,27 @@ namespace MarchingCubes
                 if (!m.Success) continue;
 
                 int ci = int.Parse(m.Groups[1].Value);
-                string dst = Path.Combine(fullTarget, $"case_{ci}.fbx");
-                File.Copy(src, dst, overwrite: true);
+                File.Copy(src, Path.Combine(fullTarget, $"case_{ci}.fbx"), overwrite: true);
                 importedCases.Add(ci);
             }
 
-            _log += $"Copied {importedCases.Count} files → {normalTarget}\n";
+            _log += $"Copied {importedCases.Count} files → {targetAsset}\n";
             _log += "Refreshing Asset Database…\n";
             AssetDatabase.Refresh();
 
-            // Auto-assign prefabs to config
             if (_config != null && importedCases.Count > 0)
             {
                 int assigned = 0;
                 foreach (int ci in importedCases)
                 {
-                    string assetPath = $"{normalTarget}/case_{ci}.fbx";
-                    var go = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
-                    if (go == null)
-                    {
-                        _log += $"  [Warn] Could not load asset: {assetPath}\n";
-                        continue;
-                    }
+                    var go = AssetDatabase.LoadAssetAtPath<GameObject>($"{targetAsset}/case_{ci}.fbx");
+                    if (go == null) { _log += $"  [Warn] Cannot load: case_{ci}.fbx\n"; continue; }
                     var entry = _config.GetEntry(ci);
-                    if (entry != null)
-                    {
-                        entry.prefab = go;
-                        assigned++;
-                    }
+                    if (entry != null) { entry.prefab = go; assigned++; }
                 }
                 EditorUtility.SetDirty(_config);
                 AssetDatabase.SaveAssets();
                 _log += $"Assigned {assigned} prefabs to Config.\n";
-            }
-            else if (_config == null)
-            {
-                _log += "(No Config asset selected — skipping prefab assignment)\n";
             }
 
             _log += "\n✓ Done.";
