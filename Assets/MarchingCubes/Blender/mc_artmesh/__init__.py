@@ -433,7 +433,7 @@ def _make_case_mesh_vf(ci, radius=0.0, segments=4):
                 e for e in bm.edges
                 if len(e.link_faces) == 2
                 and e.link_faces[0][cl] and e.link_faces[1][cl]
-                and abs(e.link_faces[0].normal.dot(e.link_faces[1].normal)) > 0.99
+                and e.link_faces[0].normal.dot(e.link_faces[1].normal) > 0.99
             ]
             if dissolve:
                 bmesh.ops.dissolve_edges(bm, edges=dissolve, use_verts=True)
@@ -448,6 +448,7 @@ def _make_case_mesh_vf(ci, radius=0.0, segments=4):
                 if len(e.link_faces) == 2
                 and _is_midplane(e.link_faces[0])
                 and _is_midplane(e.link_faces[1])
+                and abs(e.link_faces[0].normal.dot(e.link_faces[1].normal)) < 0.99
             ]
             if bevel_edges:
                 bmesh.ops.bevel(
