@@ -1,20 +1,17 @@
 using UnityEngine;
 using UnityEditor;
 using System.IO;
-using System.Collections.Generic;
 using System.Text.RegularExpressions;
 
 namespace MarchingCubes
 {
     /// <summary>
-    /// Editor window: batch-import case_*.fbx from an external directory into the project,
-    /// and optionally auto-assign the imported prefabs to an ArtMeshCaseConfig asset.
-    /// Target directory is derived from the Config asset location (Config_dir/Cases/),
-    /// or falls back to Assets/MarchingCubes/ArtMesh/Cases.
+    /// Editor window: scan a project-internal folder for case_*.fbx assets
+    /// and assign them to an ArtMeshCaseConfig — no file copying needed.
     /// </summary>
     public class ArtMeshCaseImporter : EditorWindow
     {
-        private string            _sourceDir = "";
+        private string            _caseFolderAssetPath = "Assets/MarchingCubes/ArtMesh/Cases";
         private ArtMeshCaseConfig _config;
         private Vector2           _scroll;
         private string            _log = "";
@@ -22,52 +19,50 @@ namespace MarchingCubes
         [MenuItem("MarchingCubes/Art Mesh Case Importer")]
         static void Open() => GetWindow<ArtMeshCaseImporter>("Case Importer");
 
-        // ── 目标路径：从 Config 位置推断，否则用默认值 ────────────────────────
-        string TargetAssetPath
-        {
-            get
-            {
-                if (_config != null)
-                {
-                    string configPath = AssetDatabase.GetAssetPath(_config);
-                    string dir = Path.GetDirectoryName(configPath).Replace('\\', '/');
-                    return dir + "/Cases";
-                }
-                return "Assets/MarchingCubes/ArtMesh/Cases";
-            }
-        }
-
         void OnGUI()
         {
-            GUILayout.Label("Art Mesh Case FBX Importer", EditorStyles.boldLabel);
+            GUILayout.Label("Art Mesh Case Importer", EditorStyles.boldLabel);
             EditorGUILayout.Space();
 
-            // ① Source directory
-            EditorGUILayout.LabelField("① Source Directory (Blender 导出的 case_*.fbx)");
+            // ① Project-internal case folder
+            EditorGUILayout.LabelField("① Case FBX Folder (项目内)");
             using (new EditorGUILayout.HorizontalScope())
             {
-                _sourceDir = EditorGUILayout.TextField(_sourceDir);
-                if (GUILayout.Button("Browse…", GUILayout.Width(72)))
-                    _sourceDir = EditorUtility.OpenFolderPanel("Select FBX Source", _sourceDir, "");
+                _caseFolderAssetPath = EditorGUILayout.TextField(_caseFolderAssetPath);
+                if (GUILayout.Button("Pick…", GUILayout.Width(56)))
+                {
+                    string picked = EditorUtility.OpenFolderPanel(
+                        "Select Case FBX Folder",
+                        Path.GetFullPath(Path.Combine(Application.dataPath, "..")),
+                        "");
+                    if (!string.IsNullOrEmpty(picked))
+                    {
+                        // 转换为 Assets/... 相对路径
+                        string full = Path.GetFullPath(picked).Replace('\\', '/');
+                        string data = Path.GetFullPath(Application.dataPath).Replace('\\', '/');
+                        if (full.StartsWith(data))
+                            _caseFolderAssetPath = "Assets" + full.Substring(data.Length);
+                    }
+                }
             }
 
             EditorGUILayout.Space();
 
             // ② Config asset
             _config = (ArtMeshCaseConfig)EditorGUILayout.ObjectField(
-                "② Config Asset (可选，自动赋值)", _config, typeof(ArtMeshCaseConfig), false);
-
-            // 显示推断出的目标路径（只读提示）
-            using (new EditorGUI.DisabledScope(true))
-                EditorGUILayout.TextField("   → 导入目标", TargetAssetPath);
+                "② Config Asset", _config, typeof(ArtMeshCaseConfig), false);
 
             EditorGUILayout.Space();
 
-            using (new EditorGUI.DisabledScope(string.IsNullOrEmpty(_sourceDir)))
+            bool canRun = !string.IsNullOrEmpty(_caseFolderAssetPath) && _config != null;
+            using (new EditorGUI.DisabledScope(!canRun))
             {
-                if (GUILayout.Button("Import All case_*.fbx", GUILayout.Height(32)))
-                    DoImport();
+                if (GUILayout.Button("Assign case_*.fbx → Config", GUILayout.Height(32)))
+                    DoAssign();
             }
+
+            if (!canRun)
+                EditorGUILayout.HelpBox("需要同时指定 Folder 和 Config Asset。", MessageType.Info);
 
             EditorGUILayout.Space();
             _scroll = EditorGUILayout.BeginScrollView(_scroll, GUILayout.Height(200));
@@ -75,70 +70,47 @@ namespace MarchingCubes
             EditorGUILayout.EndScrollView();
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-
-        void DoImport()
+        void DoAssign()
         {
             _log = "";
 
-            if (!Directory.Exists(_sourceDir))
+            string folder = _caseFolderAssetPath.TrimEnd('/', '\\');
+            string fullFolder = Path.GetFullPath(
+                Path.Combine(Application.dataPath, "..", folder)).Replace('\\', '/');
+
+            if (!Directory.Exists(fullFolder))
             {
-                _log = $"[Error] Source directory not found:\n{_sourceDir}";
-                Repaint(); return;
+                _log = $"[Error] Folder not found: {folder}"; Repaint(); return;
             }
 
-            string targetAsset = TargetAssetPath;
-            string relative    = targetAsset.StartsWith("Assets")
-                ? targetAsset.Substring("Assets".Length).TrimStart('/', '\\')
-                : targetAsset;
-            string fullTarget = Path.Combine(Application.dataPath, relative);
-
-            if (!Directory.Exists(fullTarget))
-            {
-                Directory.CreateDirectory(fullTarget);
-                _log += $"Created: {targetAsset}\n";
-            }
-
-            var regex = new Regex(@"case_(\d+)\.fbx$", RegexOptions.IgnoreCase);
-            string[] files = Directory.GetFiles(_sourceDir, "case_*.fbx");
+            var regex   = new Regex(@"case_(\d+)\.fbx$", RegexOptions.IgnoreCase);
+            string[] files = Directory.GetFiles(fullFolder, "case_*.fbx");
 
             if (files.Length == 0)
             {
-                _log = "[Warn] No case_*.fbx found in source directory.";
-                Repaint(); return;
+                _log = "[Warn] No case_*.fbx found in folder."; Repaint(); return;
             }
 
-            var importedCases = new List<int>();
-            foreach (string src in files)
+            int assigned = 0;
+            foreach (string f in files)
             {
-                var m = regex.Match(Path.GetFileName(src));
+                var m = regex.Match(Path.GetFileName(f));
                 if (!m.Success) continue;
 
                 int ci = int.Parse(m.Groups[1].Value);
-                File.Copy(src, Path.Combine(fullTarget, $"case_{ci}.fbx"), overwrite: true);
-                importedCases.Add(ci);
+                string assetPath = $"{folder}/case_{ci}.fbx";
+                var go = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+
+                if (go == null) { _log += $"  [Warn] Not found in AssetDB: {assetPath}\n"; continue; }
+
+                var entry = _config.GetEntry(ci);
+                if (entry != null) { entry.prefab = go; assigned++; }
+                else               { _log += $"  [Warn] No entry for ci={ci}\n"; }
             }
 
-            _log += $"Copied {importedCases.Count} files → {targetAsset}\n";
-            _log += "Refreshing Asset Database…\n";
-            AssetDatabase.Refresh();
-
-            if (_config != null && importedCases.Count > 0)
-            {
-                int assigned = 0;
-                foreach (int ci in importedCases)
-                {
-                    var go = AssetDatabase.LoadAssetAtPath<GameObject>($"{targetAsset}/case_{ci}.fbx");
-                    if (go == null) { _log += $"  [Warn] Cannot load: case_{ci}.fbx\n"; continue; }
-                    var entry = _config.GetEntry(ci);
-                    if (entry != null) { entry.prefab = go; assigned++; }
-                }
-                EditorUtility.SetDirty(_config);
-                AssetDatabase.SaveAssets();
-                _log += $"Assigned {assigned} prefabs to Config.\n";
-            }
-
-            _log += "\n✓ Done.";
+            EditorUtility.SetDirty(_config);
+            AssetDatabase.SaveAssets();
+            _log += $"Assigned {assigned} / {files.Length} prefabs to Config.\n✓ Done.";
             Repaint();
         }
     }
