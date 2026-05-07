@@ -51,11 +51,8 @@ namespace MarchingCubes.Editor
         {
             EditorGUILayout.LabelField("Build Case Prefabs (p_case_xx)", EditorStyles.boldLabel);
 
-            EditorGUILayout.LabelField("① Canonical FBX folder (case_*.fbx)");
-            DrawFolderPicker(ref _fbxFolder, "FBX Folder");
-
-            EditorGUILayout.LabelField("② Output prefab folder");
-            DrawFolderPicker(ref _prefabFolder, "Prefab Output");
+            DrawFolderField("① Canonical FBX folder (case_*.fbx)", ref _fbxFolder);
+            DrawFolderField("② Output prefab folder", ref _prefabFolder);
 
             EditorGUILayout.Space(2);
             if (GUILayout.Button("Build All 255 Case Prefabs  (p_case_1 … p_case_254)",
@@ -67,24 +64,17 @@ namespace MarchingCubes.Editor
                     new GUIStyle(EditorStyles.helpBox) { wordWrap = true });
         }
 
-        void DrawFolderPicker(ref string path, string title)
+        void DrawFolderField(string label, ref string path)
         {
-            using (new EditorGUILayout.HorizontalScope())
+            EditorGUILayout.LabelField(label);
+            var current = AssetDatabase.LoadAssetAtPath<DefaultAsset>(path);
+            EditorGUI.BeginChangeCheck();
+            var dragged = (DefaultAsset)EditorGUILayout.ObjectField(
+                current, typeof(DefaultAsset), false);
+            if (EditorGUI.EndChangeCheck() && dragged != null)
             {
-                path = EditorGUILayout.TextField(path);
-                if (GUILayout.Button("Pick", GUILayout.Width(46)))
-                {
-                    string rel  = path.StartsWith("Assets") ? path.Substring("Assets".Length).TrimStart('/', '\\') : path;
-                    string def  = Path.GetFullPath(Path.Combine(Application.dataPath, rel)).Replace('\\', '/');
-                    if (!Directory.Exists(def)) def = Application.dataPath;
-                    string picked = EditorUtility.OpenFolderPanel(title, def, "");
-                    if (!string.IsNullOrEmpty(picked))
-                    {
-                        string full = Path.GetFullPath(picked).Replace('\\', '/');
-                        string data = Path.GetFullPath(Application.dataPath).Replace('\\', '/');
-                        if (full.StartsWith(data)) path = "Assets" + full.Substring(data.Length);
-                    }
-                }
+                string p = AssetDatabase.GetAssetPath(dragged);
+                if (AssetDatabase.IsValidFolder(p)) path = p;
             }
         }
 
