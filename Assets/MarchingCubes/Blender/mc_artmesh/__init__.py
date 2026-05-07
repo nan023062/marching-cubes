@@ -837,6 +837,57 @@ class MC_OT_ExportGeneratedMeshes(bpy.types.Operator):
             mesh.from_pydata(verts_local, [], faces_local)
             mesh.update()
 
+            # ── 顶面识别并分类 ──────────────────────────────────────────────
+            EPS_e = 1e-4
+            # index 0=封闭(蓝) 1=开放侧/底(灰) 2=顶面封闭(棕)
+            MAT_EXP_CLOSED = _ensure_mat("mc_cube_closed", (0.04, 0.12, 0.55), strength=1.1)
+            MAT_EXP_OPEN   = _ensure_mat("mc_cube_open",   (0.60, 0.60, 0.60), strength=0.7)
+            MAT_EXP_TOP    = _ensure_mat_top("mc_cube_top")
+            mesh.materials.append(MAT_EXP_CLOSED)
+            mesh.materials.append(MAT_EXP_OPEN)
+            mesh.materials.append(MAT_EXP_TOP)
+
+            for poly in mesh.polygons:
+                pvs = [verts_local[vi] for vi in poly.vertices]
+                is_open = (
+                    all(abs(v[0]) < EPS_e for v in pvs) or
+                    all(abs(v[0] - 1.0) < EPS_e for v in pvs) or
+                    all(abs(v[1]) < EPS_e for v in pvs) or
+                    all(abs(v[1] - 1.0) < EPS_e for v in pvs) or
+                    all(abs(v[2]) < EPS_e for v in pvs) or
+                    all(abs(v[2] - 1.0) < EPS_e for v in pvs)
+                )
+                if is_open:
+                    poly.material_index = 1
+                elif poly.normal.z > 0.9:
+                    poly.material_index = 2
+                else:
+                    poly.material_index = 0
+
+            # ── 写入顶点色（FBX 可携带，Unity 任意 Vertex Color shader 可读）──
+            # 颜色对应：index0→蓝  index1→灰  index2→棕
+            VCOL = {0: (0.04, 0.12, 0.55, 1.0),
+                    1: (0.60, 0.60, 0.60, 1.0),
+                    2: (0.55, 0.35, 0.10, 1.0)}
+            try:
+                vc = mesh.color_attributes.new(
+                    name="Col", type='BYTE_COLOR', domain='CORNER')
+                for poly in mesh.polygons:
+                    c = VCOL[poly.material_index]
+                    for li in poly.loop_indices:
+                        vc.data[li].color = c
+            except Exception:
+                try:  # Blender < 3.3 fallback
+                    vc = mesh.vertex_colors.new(name="Col")
+                    for poly in mesh.polygons:
+                        c = VCOL[poly.material_index]
+                        for li in poly.loop_indices:
+                            vc.data[li].color = c
+                except Exception:
+                    pass
+
+            mesh.update()
+
             exp_obj = bpy.data.objects.new(f"case_{ci}", mesh)
             bpy.context.scene.collection.objects.link(exp_obj)
             bpy.ops.object.select_all(action='DESELECT')
