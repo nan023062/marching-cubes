@@ -5,9 +5,10 @@ namespace MarchingCubes
     /// <summary>
     /// ScriptableObject that stores art mesh prefab assignments for all 256 cube configurations.
     /// Canonical index + rotation data is precomputed by CubeSymmetry and written here.
+    /// 53 D4 canonical cases → each assigned a Prefab; remaining 203 cases share via symmetry.
     /// </summary>
-    [CreateAssetMenu(fileName = "CubeArtMeshConfig", menuName = "MarchingCubes/Art Mesh Config")]
-    public sealed class CubeArtMeshConfig : ScriptableObject
+    [CreateAssetMenu(fileName = "ArtMeshCaseConfig", menuName = "MarchingCubes/Art Mesh Case Config")]
+    public sealed class ArtMeshCaseConfig : ScriptableObject
     {
         [System.Serializable]
         public sealed class Entry

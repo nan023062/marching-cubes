@@ -7,7 +7,7 @@ namespace MarchingCubes.Sample
         public int x = 5, y = 3, z = 5;
         public uint unit = 1;
 
-        [SerializeField] private MarchingCubes.CubeArtMeshConfig _config;
+        [SerializeField] private MarchingCubes.ArtMeshCaseConfig _config;
         [SerializeField] private bool showPoint;
 
         public int debugHighlightIndex = -1;

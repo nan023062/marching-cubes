@@ -6,7 +6,7 @@ namespace MarchingCubes.Editor
 {
     /// <summary>
     /// Static tool for generating reference templates and splitting a large art mesh into
-    /// per-cube-index Mesh assets and Prefabs, then wiring them into CubeArtMeshConfig.
+    /// per-cube-index Mesh assets and Prefabs, then wiring them into ArtMeshCaseConfig.
     /// </summary>
     public static class CubeArtMeshSplitter
     {
@@ -19,11 +19,11 @@ namespace MarchingCubes.Editor
         /// Each cell is a labelled semi-transparent unit cube so artists can model
         /// their mesh atlas to the correct grid coordinates.
         /// </summary>
-        public static GameObject GenerateTemplate(bool plan256, CubeArtMeshConfig config)
+        public static GameObject GenerateTemplate(bool plan256, ArtMeshCaseConfig config)
         {
             if (!plan256 && config == null)
             {
-                Debug.LogWarning("[CubeArtMeshSplitter] Plan A requires a CubeArtMeshConfig. Aborting.");
+                Debug.LogWarning("[CubeArtMeshSplitter] Plan A requires a ArtMeshCaseConfig. Aborting.");
                 return null;
             }
 
@@ -76,12 +76,12 @@ namespace MarchingCubes.Editor
 
         /// <summary>
         /// Splits a large mesh by grid cell, saves each cell as a Mesh asset and Prefab,
-        /// and assigns them into the provided CubeArtMeshConfig.
+        /// and assigns them into the provided ArtMeshCaseConfig.
         /// </summary>
         public static void SplitAndAssign(
             Mesh sourceMesh,
             bool plan256,
-            CubeArtMeshConfig config,
+            ArtMeshCaseConfig config,
             string outputFolder,
             Material defaultMaterial)
         {
@@ -285,7 +285,7 @@ namespace MarchingCubes.Editor
         /// Returns the ordered list of canonical cube indices from config (IsCanonical==true, ascending).
         /// Returns null and logs a warning if config symmetry has not been computed yet.
         /// </summary>
-        private static List<int> BuildPlanAIndices(CubeArtMeshConfig config)
+        private static List<int> BuildPlanAIndices(ArtMeshCaseConfig config)
         {
             if (config == null)
             {

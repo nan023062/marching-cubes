@@ -19,7 +19,7 @@ namespace MarchingCubes.Editor
         private static readonly Vector3 s_cubeCenter = new Vector3(0.5f, 0.5f, 0.5f);
 
         // --- state ---
-        private CubeArtMeshConfig _config;
+        private ArtMeshCaseConfig _config;
         private bool _showCanonicalOnly;
         private int _selectedIndex = -1;
         private Vector2 _scrollPos;
@@ -86,8 +86,8 @@ namespace MarchingCubes.Editor
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                CubeArtMeshConfig newConfig = (CubeArtMeshConfig)EditorGUILayout.ObjectField(
-                    _config, typeof(CubeArtMeshConfig), false, GUILayout.Width(240));
+                ArtMeshCaseConfig newConfig = (ArtMeshCaseConfig)EditorGUILayout.ObjectField(
+                    _config, typeof(ArtMeshCaseConfig), false, GUILayout.Width(240));
                 if (newConfig != _config)
                 {
                     _config = newConfig;
@@ -136,7 +136,7 @@ namespace MarchingCubes.Editor
 
                 if (_config == null)
                 {
-                    EditorGUILayout.HelpBox("Select a CubeArtMeshConfig asset.", MessageType.Info);
+                    EditorGUILayout.HelpBox("Select a ArtMeshCaseConfig asset.", MessageType.Info);
                     return;
                 }
 
@@ -285,7 +285,7 @@ namespace MarchingCubes.Editor
                 float isoY = -vy * 0.60f - vx * 0.20f - vz * 0.20f + 0.80f;
 
                 // isoX 实际范围 [-0.35, 0.50]，isoY 实际范围 [-0.20, 0.80]
-                // min-max 归一化保证所有 8 个顶点映射到 [0,1]
+                // min-max 归一化保证所�?8 个顶点映射到 [0,1]
                 const float isoXMin = -0.35f;
                 const float isoXMax =  0.50f;
                 const float isoYMin = -0.20f;
@@ -299,7 +299,7 @@ namespace MarchingCubes.Editor
             }
 
             // Draw edges
-            // GUI.BeginClip 将 scissor 裁剪到 gizmoRect，并将坐标原点移到 gizmoRect.position
+            // GUI.BeginClip �?scissor 裁剪�?gizmoRect，并将坐标原点移�?gizmoRect.position
             Vector2 gizmoOrigin = new Vector2(gizmoRect.x, gizmoRect.y);
             GUI.BeginClip(gizmoRect);
             Handles.BeginGUI();
@@ -307,7 +307,7 @@ namespace MarchingCubes.Editor
             for (int e = 0; e < CubeTable.EdgeCount; e++)
             {
                 var edge = CubeTable.Edges[e];
-                // clip 内坐标原点 = gizmoRect.position，需减去 gizmoOrigin
+                // clip 内坐标原�?= gizmoRect.position，需减去 gizmoOrigin
                 Vector2 p1 = screenPositions[edge.p1] - gizmoOrigin;
                 Vector2 p2 = screenPositions[edge.p2] - gizmoOrigin;
                 Handles.DrawLine(new Vector3(p1.x, p1.y, 0f), new Vector3(p2.x, p2.y, 0f));
@@ -440,8 +440,7 @@ namespace MarchingCubes.Editor
         {
             EditorGUILayout.LabelField("Vertex Topology", EditorStyles.boldLabel);
 
-            // 获取正方形绘制区域（宽 = DetailPanelWidth - 20，高同宽）
-            float size = DetailPanelWidth - 20f;
+            // 获取正方形绘制区域（�?= DetailPanelWidth - 20，高同宽�?            float size = DetailPanelWidth - 20f;
             Rect diagramRect = GUILayoutUtility.GetRect(size, size);
 
             if (Event.current.type != EventType.Repaint) return;
@@ -454,9 +453,8 @@ namespace MarchingCubes.Editor
                 diagramRect.x + padding, diagramRect.y + padding,
                 diagramRect.width - padding * 2f, diagramRect.height - padding * 2f);
 
-            // 投影（与格子内一致的公式）
-            // isoX 实际范围 [-0.35, 0.50]，isoY 实际范围 [-0.20, 0.80]
-            // min-max 归一化保证所有 8 个顶点映射到 [0,1]
+            // 投影（与格子内一致的公式�?            // isoX 实际范围 [-0.35, 0.50]，isoY 实际范围 [-0.20, 0.80]
+            // min-max 归一化保证所�?8 个顶点映射到 [0,1]
             const float isoXMin = -0.35f;
             const float isoXMax =  0.50f;
             const float isoYMin = -0.20f;
@@ -475,8 +473,7 @@ namespace MarchingCubes.Editor
                     inner.y + ny * inner.height);
             }
 
-            // 边（详情面板不在 ScrollView，Handles 坐标直接使用，无需 GUI.BeginClip）
-            GUI.BeginClip(diagramRect);
+            // 边（详情面板不在 ScrollView，Handles 坐标直接使用，无需 GUI.BeginClip�?            GUI.BeginClip(diagramRect);
             Vector2 origin = new Vector2(diagramRect.x, diagramRect.y);
             Handles.BeginGUI();
             Handles.color = new Color(0.5f, 0.5f, 0.5f, 0.9f);
@@ -490,7 +487,7 @@ namespace MarchingCubes.Editor
             Handles.EndGUI();
             GUI.EndClip();
 
-            // 顶点点 + 标签
+            // 顶点�?+ 标签
             float dotR = 7f;
             for (int v = 0; v < CubeTable.VertexCount; v++)
             {
@@ -502,8 +499,7 @@ namespace MarchingCubes.Editor
                     EditorGUI.DrawRect(
                         new Rect(pos.x - dotR, pos.y - dotR, dotR * 2f, dotR * 2f),
                         new Color(1f, 0.6f, 0.1f));
-                    // 标签：白色，偏右上
-                    GUI.Label(new Rect(pos.x + dotR, pos.y - dotR - 2f, 28f, 16f),
+                    // 标签：白色，偏右�?                    GUI.Label(new Rect(pos.x + dotR, pos.y - dotR - 2f, 28f, 16f),
                         "V" + v,
                         new GUIStyle(EditorStyles.miniLabel)
                         {
