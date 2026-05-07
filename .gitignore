@@ -11,4 +11,4 @@ obj.meta
 *.suo
 *.csproj.user
 *.tmp
-*.mdb
+*.mdb.claude/
