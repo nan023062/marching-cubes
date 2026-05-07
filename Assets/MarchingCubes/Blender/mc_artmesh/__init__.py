@@ -247,13 +247,50 @@ def _ensure_mat(name, rgb, strength=1.5, alpha=1.0):
 
 
 _MAT_NAMES = ("mc_active", "mc_inactive", "mc_seam", "mc_wire", "mc_iso",
-              "mc_cube_closed", "mc_cube_open")
+              "mc_cube_closed", "mc_cube_open", "mc_cube_top")
 
 
 def _reset_mats():
     for name in _MAT_NAMES:
         if name in bpy.data.materials:
             bpy.data.materials.remove(bpy.data.materials[name])
+
+
+def _ensure_mat_top(name):
+    """顶面地面材质：Emission + Checker 过程纹理（棋盘格，暗土地色）。"""
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+
+    out     = nt.nodes.new('ShaderNodeOutputMaterial')
+    em      = nt.nodes.new('ShaderNodeEmission')
+    checker = nt.nodes.new('ShaderNodeTexChecker')
+    mapping = nt.nodes.new('ShaderNodeMapping')
+    coord   = nt.nodes.new('ShaderNodeTexCoord')
+
+    # Object 坐标 → Mapping（缩放控制格子大小）→ Checker
+    coord.location   = (-600, 0)
+    mapping.location = (-400, 0)
+    checker.location = (-160, 0)
+    em.location      = ( 60,  0)
+    out.location     = ( 260, 0)
+
+    mapping.inputs['Scale'].default_value = (6, 6, 6)   # 每世界单位 6 格
+    checker.inputs['Color1'].default_value = (0.60, 0.42, 0.18, 1.0)  # 土黄
+    checker.inputs['Color2'].default_value = (0.32, 0.18, 0.05, 1.0)  # 深棕
+    checker.inputs['Scale'].default_value  = 1.0
+    em.inputs['Strength'].default_value    = 0.85
+
+    nt.links.new(coord.outputs['Object'],   mapping.inputs['Vector'])
+    nt.links.new(mapping.outputs['Vector'], checker.inputs['Vector'])
+    nt.links.new(checker.outputs['Color'],  em.inputs['Color'])
+    nt.links.new(em.outputs['Emission'],    out.inputs['Surface'])
+
+    mat.diffuse_color = (0.55, 0.35, 0.10, 1.0)
+    return mat
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -352,7 +389,7 @@ def _is_midplane(f):
             all(abs(z - 0.5) < _EPS for z in zs))
 
 
-def _make_case_mesh_vf(ci, radius=0.0, segments=4):
+def _make_case_mesh_vf(ci, radius=0.0, segments=4, radius_top=0.0):
     """
     顶点八分体填充法（连通分量独立处理）：
       1. 六连通 BFS 将 active 八分体分成 K 个连通分量
@@ -424,8 +461,8 @@ def _make_case_mesh_vf(ci, radius=0.0, segments=4):
 
         bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
 
-        if radius > 0:
-            # Step 1: dissolve 同平面 closed-closed 拼缝边（共面，|n1·n2|≈1）
+        if radius > 0 or radius_top > 0:
+            # Step 1: dissolve 同平面 closed-closed 拼缝边
             bm.normal_update()
             bm.edges.ensure_lookup_table()
             cl = bm.faces.layers.int['closed']
@@ -438,25 +475,60 @@ def _make_case_mesh_vf(ci, radius=0.0, segments=4):
             if dissolve:
                 bmesh.ops.dissolve_edges(bm, edges=dissolve, use_verts=True)
 
-            # Step 2: bevel 剩余 closed-closed 边（dissolve 后必然是 90°）
-            # 用位置重新判断（dissolve 后 layer 可能失效）
+            # Step 2: 收集所有合法弧边（dissolve 后用位置判断，排除 180° 边）
             bm.normal_update()
             bm.edges.ensure_lookup_table()
             bm.faces.ensure_lookup_table()
-            bevel_edges = [
-                e for e in bm.edges
-                if len(e.link_faces) == 2
-                and _is_midplane(e.link_faces[0])
-                and _is_midplane(e.link_faces[1])
-                and abs(e.link_faces[0].normal.dot(e.link_faces[1].normal)) < 0.99
-            ]
-            if bevel_edges:
+
+            def _is_top_face(f):
+                """向上的封闭面（地面朝向）"""
+                return _is_midplane(f) and f.normal.z > 0.9
+
+            # 顶面相邻边 vs 其余封闭-封闭边
+            top_edges   = []
+            other_edges = []
+            for e in bm.edges:
+                if len(e.link_faces) != 2:
+                    continue
+                f0, f1 = e.link_faces[0], e.link_faces[1]
+                if not (_is_midplane(f0) and _is_midplane(f1)):
+                    continue
+                if abs(f0.normal.dot(f1.normal)) >= 0.99:
+                    continue
+                if _is_top_face(f0) or _is_top_face(f1):
+                    top_edges.append(e)
+                else:
+                    other_edges.append(e)
+
+            # 顶面边用 radius_top（0 = 保持直角）
+            if top_edges and radius_top > 0:
                 bmesh.ops.bevel(
-                    bm, geom=bevel_edges,
-                    offset=radius, offset_type='OFFSET',
+                    bm, geom=top_edges,
+                    offset=radius_top, offset_type='OFFSET',
                     segments=segments, profile=0.5,
                     affect='EDGES', clamp_overlap=True,
                 )
+            # 其余封闭边用 radius（重新刷新，避免第一次 bevel 影响引用）
+            if other_edges and radius > 0:
+                bm.normal_update()
+                bm.edges.ensure_lookup_table()
+                bm.faces.ensure_lookup_table()
+                # 重新收集（第一次 bevel 后顶面边已被消化，仅剩非顶面边）
+                other_fresh = [
+                    e for e in bm.edges
+                    if len(e.link_faces) == 2
+                    and _is_midplane(e.link_faces[0])
+                    and _is_midplane(e.link_faces[1])
+                    and abs(e.link_faces[0].normal.dot(e.link_faces[1].normal)) < 0.99
+                    and not (_is_top_face(e.link_faces[0]) or _is_top_face(e.link_faces[1]))
+                ]
+                if other_fresh:
+                    bmesh.ops.bevel(
+                        bm, geom=other_fresh,
+                        offset=radius, offset_type='OFFSET',
+                        segments=segments, profile=0.5,
+                        affect='EDGES', clamp_overlap=True,
+                    )
 
         bmesh.ops.triangulate(bm, faces=bm.faces[:])
         bm.verts.ensure_lookup_table()
@@ -488,8 +560,12 @@ class MCProps(bpy.types.PropertyGroup):
 
 class MCCubesProps(bpy.types.PropertyGroup):
     radius: bpy.props.FloatProperty(
-        name="Arc Radius", default=0.08, min=0.0, max=0.24, step=1,
-        description="封闭面间圆弧半径（0 = 直角，最大 0.24）",
+        name="Side Arc Radius", default=0.08, min=0.0, max=0.24, step=1,
+        description="侧面封闭边圆弧半径（0 = 直角，最大 0.24）",
+    )
+    radius_top: bpy.props.FloatProperty(
+        name="Top Arc Radius", default=0.0, min=0.0, max=0.24, step=1,
+        description="顶面（地面朝向）封闭边圆弧半径（0 = 保持直角）",
     )
     segments: bpy.props.IntProperty(
         name="Arc Segments", default=4, min=1, max=12,
@@ -615,9 +691,12 @@ class MC_OT_GenerateCubes(bpy.types.Operator):
     def execute(self, context):
         cubes_props = context.scene.mc_cubes_props
         _remove_col(CUBES_COL_NAME)
-        # 深蓝 = 封闭面（中平面 0.5 + 圆弧面）；浅灰 = 开放面（cube 边界，拼接后自然封闭）
+        # index 0: 深蓝  封闭面（中平面 + 圆弧面）
+        # index 1: 浅灰  侧/底开放面（cube 边界，拼接后自然封闭）
+        # index 2: 棋盘  顶面（z=1，地面朝向，过程纹理标识上下不对称）
         MAT_CLOSED = _ensure_mat("mc_cube_closed", (0.04, 0.12, 0.55), strength=1.1)
         MAT_OPEN   = _ensure_mat("mc_cube_open",   (0.60, 0.60, 0.60), strength=0.7)
+        MAT_TOP    = _ensure_mat_top("mc_cube_top")
 
         cubes_root = _ensure_col(CUBES_COL_NAME)
         canonicals = get_d4_canonicals()
@@ -629,20 +708,23 @@ class MC_OT_GenerateCubes(bpy.types.Operator):
             b_ox, b_oy, b_oz = u2b(cx, cy, cz)
 
             verts_local, faces_local = _make_case_mesh_vf(
-                ci, radius=cubes_props.radius, segments=cubes_props.segments)
+                ci, radius=cubes_props.radius, segments=cubes_props.segments,
+                radius_top=cubes_props.radius_top)
             if not verts_local:
                 continue
 
             verts_world = [(v[0]+b_ox, v[1]+b_oy, v[2]+b_oz) for v in verts_local]
             mesh = bpy.data.meshes.new(f"cube_{ci}")
             mesh.from_pydata(verts_world, [], faces_local)
+            mesh.update()  # 先计算法线，用于顶面识别
+
             mesh.materials.append(MAT_CLOSED)  # index 0
             mesh.materials.append(MAT_OPEN)    # index 1
+            mesh.materials.append(MAT_TOP)     # index 2
 
-            # 开放面 = 严格落在 cube 边界平面（坐标 0 或 1）上的面
-            # 其余（中平面原始面 + 圆弧过渡面）均为封闭面 → 深蓝
             for poly in mesh.polygons:
                 pvs = [verts_world[vi] for vi in poly.vertices]
+                # 开放面：严格落在 cube 任意边界平面上
                 is_open = (
                     all(abs(v[0] - b_ox      ) < EPS for v in pvs) or
                     all(abs(v[0] - b_ox - 1.0) < EPS for v in pvs) or
@@ -651,7 +733,13 @@ class MC_OT_GenerateCubes(bpy.types.Operator):
                     all(abs(v[2] - b_oz      ) < EPS for v in pvs) or
                     all(abs(v[2] - b_oz - 1.0) < EPS for v in pvs)
                 )
-                poly.material_index = 1 if is_open else 0
+                if is_open:
+                    poly.material_index = 1
+                elif poly.normal.z > 0.9:
+                    # 顶面：向上的封闭面（法线+Z，地面朝向，棋盘纹理标识）
+                    poly.material_index = 2
+                else:
+                    poly.material_index = 0
 
             mesh.update()
 
@@ -716,6 +804,64 @@ class MC_OT_CheckCoverage(bpy.types.Operator):
 # Operator: Extract & Export FBX
 # ─────────────────────────────────────────────────────────────────────────────
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Operator: Export Generated Meshes（直接导出生成 mesh，用于 Unity 快速测试）
+# ─────────────────────────────────────────────────────────────────────────────
+
+class MC_OT_ExportGeneratedMeshes(bpy.types.Operator):
+    bl_idname      = "mc.export_generated"
+    bl_label       = "Export Generated as FBX"
+    bl_description = "将当前圆角参数生成的 case mesh 直接导出为 case_{n}.fbx（Unity 测试用）"
+
+    def execute(self, context):
+        props       = context.scene.mc_props
+        cubes_props = context.scene.mc_cubes_props
+        canonicals  = get_d4_canonicals()
+
+        output_dir = bpy.path.abspath(props.output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+
+        count = 0
+        for ci in canonicals:
+            verts_local, faces_local = _make_case_mesh_vf(
+                ci,
+                radius=cubes_props.radius,
+                segments=cubes_props.segments,
+                radius_top=cubes_props.radius_top,
+            )
+            if not verts_local:
+                continue
+
+            # 临时 mesh 放在场景原点，坐标即本地 [0,1]³
+            mesh = bpy.data.meshes.new(f"_exp_{ci}")
+            mesh.from_pydata(verts_local, [], faces_local)
+            mesh.update()
+
+            exp_obj = bpy.data.objects.new(f"case_{ci}", mesh)
+            bpy.context.scene.collection.objects.link(exp_obj)
+            bpy.ops.object.select_all(action='DESELECT')
+            exp_obj.select_set(True)
+            bpy.context.view_layer.objects.active = exp_obj
+
+            fbx_path = os.path.join(output_dir, f"case_{ci}.fbx")
+            bpy.ops.export_scene.fbx(
+                filepath=fbx_path, use_selection=True,
+                axis_forward='-Z', axis_up='Y',
+                apply_scale_options='FBX_SCALE_NONE',
+                use_mesh_modifiers=True, mesh_smooth_type='FACE',
+                add_leaf_bones=False,
+            )
+
+            bpy.context.scene.collection.objects.unlink(exp_obj)
+            bpy.data.objects.remove(exp_obj)
+            bpy.data.meshes.remove(mesh)
+            count += 1
+
+        self.report({'INFO'}, f"Exported {count} / {len(canonicals)} cases → {output_dir}")
+        return {'FINISHED'}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 class MC_OT_ExtractCases(bpy.types.Operator):
     bl_idname      = "mc.extract_cases"
     bl_label       = "Extract & Export FBX"
@@ -850,6 +996,7 @@ class MC_PT_Panel(bpy.types.Panel):
         box = layout.box()
         box.label(text="2. Case Meshes", icon='MESH_CUBE')
         box.prop(cubes_props, "radius")
+        box.prop(cubes_props, "radius_top")
         box.prop(cubes_props, "segments")
         box.operator("mc.generate_cubes", icon='MESH_UVSPHERE')
         box.label(text="→ MC_ArtMesh_Cubes  深蓝=封闭  浅灰=开放", icon='INFO')
@@ -867,10 +1014,18 @@ class MC_PT_Panel(bpy.types.Panel):
 
         layout.separator()
 
-        # 5. Export
+        # 4b. Quick Export（直接导出生成 mesh，测试用）
         box = layout.box()
-        box.label(text="4. Export FBX", icon='EXPORT')
+        box.label(text="4. Quick Export (Test)", icon='EXPORT')
         box.prop(props, "output_dir")
+        box.operator("mc.export_generated", icon='EXPORT')
+        box.label(text="直接导出生成 mesh → case_{n}.fbx", icon='INFO')
+
+        layout.separator()
+
+        # 5. Export from art mesh
+        box = layout.box()
+        box.label(text="5. Export FBX (Art Mesh)", icon='EXPORT')
         box.prop(props, "snap_dist")
         box.operator("mc.extract_cases", icon='EXPORT')
         box.label(text="Select source mesh, then Export", icon='INFO')
@@ -885,6 +1040,7 @@ _CLASSES = [
     MCCubesProps,
     MC_OT_SetupTerrain,
     MC_OT_GenerateCubes,
+    MC_OT_ExportGeneratedMeshes,
     MC_OT_CheckCoverage,
     MC_OT_ExtractCases,
     MC_PT_Panel,
