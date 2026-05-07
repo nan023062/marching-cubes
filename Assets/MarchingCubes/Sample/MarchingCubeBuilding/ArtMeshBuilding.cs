@@ -13,7 +13,6 @@ namespace MarchingCubes.Sample
         public int debugHighlightIndex = -1;
 
         private BlockBuilding _building;
-        private static readonly Vector3 s_center = new Vector3(0.5f, 0.5f, 0.5f);
 
         private void Awake()
         {
@@ -36,26 +35,10 @@ namespace MarchingCubes.Sample
 
         GameObject IMeshStore.GetMesh(int cubeIndex)
         {
-            if (_config == null || cubeIndex == 0)
-                return null;
-
-            GameObject prefab;
-            Quaternion rotation;
-            bool isFlipped;
-
-            if (!_config.TryGetEntry(cubeIndex, out prefab, out rotation, out isFlipped))
-                return null;
-
-            GameObject wrapper = new GameObject("art_" + cubeIndex);
-
-            GameObject child = Object.Instantiate(prefab, wrapper.transform);
-            Quaternion fbxBase = child.transform.localRotation;
-            Quaternion total   = rotation * fbxBase;
-            child.transform.localPosition = s_center - total * s_center;
-            child.transform.localRotation = total;
-            child.transform.localScale = isFlipped ? new Vector3(-1f, 1f, 1f) : Vector3.one;
-
-            return wrapper;
+            if (_config == null) return null;
+            var prefab = _config.GetPrefab(cubeIndex);
+            if (prefab == null) return null;
+            return Object.Instantiate(prefab);
         }
     }
 }

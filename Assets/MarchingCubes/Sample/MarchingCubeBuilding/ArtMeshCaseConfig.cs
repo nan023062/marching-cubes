@@ -3,47 +3,37 @@ using UnityEngine;
 namespace MarchingCubes
 {
     /// <summary>
-    /// ScriptableObject: stores art-mesh prefab assignments for the 53 D4 canonical cases.
-    /// The symmetry table (canonical index + rotation for all 256 cases) is computed
-    /// automatically from the fixed D4 group on first access — no manual "Compute" step needed.
+    /// 存储 255 个 case（1-254）各自对应的已归一化 Prefab 引用。
+    /// 每个 Prefab 内部已烘焙好正确的坐标系旋转 + D4 对称变换 + LR flip，
+    /// GetMesh 直接 Instantiate，无需任何运行时旋转计算。
     /// </summary>
     [CreateAssetMenu(fileName = "ArtMeshCaseConfig", menuName = "MarchingCubes/Art Mesh Case Config")]
     public sealed class ArtMeshCaseConfig : ScriptableObject
     {
-        [System.Serializable]
-        public sealed class Entry
-        {
-            public GameObject prefab;
-            public bool isManualOverride;
-        }
+        // index 0 = 空，index 255 = 全实心（均为 null）
+        [SerializeField] private GameObject[] _prefabs = new GameObject[256];
 
-        // Prefab slots indexed by canonical cube index (only canonical slots matter)
-        [SerializeField] private Entry[] _entries = new Entry[256];
-
-        // ── Runtime symmetry cache (not serialized, recomputed on OnEnable) ──────
+        // ── Runtime symmetry cache（仅供 Editor 工具使用，不序列化）─────────
         [System.NonSerialized] private int[]        _canonicalIndex;
         [System.NonSerialized] private Quaternion[] _canonicalRotation;
         [System.NonSerialized] private bool[]       _canonicalFlipped;
 
-        private void OnEnable() => EnsureEntries();
+        private void OnEnable() => EnsurePrefabs();
 
-        private void EnsureEntries()
+        private void EnsurePrefabs()
         {
-            if (_entries == null || _entries.Length != 256)
-                _entries = new Entry[256];
-            for (int i = 0; i < 256; i++)
-                if (_entries[i] == null) _entries[i] = new Entry();
+            if (_prefabs == null || _prefabs.Length != 256)
+                _prefabs = new GameObject[256];
         }
 
-        // ── D4 symmetry — computed once, deterministic for all instances ─────────
-        private void EnsureSymmetry()
+        // ── D4 symmetry（Editor 工具在生成预制体时调用）──────────────────────
+        public void EnsureSymmetry()
         {
             if (_canonicalIndex != null) return;
 
-            // D4: 4 Y-axis rotations × (identity / LR-flip). Flip applied first.
             float[] rotY   = { 0, 90, 180, 270, 0, 90, 180, 270 };
             bool[]  flip   = { false, false, false, false, true, true, true, true };
-            int[]   mirror = { 1, 0, 3, 2, 5, 4, 7, 6 };   // LR mirror permutation
+            int[]   mirror = { 1, 0, 3, 2, 5, 4, 7, 6 };
             var     cen    = new Vector3(0.5f, 0.5f, 0.5f);
 
             var rots  = new Quaternion[8];
@@ -56,12 +46,12 @@ namespace MarchingCubes
                 {
                     int src = flip[t] ? mirror[i] : i;
                     var v   = CubeTable.Vertices[src];
-                    Vector3 rotated = rots[t] * (new Vector3(v.x, v.y, v.z) - cen) + cen;
+                    Vector3 rot = rots[t] * (new Vector3(v.x, v.y, v.z) - cen) + cen;
                     int best = 0; float bd = float.MaxValue;
                     for (int j = 0; j < 8; j++)
                     {
                         var vj = CubeTable.Vertices[j];
-                        float d = (rotated - new Vector3(vj.x, vj.y, vj.z)).sqrMagnitude;
+                        float d = (rot - new Vector3(vj.x, vj.y, vj.z)).sqrMagnitude;
                         if (d < bd) { bd = d; best = j; }
                     }
                     perms[t][i] = best;
@@ -95,61 +85,28 @@ namespace MarchingCubes
             }
         }
 
-        // ── Public API ───────────────────────────────────────────────────────────
+        // ── Public API ───────────────────────────────────────────────────────
 
-        public bool TryGetEntry(int cubeIndex, out GameObject prefab,
-                                out Quaternion rotation, out bool isFlipped)
+        /// <summary>运行时获取 prefab，直接 Instantiate 即可，无需旋转。</summary>
+        public GameObject GetPrefab(int cubeIndex)
         {
-            prefab = null; rotation = Quaternion.identity; isFlipped = false;
-            if (cubeIndex < 0 || cubeIndex >= 256) return false;
-            EnsureEntries(); EnsureSymmetry();
-            int canonical = _canonicalIndex[cubeIndex];
-            prefab    = _entries[canonical]?.prefab;
-            rotation  = _canonicalRotation[cubeIndex];
-            isFlipped = _canonicalFlipped[cubeIndex];
-            return prefab != null;
+            if (cubeIndex <= 0 || cubeIndex >= 255) return null;
+            EnsurePrefabs();
+            return _prefabs[cubeIndex];
         }
 
-        public bool HasEntry(int cubeIndex)
+        /// <summary>Editor 工具生成后写入 prefab 引用。</summary>
+        public void SetPrefab(int cubeIndex, GameObject prefab)
         {
-            if (cubeIndex < 0 || cubeIndex >= 256) return false;
-            EnsureEntries(); EnsureSymmetry();
-            return _entries[_canonicalIndex[cubeIndex]]?.prefab != null;
+            EnsurePrefabs();
+            if (cubeIndex >= 0 && cubeIndex < 256)
+                _prefabs[cubeIndex] = prefab;
         }
 
-        public int GetCanonicalIndex(int cubeIndex)
-        {
-            if (cubeIndex < 0 || cubeIndex >= 256) return cubeIndex;
-            EnsureEntries(); EnsureSymmetry();
-            return _canonicalIndex[cubeIndex];
-        }
-
-        public bool IsCanonical(int cubeIndex)
-        {
-            if (cubeIndex < 0 || cubeIndex >= 256) return false;
-            EnsureEntries(); EnsureSymmetry();
-            return _canonicalIndex[cubeIndex] == cubeIndex;
-        }
-
-        public Entry GetEntry(int cubeIndex)
-        {
-            if (cubeIndex < 0 || cubeIndex >= 256) return null;
-            EnsureEntries();
-            return _entries[cubeIndex];
-        }
-
-        public bool GetFlipped(int cubeIndex)
-        {
-            if (cubeIndex < 0 || cubeIndex >= 256) return false;
-            EnsureSymmetry();
-            return _canonicalFlipped[cubeIndex];
-        }
-
-        public Quaternion GetRotation(int cubeIndex)
-        {
-            if (cubeIndex < 0 || cubeIndex >= 256) return Quaternion.identity;
-            EnsureSymmetry();
-            return _canonicalRotation[cubeIndex];
-        }
+        // Editor 工具查询对称数据
+        public int        GetCanonicalIndex(int ci) { EnsureSymmetry(); return _canonicalIndex[ci]; }
+        public Quaternion GetRotation(int ci)       { EnsureSymmetry(); return _canonicalRotation[ci]; }
+        public bool       GetFlipped(int ci)        { EnsureSymmetry(); return _canonicalFlipped[ci]; }
+        public bool       IsCanonical(int ci)       { EnsureSymmetry(); return _canonicalIndex[ci] == ci; }
     }
 }

@@ -118,38 +118,11 @@ namespace MarchingCubes.Sample
 
         GameObject IMeshStore.GetMesh(int cubeIndex)
         {
-            if (_config == null || cubeIndex == 0 || cubeIndex == 255)
-                return null;
-
-            if (!_config.TryGetEntry(cubeIndex, out GameObject prefab,
-                    out Quaternion rotation, out bool isFlipped))
-                return null;
-
-            GameObject wrapper = new GameObject("art_" + cubeIndex);
-            GameObject child   = Object.Instantiate(prefab, wrapper.transform);
-
-            // FBX 导入时自带的轴旋转（Blender Z-up→Unity Y-up，通常是 Euler(-90,0,0)）
-            // 必须保留，再叠加 D4 旋转，不能直接覆盖
-            Quaternion fbxBase   = child.transform.localRotation;
-            Quaternion total     = rotation * fbxBase;
-            child.transform.localPosition = s_center - total * s_center;
-            child.transform.localRotation = total;
-            child.transform.localScale    = isFlipped
-                ? new Vector3(-1f, 1f, 1f) : Vector3.one;
-
-            if (debugCube)
-            {
-                // 用 CubedMeshPrefab 的 Gizmos 线框作为参考，不遮挡真实 mesh
-                var dbg = new GameObject("_debugGizmo");
-                dbg.transform.SetParent(wrapper.transform, false);
-                dbg.transform.localPosition = Vector3.zero;
-                dbg.transform.localRotation = Quaternion.identity;
-                dbg.transform.localScale    = Vector3.one;
-                var prefabGizmo = dbg.AddComponent<CubedMeshPrefab>();
-                prefabGizmo.mask = (CubeVertexMask)cubeIndex;
-            }
-
-            return wrapper;
+            if (_config == null) return null;
+            var prefab = _config.GetPrefab(cubeIndex);
+            if (prefab == null) return null;
+            // p_case_xx 已归一化：旋转/坐标均已烘焙，直接 Instantiate 即可
+            return Object.Instantiate(prefab);
         }
     }
 }
