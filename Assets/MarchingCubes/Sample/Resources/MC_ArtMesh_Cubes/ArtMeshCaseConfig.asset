@@ -1,0 +1,527 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6e24d16cc838c7419a9b8a4deca873d, type: 3}
+  m_Name: ArtMeshCaseConfig
+  m_EditorClassIdentifier: 
+  _entries:
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: d65ffc5253dac4a41ab2c7be539e99d2, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 6632204f81067354a91f7bc1606eaa5d, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 6abaaee18a2db17498e176fd2cf4f29a, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: a3d0d6f99d04d6f42a8df2bddd4fd25c, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: c0f20cd56f799864f85142eaec210863, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: d44d08f10aa4ba34eb1362ee5af310da, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 8a69a9e34aaaa494985b311c4b5b06f0, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 4d87c9ce0c7a8704699d93475b512b1f, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 83406fa38495bb64bb216b20b4711097, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 5747f4e1d8343544da1779736aeb9420, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 853b9633e34163343853bb5de222fc8c, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 720f86b4d66ba1b43adeacb0473ee916, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 1d69dc0cedaa79e40a3eb73003541fff, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 5ddf692fc4384b546ad521e6a89ca4f5, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 4b154ad472172424e9cae8dbc53f3de6, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: e39d1e33f97b90a4b9b1dd4b2d72a3d3, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: f17a072e0b918c041ae00e3ffeff486c, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 93f8f0e25832e8c458541a48b2cf25bd, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: e7d5f8d86cd9d434a80d83500f6e5b5c, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: c17ff4c9a327bcf488f672cd0c80119c, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 8dbcd8c31e2f75e449736beb5b3ab25f, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: e376cccbf8ce41f4aa13d85387b90fab, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 7d8d96a261cb70f419d63b67e15ff4fb, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: ab3608560b0df5541b833cde34d809ae, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 3ac69c4ba3e64db4fae1655cb049341c, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: e02f182ed844b0c4988da923250ee1b4, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 26856ac930bd3614db0458dab6363760, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: e427582cb7ff4fc4891f77ecafe5c1b7, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 51c849bbcb56d6342b95e2d2836d7b60, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 697a71ae64c5484449c3207d5c928e1a, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: d58bb7dc1f2ab594a8d33e19d1b05de2, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 4f738a57362a63847ac52a3e65119f44, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 52a66393ef84a464c862dde9a2538786, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 3ec0bb27e03526d479d647eeb59a2510, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 53e52925368a1ed4f8d0f2c5cee87365, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 44a0e90b8fd10b24f9ba2c7094152ad0, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 65f89693866081747816fc117fb8831e, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 3e7d02bbafb7aaf4988833a48c20fb3a, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 90d96f3983d8070469f92dd89d734891, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: d9af1c744ece5994cbebe9fe3cfc7bfc, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: f0b7dfd944577c44e8d157d6dd5448a4, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: d70672fdbb7d5e84b8dc89eae84dfff8, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 69a74965e39ff6444bfa899e942c1f77, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: ea303d43d3a699f4b8cc63fa251de177, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: d8e3ce631a01b874981da76226d6b04b, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: bd40b46f03654a34a8304148f62402e4, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: b15244687183bd94bbe3996019df82a7, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 9c752f1be008d1e44abca3423486d6df, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 68240ffd8b755ed4b99afe9e69967a39, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 8c36dc24be79fb74c90c15630f05ffb2, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 2f08479fc04a3a047b98386797753271, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: 1a36bc4e4db165f4bac4cfbe1f222d58, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 919132149155446097, guid: f67fcf36510dbd84cb74357052b83182, type: 3}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
+  - prefab: {fileID: 0}
+    isManualOverride: 0
