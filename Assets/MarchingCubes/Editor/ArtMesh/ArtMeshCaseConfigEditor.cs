@@ -89,6 +89,11 @@ namespace MarchingCubes.Editor
                 Path.Combine(Application.dataPath,
                     relOut.StartsWith("Assets") ? relOut.Substring("Assets".Length).TrimStart('/', '\\') : relOut));
             if (!Directory.Exists(fullOut)) Directory.CreateDirectory(fullOut);
+
+            // Mesh asset 存入 Meshes 子目录（避免和 prefab 混在一起）
+            string meshRelOut = relOut + "/Meshes";
+            string meshFullOut = fullOut + "/Meshes";
+            if (!Directory.Exists(meshFullOut)) Directory.CreateDirectory(meshFullOut);
             AssetDatabase.Refresh();
 
             int ok = 0, skip = 0;
@@ -112,9 +117,9 @@ namespace MarchingCubes.Editor
                 var child = (GameObject)PrefabUtility.InstantiatePrefab(canonPrefab, root.transform);
 
                 // FBX 顶点实际在 Blender 局部坐标系（Y↔Z 未转换）。
-                // 直接在此处做 b2u（swap Y↔Z），同时修正三角面绕序，
-                // 完全不依赖 bakeAxisConversion 导入设置。
-                ApplyB2U(child);
+                // 直接做 b2u（swap Y↔Z）并修正绕序，转换后的 Mesh 存为 Asset，
+                // 保证 prefab 保存后引用不丢失。完全不依赖 import 设置。
+                ApplyB2U(child, meshRelOut);
 
                 // 子节点局部旋转重置为 identity（b2u 已修正坐标系）
                 // 只叠加 D4 对称旋转
@@ -148,21 +153,27 @@ namespace MarchingCubes.Editor
         /// <summary>
         /// 将 GameObject 层级内所有 MeshFilter 的顶点从 Blender 坐标系转换到 Unity 坐标系。
         /// b2u: swap Y ↔ Z。反射变换会翻转三角面绕序，同步修正保证法线正确。
+        /// meshFolder: 转换后的 Mesh 以 .asset 存入此目录（必须是 Asset 才能被 Prefab 正确引用）。
         /// </summary>
-        static void ApplyB2U(GameObject go)
+        static void ApplyB2U(GameObject go, string meshFolder)
         {
             foreach (var mf in go.GetComponentsInChildren<MeshFilter>())
             {
                 if (mf.sharedMesh == null) continue;
                 var src = mf.sharedMesh;
 
+                // 同一 canonical mesh 只转换一次，直接复用
+                string meshPath = $"{meshFolder}/{src.name}_b2u.asset";
+                var cached = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
+                if (cached != null) { mf.sharedMesh = cached; continue; }
+
                 var verts = (Vector3[])src.vertices.Clone();
                 for (int i = 0; i < verts.Length; i++)
-                    verts[i] = new Vector3(verts[i].x, verts[i].z, verts[i].y);  // swap Y↔Z
+                    verts[i] = new Vector3(verts[i].x, verts[i].z, verts[i].y);
 
                 var tris = (int[])src.triangles.Clone();
                 for (int i = 0; i < tris.Length; i += 3)
-                { int t = tris[i + 1]; tris[i + 1] = tris[i + 2]; tris[i + 2] = t; }  // reverse winding
+                { int t = tris[i + 1]; tris[i + 1] = tris[i + 2]; tris[i + 2] = t; }
 
                 var norms = (Vector3[])src.normals.Clone();
                 for (int i = 0; i < norms.Length; i++)
@@ -172,10 +183,13 @@ namespace MarchingCubes.Editor
                 dst.vertices  = verts;
                 dst.triangles = tris;
                 dst.normals   = norms;
-                if (src.uv      != null && src.uv.Length      > 0) dst.uv      = (Vector2[])src.uv.Clone();
+                if (src.uv       != null && src.uv.Length       > 0) dst.uv       = (Vector2[])src.uv.Clone();
                 if (src.colors32 != null && src.colors32.Length > 0) dst.colors32 = (Color32[])src.colors32.Clone();
                 dst.RecalculateBounds();
-                mf.sharedMesh = dst;
+
+                // 必须作为 Asset 保存，prefab 才能持久引用
+                AssetDatabase.CreateAsset(dst, meshPath);
+                mf.sharedMesh = AssetDatabase.LoadAssetAtPath<Mesh>(meshPath);
             }
         }
 
