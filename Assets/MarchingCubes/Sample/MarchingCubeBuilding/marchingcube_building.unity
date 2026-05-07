@@ -425,12 +425,12 @@ MonoBehaviour:
   y: 16
   z: 16
   unit: 1
+  _config: {fileID: 11400000, guid: 0d92fa65fc4e42c4e93ad96fede739a9, type: 2}
   pointCubePrefab: {fileID: 7868424380929822012, guid: feb0a7700d43af04991198f783d23414,
     type: 3}
   pointQuadPrefab: {fileID: 4939792962505422401, guid: 6f0245377ba6b3c46a0fe61107b06a82,
     type: 3}
   showPoint: 0
-  mesh256: {fileID: 1705195634}
 --- !u!33 &999007711
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -497,6 +497,11 @@ PrefabInstance:
       propertyPath: m_Name
       value: cube_mesh_256
       objectReference: {fileID: 0}
+    - target: {fileID: 514940613350134000, guid: 6c07302b61b707d48b3c754323382200,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 1533385856622482962, guid: 6c07302b61b707d48b3c754323382200,
         type: 3}
       propertyPath: m_IsActive
@@ -523,6 +528,11 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7966697954079893100, guid: 6c07302b61b707d48b3c754323382200,
+        type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8021009143576686616, guid: 6c07302b61b707d48b3c754323382200,
         type: 3}
       propertyPath: m_IsActive
       value: 0
@@ -579,9 +589,3 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 6c07302b61b707d48b3c754323382200, type: 3}
---- !u!4 &1705195634 stripped
-Transform:
-  m_CorrespondingSourceObject: {fileID: 8605934277017603206, guid: 6c07302b61b707d48b3c754323382200,
-    type: 3}
-  m_PrefabInstance: {fileID: 1638202995}
-  m_PrefabAsset: {fileID: 0}

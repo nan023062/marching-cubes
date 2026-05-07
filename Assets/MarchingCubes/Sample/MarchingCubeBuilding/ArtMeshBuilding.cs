@@ -49,8 +49,10 @@ namespace MarchingCubes.Sample
             GameObject wrapper = new GameObject("art_" + cubeIndex);
 
             GameObject child = Object.Instantiate(prefab, wrapper.transform);
-            child.transform.localPosition = s_center - rotation * s_center;
-            child.transform.localRotation = rotation;
+            Quaternion fbxBase = child.transform.localRotation;
+            Quaternion total   = rotation * fbxBase;
+            child.transform.localPosition = s_center - total * s_center;
+            child.transform.localRotation = total;
             child.transform.localScale = isFlipped ? new Vector3(-1f, 1f, 1f) : Vector3.one;
 
             return wrapper;
