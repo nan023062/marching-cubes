@@ -64,9 +64,16 @@ namespace MarchingCubes.Editor
                 _importFolder = EditorGUILayout.TextField(_importFolder);
                 if (GUILayout.Button("Pick", GUILayout.Width(46)))
                 {
-                    string picked = EditorUtility.OpenFolderPanel(
-                        "Case FBX Folder",
-                        Path.GetFullPath(Path.Combine(Application.dataPath, "..")), "");
+                    // 默认打开当前 _importFolder 所在的绝对路径
+                    string relative = _importFolder.StartsWith("Assets")
+                        ? _importFolder.Substring("Assets".Length).TrimStart('/', '\\')
+                        : _importFolder;
+                    string defaultPath = Path.GetFullPath(
+                        Path.Combine(Application.dataPath, relative)).Replace('\\', '/');
+                    if (!Directory.Exists(defaultPath))
+                        defaultPath = Application.dataPath;
+
+                    string picked = EditorUtility.OpenFolderPanel("Case FBX Folder", defaultPath, "");
                     if (!string.IsNullOrEmpty(picked))
                     {
                         string full = Path.GetFullPath(picked).Replace('\\', '/');
