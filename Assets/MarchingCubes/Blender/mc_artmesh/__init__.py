@@ -898,7 +898,7 @@ class MC_OT_ExportGeneratedMeshes(bpy.types.Operator):
             bpy.ops.export_scene.fbx(
                 filepath=fbx_path, use_selection=True,
                 axis_forward='-Z', axis_up='Y',
-                apply_scale_options='FBX_SCALE_NONE',
+                apply_scale_options='FBX_SCALE_ALL',
                 use_mesh_modifiers=True, mesh_smooth_type='FACE',
                 add_leaf_bones=False,
             )
@@ -1002,7 +1002,7 @@ class MC_OT_ExtractCases(bpy.types.Operator):
                     bpy.ops.export_scene.fbx(
                         filepath=fbx_path, use_selection=True,
                         axis_forward='-Z', axis_up='Y',
-                        apply_scale_options='FBX_SCALE_NONE',
+                        apply_scale_options='FBX_SCALE_ALL',
                         use_mesh_modifiers=True, mesh_smooth_type='FACE',
                         add_leaf_bones=False,
                     )
