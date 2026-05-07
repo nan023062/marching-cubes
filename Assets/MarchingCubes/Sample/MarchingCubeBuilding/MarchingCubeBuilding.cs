@@ -11,6 +11,7 @@ namespace MarchingCubes.Sample
         [SerializeField] private GameObject pointCubePrefab;
         [SerializeField] private GameObject pointQuadPrefab;
         [SerializeField] private bool showPoint;
+        [SerializeField] private bool debugCube;
 
         private BlockBuilding _building;
         private PointCube[,,] _pointCubes;
@@ -135,6 +136,18 @@ namespace MarchingCubes.Sample
             child.transform.localRotation = total;
             child.transform.localScale    = isFlipped
                 ? new Vector3(-1f, 1f, 1f) : Vector3.one;
+
+            if (debugCube)
+            {
+                var dc = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                Object.Destroy(dc.GetComponent<Collider>());
+                dc.name = "_debugCube";
+                dc.transform.SetParent(wrapper.transform, false);
+                dc.transform.localPosition = s_center;  // 1×1×1 cube 中心在 (0.5,0.5,0.5)
+                dc.transform.localRotation = Quaternion.identity;
+                dc.transform.localScale    = Vector3.one;
+            }
+
             return wrapper;
         }
     }
