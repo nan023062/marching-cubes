@@ -139,13 +139,14 @@ namespace MarchingCubes.Sample
 
             if (debugCube)
             {
-                var dc = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                Object.Destroy(dc.GetComponent<Collider>());
-                dc.name = "_debugCube";
-                dc.transform.SetParent(wrapper.transform, false);
-                dc.transform.localPosition = s_center;  // 1×1×1 cube 中心在 (0.5,0.5,0.5)
-                dc.transform.localRotation = Quaternion.identity;
-                dc.transform.localScale    = Vector3.one;
+                // 用 CubedMeshPrefab 的 Gizmos 线框作为参考，不遮挡真实 mesh
+                var dbg = new GameObject("_debugGizmo");
+                dbg.transform.SetParent(wrapper.transform, false);
+                dbg.transform.localPosition = Vector3.zero;
+                dbg.transform.localRotation = Quaternion.identity;
+                dbg.transform.localScale    = Vector3.one;
+                var prefabGizmo = dbg.AddComponent<CubedMeshPrefab>();
+                prefabGizmo.mask = (CubeVertexMask)cubeIndex;
             }
 
             return wrapper;
