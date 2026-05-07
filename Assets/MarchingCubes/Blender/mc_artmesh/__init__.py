@@ -338,10 +338,31 @@ _OCTANT_FACE_DEFS = [
 ]
 
 
-def _make_case_mesh_vf(ci):
+_FACE_DIRS = [(1,0,0),(-1,0,0),(0,1,0),(0,-1,0),(0,0,1),(0,0,-1)]
+_EPS = 1e-4
+
+
+def _is_midplane(f):
+    """所有顶点在某轴共享坐标 0.5 → 中平面封闭面"""
+    xs = [v.co.x for v in f.verts]
+    ys = [v.co.y for v in f.verts]
+    zs = [v.co.z for v in f.verts]
+    return (all(abs(x - 0.5) < _EPS for x in xs) or
+            all(abs(y - 0.5) < _EPS for y in ys) or
+            all(abs(z - 0.5) < _EPS for z in zs))
+
+
+def _make_case_mesh_vf(ci, radius=0.0, segments=4):
     """
-    顶点八分体填充法：对每个 active 顶点填充其 0.5^3 角块，
-    相邻 active 顶点共享面自动合并，生成平整块状 mesh。
+    顶点八分体填充法（连通分量独立处理）：
+      1. 六连通 BFS 将 active 八分体分成 K 个连通分量
+      2. 每个分量独立 bmesh：
+           - 生成八分体面（closed_layer 标记中平面封闭面）
+           - remove_doubles（仅分量内，无跨分量顶点污染）
+           - dissolve 共面 closed-closed 拼缝边 → 合并同平面面片
+           - bevel 剩余 closed-closed 边（dissolve 后均为 90°，凸/凹均可）
+           - triangulate
+      3. 合并所有分量输出
     返回 (verts, faces)，坐标在 Blender [0,1]³ 内。
     """
     if not ci:
@@ -356,34 +377,96 @@ def _make_case_mesh_vf(ci):
     if not active:
         return [], []
 
-    bm = bmesh.new()
+    # 六连通 BFS → 连通分量列表
+    visited, components = set(), []
+    for start in active:
+        if start in visited:
+            continue
+        comp, stack = set(), [start]
+        while stack:
+            node = stack.pop()
+            if node in visited:
+                continue
+            visited.add(node)
+            comp.add(node)
+            for dx, dy, dz in _FACE_DIRS:
+                nb = (node[0]+dx, node[1]+dy, node[2]+dz)
+                if nb in active and nb not in visited:
+                    stack.append(nb)
+        components.append(comp)
 
-    for (gx, gy, gz) in active:
-        x0, x1 = gx * 0.5, (gx + 1) * 0.5
-        y0, y1 = gy * 0.5, (gy + 1) * 0.5
-        z0, z1 = gz * 0.5, (gz + 1) * 0.5
+    all_verts, all_faces = [], []
 
-        corners = {
-            (0,0,0): (x0,y0,z0), (1,0,0): (x1,y0,z0),
-            (0,1,0): (x0,y1,z0), (1,1,0): (x1,y1,z0),
-            (0,0,1): (x0,y0,z1), (1,0,1): (x1,y0,z1),
-            (0,1,1): (x0,y1,z1), (1,1,1): (x1,y1,z1),
-        }
+    for comp in components:
+        bm = bmesh.new()
+        cl = bm.faces.layers.int.new('closed')
 
-        for (ndx, ndy, ndz), keys in _OCTANT_FACE_DEFS:
-            if (gx+ndx, gy+ndy, gz+ndz) in active:
-                continue  # 邻居也是 active，此面为内部面，跳过
-            bm.faces.new([bm.verts.new(Vector(corners[k])) for k in keys])
+        for (gx, gy, gz) in comp:
+            x0, x1 = gx * 0.5, (gx + 1) * 0.5
+            y0, y1 = gy * 0.5, (gy + 1) * 0.5
+            z0, z1 = gz * 0.5, (gz + 1) * 0.5
 
-    bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
-    bmesh.ops.triangulate(bm, faces=bm.faces[:])
-    bm.verts.ensure_lookup_table()
-    bm.faces.ensure_lookup_table()
+            corners = {
+                (0,0,0): (x0,y0,z0), (1,0,0): (x1,y0,z0),
+                (0,1,0): (x0,y1,z0), (1,1,0): (x1,y1,z0),
+                (0,0,1): (x0,y0,z1), (1,0,1): (x1,y0,z1),
+                (0,1,1): (x0,y1,z1), (1,1,1): (x1,y1,z1),
+            }
 
-    out_verts = [tuple(v.co) for v in bm.verts]
-    out_faces  = [tuple(v.index for v in f.verts) for f in bm.faces]
-    bm.free()
-    return out_verts, out_faces
+            for (ndx, ndy, ndz), keys in _OCTANT_FACE_DEFS:
+                nb = (gx+ndx, gy+ndy, gz+ndz)
+                if nb in active:
+                    continue
+                nx, ny, nz = nb
+                is_closed = 0 <= nx <= 1 and 0 <= ny <= 1 and 0 <= nz <= 1
+                f = bm.faces.new([bm.verts.new(Vector(corners[k])) for k in keys])
+                f[cl] = 1 if is_closed else 0
+
+        bmesh.ops.remove_doubles(bm, verts=bm.verts[:], dist=1e-5)
+
+        if radius > 0:
+            # Step 1: dissolve 同平面 closed-closed 拼缝边（共面，|n1·n2|≈1）
+            bm.normal_update()
+            bm.edges.ensure_lookup_table()
+            cl = bm.faces.layers.int['closed']
+            dissolve = [
+                e for e in bm.edges
+                if len(e.link_faces) == 2
+                and e.link_faces[0][cl] and e.link_faces[1][cl]
+                and abs(e.link_faces[0].normal.dot(e.link_faces[1].normal)) > 0.99
+            ]
+            if dissolve:
+                bmesh.ops.dissolve_edges(bm, edges=dissolve, use_verts=True)
+
+            # Step 2: bevel 剩余 closed-closed 边（dissolve 后必然是 90°）
+            # 用位置重新判断（dissolve 后 layer 可能失效）
+            bm.normal_update()
+            bm.edges.ensure_lookup_table()
+            bm.faces.ensure_lookup_table()
+            bevel_edges = [
+                e for e in bm.edges
+                if len(e.link_faces) == 2
+                and _is_midplane(e.link_faces[0])
+                and _is_midplane(e.link_faces[1])
+            ]
+            if bevel_edges:
+                bmesh.ops.bevel(
+                    bm, geom=bevel_edges,
+                    offset=radius, offset_type='OFFSET',
+                    segments=segments, profile=0.5,
+                    affect='EDGES', clamp_overlap=True,
+                )
+
+        bmesh.ops.triangulate(bm, faces=bm.faces[:])
+        bm.verts.ensure_lookup_table()
+        bm.faces.ensure_lookup_table()
+
+        offset = len(all_verts)
+        all_verts.extend(tuple(v.co) for v in bm.verts)
+        all_faces.extend(tuple(v.index + offset for v in f.verts) for f in bm.faces)
+        bm.free()
+
+    return all_verts, all_faces
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -401,6 +484,16 @@ class MCProps(bpy.types.PropertyGroup):
     )
     coverage_text: bpy.props.StringProperty(default="")
 
+
+class MCCubesProps(bpy.types.PropertyGroup):
+    radius: bpy.props.FloatProperty(
+        name="Arc Radius", default=0.08, min=0.0, max=0.24, step=1,
+        description="封闭面间圆弧半径（0 = 直角，最大 0.24）",
+    )
+    segments: bpy.props.IntProperty(
+        name="Arc Segments", default=4, min=1, max=12,
+        description="圆弧细分段数（越大越平滑）",
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -519,8 +612,9 @@ class MC_OT_GenerateCubes(bpy.types.Operator):
     bl_description = "生成顶点八分体填充 case mesh → MC_ArtMesh_Cubes"
 
     def execute(self, context):
+        cubes_props = context.scene.mc_cubes_props
         _remove_col(CUBES_COL_NAME)
-        # 深蓝 = 封闭面（中平面 0.5，永久闭合）；浅灰 = 开放面（cube 边界，拼接后自然封闭）
+        # 深蓝 = 封闭面（中平面 0.5 + 圆弧面）；浅灰 = 开放面（cube 边界，拼接后自然封闭）
         MAT_CLOSED = _ensure_mat("mc_cube_closed", (0.04, 0.12, 0.55), strength=1.1)
         MAT_OPEN   = _ensure_mat("mc_cube_open",   (0.60, 0.60, 0.60), strength=0.7)
 
@@ -533,7 +627,8 @@ class MC_OT_GenerateCubes(bpy.types.Operator):
             cx, cy, cz   = col_n * 2, 0, row_n * 2
             b_ox, b_oy, b_oz = u2b(cx, cy, cz)
 
-            verts_local, faces_local = _make_case_mesh_vf(ci)
+            verts_local, faces_local = _make_case_mesh_vf(
+                ci, radius=cubes_props.radius, segments=cubes_props.segments)
             if not verts_local:
                 continue
 
@@ -543,15 +638,19 @@ class MC_OT_GenerateCubes(bpy.types.Operator):
             mesh.materials.append(MAT_CLOSED)  # index 0
             mesh.materials.append(MAT_OPEN)    # index 1
 
-            # 按面顶点坐标判断：所有顶点在某轴上共享 0.5 → 中平面（封闭面）
+            # 开放面 = 严格落在 cube 边界平面（坐标 0 或 1）上的面
+            # 其余（中平面原始面 + 圆弧过渡面）均为封闭面 → 深蓝
             for poly in mesh.polygons:
                 pvs = [verts_world[vi] for vi in poly.vertices]
-                is_closed = (
-                    all(abs(v[0] - b_ox - 0.5) < EPS for v in pvs) or
-                    all(abs(v[1] - b_oy - 0.5) < EPS for v in pvs) or
-                    all(abs(v[2] - b_oz - 0.5) < EPS for v in pvs)
+                is_open = (
+                    all(abs(v[0] - b_ox      ) < EPS for v in pvs) or
+                    all(abs(v[0] - b_ox - 1.0) < EPS for v in pvs) or
+                    all(abs(v[1] - b_oy      ) < EPS for v in pvs) or
+                    all(abs(v[1] - b_oy - 1.0) < EPS for v in pvs) or
+                    all(abs(v[2] - b_oz      ) < EPS for v in pvs) or
+                    all(abs(v[2] - b_oz - 1.0) < EPS for v in pvs)
                 )
-                poly.material_index = 0 if is_closed else 1
+                poly.material_index = 1 if is_open else 0
 
             mesh.update()
 
@@ -734,8 +833,9 @@ class MC_PT_Panel(bpy.types.Panel):
     bl_category    = 'MC ArtMesh'
 
     def draw(self, context):
-        layout = self.layout
-        props  = context.scene.mc_props
+        layout      = self.layout
+        props       = context.scene.mc_props
+        cubes_props = context.scene.mc_cubes_props
 
         # 1. Reference Scene
         box = layout.box()
@@ -748,8 +848,10 @@ class MC_PT_Panel(bpy.types.Panel):
         # 2. Case Meshes
         box = layout.box()
         box.label(text="2. Case Meshes", icon='MESH_CUBE')
+        box.prop(cubes_props, "radius")
+        box.prop(cubes_props, "segments")
         box.operator("mc.generate_cubes", icon='MESH_UVSPHERE')
-        box.label(text="→ MC_ArtMesh_Cubes", icon='INFO')
+        box.label(text="→ MC_ArtMesh_Cubes  深蓝=封闭  浅灰=开放", icon='INFO')
 
         layout.separator()
 
@@ -779,6 +881,7 @@ class MC_PT_Panel(bpy.types.Panel):
 
 _CLASSES = [
     MCProps,
+    MCCubesProps,
     MC_OT_SetupTerrain,
     MC_OT_GenerateCubes,
     MC_OT_CheckCoverage,
@@ -790,10 +893,12 @@ _CLASSES = [
 def register():
     for cls in _CLASSES:
         bpy.utils.register_class(cls)
-    bpy.types.Scene.mc_props = bpy.props.PointerProperty(type=MCProps)
+    bpy.types.Scene.mc_props       = bpy.props.PointerProperty(type=MCProps)
+    bpy.types.Scene.mc_cubes_props = bpy.props.PointerProperty(type=MCCubesProps)
 
 
 def unregister():
     for cls in reversed(_CLASSES):
         bpy.utils.unregister_class(cls)
     del bpy.types.Scene.mc_props
+    del bpy.types.Scene.mc_cubes_props

@@ -92,23 +92,46 @@ Blender 空间顶点位置（`u2b` 后）：
 顶面(高Z): V4(0,1,1) V5(1,1,1) V6(1,0,1) V7(0,0,1)
 ```
 
-## Case Mesh 生成算法（v1.5 顶点八分体填充法）
+## Case Mesh 生成算法（v1.6 连通分量独立处理）
 
-替代旧方案（bisect 等值面平面切割 + bevel 圆角），新方案规则：
+### 核心概念
 
-1. 8 个顶点各对应一个 0.5³ 八分体格 `(gx, gy, gz) ∈ {0,1}³`（BL_VERTS 映射）
-2. 对每个 active 顶点的八分体，逐检 6 个方向：若邻格也是 active → 跳过（内部面）；否则 → 生成外向面
-3. `remove_doubles` 合并共享顶点 → 相邻 active 顶点自然合并为更大的平面块
-4. `triangulate` 输出三角面 mesh
-
-**面分类（两种材质）：**
+8 个顶点各对应一个 0.5³ 八分体格 `(gx, gy, gz) ∈ {0,1}³`（BL_VERTS 映射）。
+每个 active 八分体生成外向面，面类型分两种：
 
 | 面类型 | 判断条件 | 材质颜色 | 语义 |
 |--------|---------|---------|------|
-| 封闭面 | 所有顶点在某轴上坐标 = 0.5（中平面） | 深蓝 `mc_cube_closed` | 实体截面，永久封闭 |
-| 开放面 | 其余（顶点在 0 或 1，cube 边界） | 浅灰 `mc_cube_open` | 拼接口，组合后自然封闭 |
+| 封闭面 | 邻格在 {0,1}³ 内但非 active（中平面，坐标=0.5） | 深蓝 `mc_cube_closed` | 实体截面，永久封闭 |
+| 开放面 | 邻格在 {0,1}³ 外（cube 边界，坐标=0 或 1） | 浅灰 `mc_cube_open` | 拼接口，组合后自然封闭 |
 
-面分类通过 `poly.material_index` 逐面赋值（`from_pydata` 后、`update()` 前）。
+### 圆角算法（连通分量独立处理，`_make_case_mesh_vf`）
+
+**关键洞察**：全局 `remove_doubles` 会把不同连通分量的顶点混合，产生非流形边，导致 bevel 错乱。必须分量内独立处理。
+
+```
+对每个连通分量（六连通 BFS 分组，各用独立 bmesh）：
+
+  Step 0  生成八分体面（closed_layer 标记封闭面）
+  Step 1  remove_doubles（仅分量内 → 无跨分量顶点污染）
+  Step 2  dissolve_edges：closed-closed 且共面（|n1·n2|>0.99）
+          → 把同平面多个面片合并为一个逻辑大面
+  Step 3  bevel_edges：closed-closed 且 len(link_faces)==2
+          → dissolve 后剩余边必然是 90°（不区分凸/凹，均向最小夹角圆弧）
+          → profile=0.5 + clamp_overlap=True
+  Step 4  triangulate → 追加到输出（带顶点 offset）
+```
+
+**面分类（Step 3 后用位置重新判断，不依赖 layer）**：
+- `_is_midplane(f)` — 所有顶点共享某轴坐标 0.5 → 封闭面（含圆弧过渡面）
+- 材质赋值：cube 边界面（x/y/z=0 或 1）→ 浅灰；其余 → 深蓝
+
+**关键设计决策**：
+- 六连通（面相邻）分组：点接触或边接触的分量各自独立，bevel 不干扰
+- 凸角（小 active 数）与凹角（大 active 数）完全对称，无需特殊判断
+  - ci=1（1体凸角）与 ci=254（7体凹角）互补，同一套流程，bevel 自动处理方向
+- dissolve 后 layer 可能失效，Step 3 改用位置检查 `_is_midplane()`
+- 共面的封闭-封闭边（0° 夹角）和 cube 边界（180°/平直）均不 bevel，
+  只有真正 90° 转角（包括多八分体合并后的大平面之间）才圆弧过渡
 
 ## 四步工作流
 
