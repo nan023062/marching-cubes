@@ -832,14 +832,21 @@ class MC_OT_ExportGeneratedMeshes(bpy.types.Operator):
             if not verts_local:
                 continue
 
-            # 临时 mesh 放在场景原点，坐标即本地 [0,1]³
+            # ── Blender→Unity 坐标系转换（b2u: swap Y↔Z）─────────────────────
+            # axis_forward='-Z',axis_up='Y' 只改 FBX 元数据，不变换顶点。
+            # 直接在 Python 层把顶点转到 Unity 坐标系，确保导入无歧义。
+            # swap Y↔Z 是反射变换 → 同步修正三角面绕序以保持法线朝向正确。
+            verts_unity = [(v[0], v[2], v[1]) for v in verts_local]
+            faces_unity  = [(f[0], f[2], f[1]) for f in faces_local]
+
+            # 临时 mesh 放在场景原点，坐标已是 Unity [0,1]³
             mesh = bpy.data.meshes.new(f"_exp_{ci}")
-            mesh.from_pydata(verts_local, [], faces_local)
+            mesh.from_pydata(verts_unity, [], faces_unity)
             mesh.update()
 
-            # ── 顶面识别并分类 ──────────────────────────────────────────────
+            # ── 顶面识别并分类（Unity 坐标系）─────────────────────────────────
+            # Unity Y-up：顶面法线 +Y → Blender 存储为 poly.normal.y（swap 后）
             EPS_e = 1e-4
-            # index 0=封闭(蓝) 1=开放侧/底(灰) 2=顶面封闭(棕)
             MAT_EXP_CLOSED = _ensure_mat("mc_cube_closed", (0.04, 0.12, 0.55), strength=1.1)
             MAT_EXP_OPEN   = _ensure_mat("mc_cube_open",   (0.60, 0.60, 0.60), strength=0.7)
             MAT_EXP_TOP    = _ensure_mat_top("mc_cube_top")
@@ -848,7 +855,7 @@ class MC_OT_ExportGeneratedMeshes(bpy.types.Operator):
             mesh.materials.append(MAT_EXP_TOP)
 
             for poly in mesh.polygons:
-                pvs = [verts_local[vi] for vi in poly.vertices]
+                pvs = [verts_unity[vi] for vi in poly.vertices]
                 is_open = (
                     all(abs(v[0]) < EPS_e for v in pvs) or
                     all(abs(v[0] - 1.0) < EPS_e for v in pvs) or
@@ -859,7 +866,7 @@ class MC_OT_ExportGeneratedMeshes(bpy.types.Operator):
                 )
                 if is_open:
                     poly.material_index = 1
-                elif poly.normal.z > 0.9:
+                elif poly.normal.y > 0.9:      # Unity +Y = 顶面（b2u 后 Blender.y = Unity.y）
                     poly.material_index = 2
                 else:
                     poly.material_index = 0
