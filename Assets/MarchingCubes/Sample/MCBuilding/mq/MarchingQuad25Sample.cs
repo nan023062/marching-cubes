@@ -9,7 +9,7 @@ namespace MarchingSquares
     {
         [SerializeField] private int width = 50;
         [SerializeField] private int height = 10;
-        [SerializeField] private int pow = 8;
+        [SerializeField] private int pow = 1; // 必须与 MCBuilding.unit 保持一致（building-system 契约）
 
         [SerializeField, Header("涂刷类型 0=泥 1=草 2=岩 3=雪 4=腐"), Range(0, 4)]
         private int textureLayer = 1;
