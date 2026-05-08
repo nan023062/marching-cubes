@@ -33,8 +33,10 @@ CASE_NAMES = {
     15: "1111 – 全平（高位）",
 }
 
-REF_COL_NAME = "MQ_ArtMesh_Ref"
-GRID_COLS    = 3
+REF_COL_NAME   = "MQ_ArtMesh_Ref"
+CTRL_COL_NAME  = "MQ_Ctrl"
+MESH_COL_NAME  = "MQ_ArtMesh_Meshes"
+GRID_COLS      = 3
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -107,7 +109,8 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
         MAT_LOW  = _ensure_mat("mq_low",  (0.35, 0.35, 0.35))  # 灰：低位
         MAT_WIRE = _ensure_mat("mq_wire", (0.10, 0.65, 0.15))  # 绿：线框
 
-        ref_root = _ensure_col(REF_COL_NAME)
+        ref_root  = _ensure_col(REF_COL_NAME)
+        ctrl_root = _ensure_col(CTRL_COL_NAME, parent=ref_root)
 
         for n, ci in enumerate(CANONICAL_CASES):
             col_n = n % GRID_COLS
@@ -118,7 +121,7 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
             oy = row_n * 2.0   # Blender Y 偏移（行）
 
             case_col = bpy.data.collections.new(f"case_{ci}")
-            ref_root.children.link(case_col)
+            ctrl_root.children.link(case_col)
             if case_col.name in context.scene.collection.children:
                 context.scene.collection.children.unlink(case_col)
 
@@ -183,6 +186,74 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
                         break
 
         self.report({'INFO'}, f"MQ 参考场景已初始化：{len(CANONICAL_CASES)} 个 canonical case")
+        return {'FINISHED'}
+
+
+class MQ_OT_GenerateMeshes(bpy.types.Operator):
+    """为所有 6 个 canonical case 生成双线性插值的高度场参考 mesh（可编辑）"""
+    bl_idname = "mq.generate_meshes"
+    bl_label  = "生成 Case 参考 Mesh"
+
+    subdivisions: bpy.props.IntProperty(
+        name="细分数", default=8, min=1, max=32,
+        description="每个方向的细分段数，越高越平滑"
+    )
+
+    def execute(self, context):
+        _remove_col(MESH_COL_NAME)
+        mesh_root = _ensure_col(MESH_COL_NAME)
+
+        MAT_MESH = _ensure_mat("mq_mesh_surface", (0.05, 0.35, 1.00), strength=0.8, alpha=0.7)
+
+        for n, ci in enumerate(CANONICAL_CASES):
+            col_n = n % GRID_COLS
+            row_n = n // GRID_COLS
+            ox = col_n * 2.0
+            oy = row_n * 2.0
+
+            # 四角高度（Blender Z）
+            h = [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)]
+            # h[0]=V0(BL), h[1]=V1(BR), h[2]=V2(TR), h[3]=V3(TL)
+            # 双线性插值：corner_xz = [(0,0),(1,0),(1,1),(0,1)]
+            # 在 u∈[0,1], v∈[0,1] 上：H(u,v) = (1-u)(1-v)*h0 + u(1-v)*h1 + u*v*h2 + (1-u)*v*h3
+
+            sub = self.subdivisions
+            bm  = bmesh.new()
+            grid_verts = []
+            for row in range(sub + 1):
+                v_row = []
+                for col in range(sub + 1):
+                    u = col / sub
+                    v = row / sub
+                    hz = ((1-u)*(1-v)*h[0] + u*(1-v)*h[1] +
+                          u*v*h[2] + (1-u)*v*h[3])
+                    v_row.append(bm.verts.new(Vector((ox + u, oy + v, hz))))
+                grid_verts.append(v_row)
+
+            for row in range(sub):
+                for col in range(sub):
+                    v00 = grid_verts[row][col]
+                    v10 = grid_verts[row][col + 1]
+                    v01 = grid_verts[row + 1][col]
+                    v11 = grid_verts[row + 1][col + 1]
+                    bm.faces.new([v00, v10, v11, v01])
+
+            bm.normal_update()
+            mesh = bpy.data.meshes.new(f"mq_mesh_{ci}")
+            bm.to_mesh(mesh); bm.free()
+            mesh.materials.append(MAT_MESH)
+
+            case_col = bpy.data.collections.new(f"case_{ci}")
+            mesh_root.children.link(case_col)
+            if case_col.name in context.scene.collection.children:
+                context.scene.collection.children.unlink(case_col)
+
+            obj = bpy.data.objects.new(f"mq_mesh_{ci}", mesh)
+            case_col.objects.link(obj)
+            if obj.name in context.scene.collection.objects:
+                context.scene.collection.objects.unlink(obj)
+
+        self.report({'INFO'}, f"已生成 {len(CANONICAL_CASES)} 个 case 参考 mesh → {MESH_COL_NAME}")
         return {'FINISHED'}
 
 
@@ -252,6 +323,10 @@ class MQProperties(bpy.types.PropertyGroup):
         items   = [(str(c), f"Case {c}：{CASE_NAMES.get(c, '')}", "") for c in CANONICAL_CASES],
         default = '0',
     )
+    subdivisions: bpy.props.IntProperty(
+        name="细分数", default=8, min=1, max=32,
+        description="生成参考 Mesh 时每方向的细分段数"
+    )
     export_dir: bpy.props.StringProperty(
         name    = "导出目录",
         subtype = 'DIR_PATH',
@@ -277,21 +352,30 @@ class MQ_PT_Panel(bpy.types.Panel):
         box = layout.box()
         box.label(text="1. 参考场景", icon='MESH_GRID')
         box.operator("mq.setup_all_cases", icon='SCENE_DATA')
-        box.label(text="MQ_ArtMesh_Ref / 全部 6 个 case", icon='INFO')
+        box.label(text="MQ_ArtMesh_Ref / MQ_Ctrl — 线框 + 角点 + 标签", icon='INFO')
 
         layout.separator()
 
-        # 2. 验证
+        # 2. Case Mesh
+        box2m = layout.box()
+        box2m.label(text="2. Case 参考 Mesh", icon='MESH_PLANE')
+        box2m.prop(context.scene.mq_props, "subdivisions")
+        box2m.operator("mq.generate_meshes", icon='MESH_UVSPHERE')
+        box2m.label(text="MQ_ArtMesh_Meshes — 双线性高度场 mesh", icon='INFO')
+
+        layout.separator()
+
+        # 3. 验证
         box2 = layout.box()
-        box2.label(text="2. 验证网格", icon='VIEWZOOM')
+        box2.label(text="3. 验证网格", icon='VIEWZOOM')
         box2.operator("mq.validate_mesh", icon='CHECKMARK')
         box2.label(text="选中建模完成的 mesh 后验证", icon='INFO')
 
         layout.separator()
 
-        # 3. 导出
+        # 4. 导出
         box3 = layout.box()
-        box3.label(text="3. 导出 FBX", icon='EXPORT')
+        box3.label(text="4. 导出 FBX", icon='EXPORT')
         box3.prop(props, "case_index")
         box3.prop(props, "export_dir", text="目录")
         box3.operator("mq.export_case",
@@ -326,6 +410,7 @@ class MQ_PT_Panel(bpy.types.Panel):
 _MQ_CLASSES = [
     MQProperties,
     MQ_OT_SetupAllCases,
+    MQ_OT_GenerateMeshes,
     MQ_OT_ValidateMesh,
     MQ_OT_ExportCase,
     MQ_PT_Panel,
