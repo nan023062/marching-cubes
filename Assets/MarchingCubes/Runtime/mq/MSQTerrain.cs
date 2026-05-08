@@ -336,7 +336,6 @@ namespace MarchingSquares
         {
             SetPointHeightDelta(x, z, d);
         }
-        }
 
         const int CliffSegX = 8;
         const int CliffSegPerLevel = 8;

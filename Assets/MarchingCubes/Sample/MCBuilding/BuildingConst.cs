@@ -14,9 +14,9 @@ namespace MarchingCubes.Sample
         public const int Unit = 1;
 
         /// <summary>
-        /// 地形相邻格点允许的最大高差（terrain 本地网格单位）。
-        /// 超过此值时自动向周围传播调整，保证不出现 mesh 变体所需高差以外的情况。
+        /// 地形相邻格点允许的最大高差，以 Unit 为基准（= 1 个世界单位）。
+        /// Unit 变化时阈值等比例调整，保证始终是"1 个格点单位"的高差限制。
         /// </summary>
-        public const int TerrainMaxHeightDiff = 1;
+        public const int TerrainMaxHeightDiff = Unit;
     }
 }
