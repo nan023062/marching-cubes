@@ -244,6 +244,13 @@ class MQ_OT_GenerateTerrain(bpy.types.Operator):
 
         sub        = props.subdivisions
         wall_depth = props.wall_depth
+        arc_s      = props.arc_strength
+
+        def arc(t):
+            """将线性插值结果 t∈[0,1] 映射到 smooth-step 圆弧曲线。
+            arc_s=0 → 线性；arc_s=1 → 完整 smooth-step（3t²-2t³）"""
+            arc_t = t * t * (3.0 - 2.0 * t)
+            return t * (1.0 - arc_s) + arc_t * arc_s
 
         MAT_TOP  = _ensure_mat("mq_terrain_top",  (0.55, 0.35, 0.10), strength=0.85)
         MAT_WALL = _ensure_mat("mq_terrain_wall",  (0.22, 0.18, 0.08), strength=0.6)
@@ -264,7 +271,8 @@ class MQ_OT_GenerateTerrain(bpy.types.Operator):
                 for col in range(sub + 1):
                     u  = col / sub
                     v  = row / sub
-                    hz = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
+                    hz_lin = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
+                    hz = arc(hz_lin)
                     r.append(bm.verts.new(Vector((ox+u, oy+v, hz))))
                 gv.append(r)
             for row in range(sub):
@@ -388,6 +396,10 @@ class MQProperties(bpy.types.PropertyGroup):
         name="侧壁深度", default=0.5, min=0.0, max=2.0, step=5,
         description="侧壁向下延伸的深度（0 = 无侧壁）"
     )
+    arc_strength: bpy.props.FloatProperty(
+        name="圆弧强度", default=0.8, min=0.0, max=1.0, step=5,
+        description="坡面圆弧程度：0 = 线性斜面，1 = 完整 smooth-step 圆弧"
+    )
     export_dir: bpy.props.StringProperty(
         name    = "导出目录",
         subtype = 'DIR_PATH',
@@ -422,6 +434,7 @@ class MQ_PT_Panel(bpy.types.Panel):
         box2.label(text="2. 测试地形", icon='MESH_PLANE')
         box2.prop(props, "subdivisions")
         box2.prop(props, "wall_depth")
+        box2.prop(props, "arc_strength")
         box2.operator("mq.generate_terrain", icon='MESH_UVSPHERE')
         box2.label(text="MQ_ArtMesh_Terrain — 地面 + 侧壁", icon='INFO')
 
