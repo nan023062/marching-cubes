@@ -112,9 +112,10 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
         for n, ci in enumerate(CANONICAL_CASES):
             col_n = n % GRID_COLS
             row_n = n // GRID_COLS
-            ox = col_n * 2.0   # X 偏移
-            oz = row_n * 2.0   # Z 偏移（Blender 里用 Y/Z 按需）
-            oy = 0.0
+            # Blender Z-up：水平面 = XY，高度 = Z
+            # ox/oy 控制网格排列偏移，高度 h 映射到 Blender Z
+            ox = col_n * 2.0   # Blender X 偏移（列）
+            oy = row_n * 2.0   # Blender Y 偏移（行）
 
             case_col = bpy.data.collections.new(f"case_{ci}")
             ref_root.children.link(case_col)
@@ -127,47 +128,46 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
             lbl.size     = 0.18
             lbl.align_x  = 'LEFT'
             lbl_obj = bpy.data.objects.new(f"_lbl_mq_{n}", lbl)
-            lbl_obj.location    = Vector((ox, oy, oz + 1.3))
+            lbl_obj.location    = Vector((ox - 0.1, oy - 0.35, 1.4))  # quad 上方（Z）
             lbl_obj.hide_select = True
             lbl_obj.lock_location = lbl_obj.lock_rotation = lbl_obj.lock_scale = (True, True, True)
             case_col.objects.link(lbl_obj)
             if lbl_obj.name in context.scene.collection.objects:
                 context.scene.collection.objects.unlink(lbl_obj)
 
-            # ── 线框 quad（四边框，角点按高低显示 Y）────────────────────────
+            # ── 线框 quad（水平面 XY，高度用 Blender Z）─────────────────────
             wire_mesh = bpy.data.meshes.new(f"_wire_mq_{n}")
             bm = bmesh.new()
             bvs = []
             for i, (cx, cz) in enumerate(CORNER_XZ):
                 h = 1.0 if (ci & (1 << i)) else 0.0
-                bvs.append(bm.verts.new(Vector((ox + cx, oy + h, oz + cz))))
+                bvs.append(bm.verts.new(Vector((ox + cx, oy + cz, h))))
             for ea, eb in QUAD_EDGES:
                 bm.edges.new([bvs[ea], bvs[eb]])
             bm.to_mesh(wire_mesh); bm.free()
             _add_locked(case_col, f"_wire_mq_{n}", wire_mesh, MAT_WIRE)
 
             # ── 角点球 + 顶点编号标签 ─────────────────────────────────────────
-            corner_labels = ["V0\nBL", "V1\nBR", "V2\nTR", "V3\nTL"]
-            center_x, center_z = 0.5, 0.5
+            center_x, center_y = 0.5, 0.5
             for i, (cx, cz) in enumerate(CORNER_XZ):
                 h    = 1.0 if (ci & (1 << i)) else 0.0
                 high = (ci & (1 << i)) != 0
 
-                # 球
+                # 球（Blender XYZ = cx, cz, h）
                 r = 0.07 if high else 0.04
                 _add_locked(case_col, f"_sph_mq_{n}_{i}",
-                            _make_sphere(f"_sph_mq_{n}_{i}", ox+cx, oy+h, oz+cz, r),
+                            _make_sphere(f"_sph_mq_{n}_{i}", ox+cx, oy+cz, h, r),
                             MAT_HIGH if high else MAT_LOW)
 
-                # 顶点编号标签
+                # 顶点编号标签（悬浮在球上方）
                 vl = bpy.data.curves.new(f"_vl_mq_{n}_{i}", type='FONT')
                 vl.body    = f"V{i}"
                 vl.size    = 0.10
                 vl.align_x = 'CENTER'
                 vl_obj = bpy.data.objects.new(f"_vl_mq_{n}_{i}", vl)
                 off_x = (cx - center_x) * 0.28
-                off_z = (cz - center_z) * 0.28
-                vl_obj.location    = Vector((ox+cx+off_x, oy+h+0.06, oz+cz+off_z))
+                off_y = (cz - center_y) * 0.28
+                vl_obj.location    = Vector((ox+cx+off_x, oy+cz+off_y, h + 0.12))
                 vl_obj.hide_select = True
                 vl_obj.lock_location = vl_obj.lock_rotation = vl_obj.lock_scale = (True, True, True)
                 case_col.objects.link(vl_obj)
