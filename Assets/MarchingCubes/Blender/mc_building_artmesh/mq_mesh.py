@@ -375,15 +375,14 @@ class MQ_OT_ValidateMesh(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class MQ_OT_ExportCase(bpy.types.Operator):
-    """将当前选中对象导出为 mq_case_N.fbx"""
-    bl_idname = "mq.export_case"
-    bl_label  = "导出 FBX"
+class MQ_OT_ExportAllCases(bpy.types.Operator):
+    """批量导出所有 canonical case mesh 为 mq_case_N.fbx"""
+    bl_idname = "mq.export_all_cases"
+    bl_label  = "批量导出全部 FBX"
 
     def execute(self, context):
         import os
         props   = context.scene.mq_props
-        ci      = int(props.case_index)
         out_dir = bpy.path.abspath(props.export_dir)
 
         if not out_dir:
@@ -391,18 +390,44 @@ class MQ_OT_ExportCase(bpy.types.Operator):
             return {'CANCELLED'}
 
         os.makedirs(out_dir, exist_ok=True)
-        filepath = os.path.join(out_dir, f"mq_case_{ci}.fbx")
 
-        bpy.ops.export_scene.fbx(
-            filepath         = filepath,
-            use_selection    = True,
-            axis_forward     = 'Z',
-            axis_up          = 'Y',
-            apply_unit_scale = True,
-            global_scale     = 1.0,
-            mesh_smooth_type = 'OFF',
-        )
-        self.report({'INFO'}, f"已导出 → {filepath}")
+        # 从 MQ_ArtMesh_Terrain 里找各 case 的 mesh 对象
+        terrain_col = bpy.data.collections.get(TERRAIN_COL_NAME)
+        if terrain_col is None:
+            self.report({'ERROR'}, f"找不到 {TERRAIN_COL_NAME}，请先点「生成测试地形」。")
+            return {'CANCELLED'}
+
+        exported, skipped = [], []
+        for ci in CANONICAL_CASES:
+            obj_name = f"mq_terrain_{ci}"
+            obj = bpy.data.objects.get(obj_name)
+            if obj is None:
+                skipped.append(ci)
+                continue
+
+            # 单独选中该对象导出
+            bpy.ops.object.select_all(action='DESELECT')
+            obj.select_set(True)
+            context.view_layer.objects.active = obj
+
+            filepath = os.path.join(out_dir, f"mq_case_{ci}.fbx")
+            bpy.ops.export_scene.fbx(
+                filepath         = filepath,
+                use_selection    = True,
+                axis_forward     = 'Z',
+                axis_up          = 'Y',
+                apply_unit_scale = True,
+                global_scale     = 1.0,
+                mesh_smooth_type = 'FACE',
+                add_leaf_bones   = False,
+            )
+            exported.append(ci)
+
+        bpy.ops.object.select_all(action='DESELECT')
+        msg = f"已导出 {len(exported)} 个 case → {out_dir}"
+        if skipped:
+            msg += f"  |  找不到 mesh：{skipped}"
+        self.report({'INFO'}, msg)
         return {'FINISHED'}
 
 
@@ -474,13 +499,12 @@ class MQ_PT_Panel(bpy.types.Panel):
 
         layout.separator()
 
-        # 4. 导出
+        # 4. 批量导出
         box3 = layout.box()
-        box3.label(text="4. 导出 FBX", icon='EXPORT')
-        box3.prop(props, "case_index")
+        box3.label(text="4. 批量导出 FBX", icon='EXPORT')
         box3.prop(props, "export_dir", text="目录")
-        box3.operator("mq.export_case",
-                      text=f"导出  mq_case_{ci}.fbx", icon='EXPORT')
+        box3.operator("mq.export_all_cases", icon='EXPORT')
+        box3.label(text="从 MQ_ArtMesh_Terrain 批量导出全部 case", icon='INFO')
 
         layout.separator()
 
@@ -513,6 +537,6 @@ _MQ_CLASSES = [
     MQ_OT_SetupAllCases,
     MQ_OT_GenerateTerrain,
     MQ_OT_ValidateMesh,
-    MQ_OT_ExportCase,
+    MQ_OT_ExportAllCases,
     MQ_PT_Panel,
 ]
