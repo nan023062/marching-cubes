@@ -5,7 +5,7 @@ namespace MarchingCubes.Sample
 {
     public class MCBuilding : MonoBehaviour, IMeshStore
     {
-        public int x, y, z;
+        // 尺寸由 BuildingManager.Init 注入，不在 Inspector 单独配置
         public uint unit = BuildingConst.Unit;
 
         [SerializeField] private CasePrefabConfig[] _configs;
@@ -14,9 +14,9 @@ namespace MarchingCubes.Sample
         [SerializeField] private GameObject pointCubePrefab;
         [SerializeField] private GameObject pointQuadPrefab;
         [SerializeField] private bool showPoint;
-        [SerializeField] private bool debugCube;
 
-        private BlockBuilding _building;
+        private int _x, _y, _z;
+        private BlockBuilding      _building;
         private PointCube[,,]      _pointCubes;
         private List<GameObject>   _pointQuads = new List<GameObject>();
 
@@ -47,21 +47,25 @@ namespace MarchingCubes.Sample
             (_configs != null && index >= 0 && index < _configs.Length && _configs[index] != null)
                 ? _configs[index].name : "";
 
-        // ── Lifecycle ─────────────────────────────────────────────────────────
+        // ── 由 BuildingManager 驱动初始化 ────────────────────────────────────
+        // renderWidth / buildHeight / renderDepth：渲染格数（顶点数 = 渲染格数 + 1，内部自动处理）
 
-        private void Awake()
+        public void Init(int renderWidth, int buildHeight, int renderDepth)
         {
-            Vector3 scale  = Vector3.one / unit;
+            _x = renderWidth;
+            _y = buildHeight;
+            _z = renderDepth;
+
+            Vector3 scale    = Vector3.one / unit;
             Matrix4x4 matrix = Matrix4x4.TRS(transform.position, Quaternion.identity, scale);
-            _building = new BlockBuilding(x, y, z, matrix, this);
+            _building = new BlockBuilding(_x, _y, _z, matrix, this);
             transform.localScale = scale;
 
-            _pointCubes = new PointCube[x + 1, y + 1, z + 1];
+            _pointCubes = new PointCube[_x + 1, _y + 1, _z + 1];
 
-            // PointQuad：地面格点交互体（hover 描边 + 点击建造）
-            for (int i = 1; i < x; i++)
+            for (int i = 1; i < _x; i++)
             {
-                for (int j = 1; j < z; j++)
+                for (int j = 1; j < _z; j++)
                 {
                     var go = Instantiate(pointQuadPrefab);
                     var t  = go.transform;
@@ -93,23 +97,15 @@ namespace MarchingCubes.Sample
 
         // ── 地形同步 ──────────────────────────────────────────────────────────
 
-        /// <summary>
-        /// 地形高度变化后调用。
-        /// 1. PointQuad Y 跟随地形表面高度。
-        /// 2. 与地形产生穿插的 Cube 删除（Cube 任意格角点低于地形则视为冲突）。
-        /// 前提：terrain 与 MCBuilding 使用相同 unit 且世界原点对齐。
-        /// </summary>
         public void SyncWithTerrain(MarchingSquares.MSQTerrain terrain)
         {
-            // 1. PointQuad 高度跟随地形
             int idx = 0;
-            for (int i = 1; i < x; i++)
+            for (int i = 1; i < _x; i++)
             {
-                for (int j = 1; j < z; j++)
+                for (int j = 1; j < _z; j++)
                 {
                     if (idx < _pointQuads.Count && _pointQuads[idx] != null)
                     {
-                        // 取格子四角最高点，确保 Quad 始终在地形表面之上
                         float h = Mathf.Max(
                             terrain.GetPointHeight(i,     j),
                             terrain.GetPointHeight(i + 1, j),
@@ -123,16 +119,13 @@ namespace MarchingCubes.Sample
                 }
             }
 
-            // 2. 删除与地形穿插的 Cube
-            for (int ci = 0; ci <= x; ci++)
-            for (int cj = 0; cj <= y; cj++)
-            for (int ck = 0; ck <= z; ck++)
+            for (int ci = 0; ci <= _x; ci++)
+            for (int cj = 0; cj <= _y; cj++)
+            for (int ck = 0; ck <= _z; ck++)
             {
                 var cube = _pointCubes[ci, cj, ck];
                 if (cube == null) continue;
 
-                // cube 占据 (ci~ci+1, cj~cj+1, ck~ck+1) 的格子空间
-                // 只要底面四角任一格点的地形高度 >= cj（cube 底部），即视为穿插
                 bool conflict =
                     terrain.GetPointHeight(ci,     ck)     > cj ||
                     terrain.GetPointHeight(ci + 1, ck)     > cj ||
@@ -143,7 +136,7 @@ namespace MarchingCubes.Sample
             }
         }
 
-        // ── 交互开关（BuildState.OnEnter/Exit 调用）──────────────────────────
+        // ── 交互开关 ─────────────────────────────────────────────────────────
 
         public void EnableInteraction(bool active)
         {

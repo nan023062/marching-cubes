@@ -13,6 +13,12 @@ namespace MarchingCubes.Sample
     {
         public static BuildingManager Instance { get; private set; }
 
+        [Header("建造区域（渲染格数，顶点数 = 渲染格数 + 1）")]
+        [SerializeField] private int _areaWidth   = 10;
+        [SerializeField] private int _areaDepth   = 10;
+        [SerializeField] private int _buildHeight  = 5;
+
+        [Header("组件引用")]
         [SerializeField] private MarchingQuad25Sample _terrain;
         [SerializeField] private MCBuilding           _building;
         [SerializeField] private KeyCode              _switchKey   = KeyCode.Tab;
@@ -27,6 +33,11 @@ namespace MarchingCubes.Sample
         private void Awake()
         {
             Instance = this;
+
+            // 统一注入尺寸，确保地形与建造区域一致
+            _terrain.Init(_areaWidth, _areaDepth, _buildHeight);
+            _building.Init(_areaWidth, _buildHeight, _areaDepth);
+
             _states = new IBuildState[]
             {
                 new TerrainState(_terrain, () => _building.SyncWithTerrain(_terrain.Terrain)),
