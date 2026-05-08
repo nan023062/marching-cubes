@@ -34,10 +34,11 @@ CASE_NAMES = {
     7: "0111 – V0+V1+V2 高",
 }
 
-REF_COL_NAME   = "MQ_ArtMesh_Ref"
-CTRL_COL_NAME  = "MQ_Ctrl"
-MESH_COL_NAME  = "MQ_ArtMesh_Meshes"
-GRID_COLS      = 3
+REF_COL_NAME     = "MQ_ArtMesh_Ref"
+CTRL_COL_NAME    = "MQ_Ctrl"
+REF_MESH_COL     = "MQ_Meshes"      # 参考 mesh（ref 根节点下）
+TERRAIN_COL_NAME = "MQ_ArtMesh_Terrain"
+GRID_COLS        = 3
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -178,6 +179,46 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
                 if vl_obj.name in context.scene.collection.objects:
                     context.scene.collection.objects.unlink(vl_obj)
 
+        # ── 参考 Mesh（双线性插值高度场，挂在 Ref 根节点下）────────────────
+        mesh_root = _ensure_col(REF_MESH_COL, parent=ref_root)
+        MAT_REF   = _ensure_mat("mq_ref_mesh", (0.05, 0.35, 1.00), strength=0.7, alpha=0.7)
+        sub       = 8
+
+        for n, ci in enumerate(CANONICAL_CASES):
+            col_n = n % GRID_COLS
+            row_n = n // GRID_COLS
+            ox = col_n * 2.0
+            oy = row_n * 2.0
+            h  = [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)]
+
+            bm2 = bmesh.new()
+            gv  = []
+            for row in range(sub + 1):
+                r = []
+                for col in range(sub + 1):
+                    u  = col / sub
+                    v  = row / sub
+                    hz = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
+                    r.append(bm2.verts.new(Vector((ox+u, oy+v, hz))))
+                gv.append(r)
+            for row in range(sub):
+                for col in range(sub):
+                    bm2.faces.new([gv[row][col], gv[row][col+1],
+                                   gv[row+1][col+1], gv[row+1][col]])
+            bm2.normal_update()
+            ref_mesh = bpy.data.meshes.new(f"mq_ref_{ci}")
+            bm2.to_mesh(ref_mesh); bm2.free()
+            ref_mesh.materials.append(MAT_REF)
+
+            rm_col = bpy.data.collections.new(f"case_{ci}")
+            mesh_root.children.link(rm_col)
+            if rm_col.name in context.scene.collection.children:
+                context.scene.collection.children.unlink(rm_col)
+            rm_obj = bpy.data.objects.new(f"mq_ref_{ci}", ref_mesh)
+            rm_col.objects.link(rm_obj)
+            if rm_obj.name in context.scene.collection.objects:
+                context.scene.collection.objects.unlink(rm_obj)
+
         # 切换到材质预览
         for area in context.screen.areas:
             if area.type == 'VIEW_3D':
@@ -190,71 +231,86 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
         return {'FINISHED'}
 
 
-class MQ_OT_GenerateMeshes(bpy.types.Operator):
-    """为所有 6 个 canonical case 生成双线性插值的高度场参考 mesh（可编辑）"""
-    bl_idname = "mq.generate_meshes"
-    bl_label  = "生成 Case 参考 Mesh"
-
-    subdivisions: bpy.props.IntProperty(
-        name="细分数", default=8, min=1, max=32,
-        description="每个方向的细分段数，越高越平滑"
-    )
+class MQ_OT_GenerateTerrain(bpy.types.Operator):
+    """生成测试地形 MQ 网格 — 全部 canonical case 排列展示，可调细分和侧壁厚度"""
+    bl_idname      = "mq.generate_terrain"
+    bl_label       = "生成测试地形"
+    bl_description = "生成双线性高度场地面 + 侧壁填充，对标 MC 生成圆角方块"
 
     def execute(self, context):
-        _remove_col(MESH_COL_NAME)
-        mesh_root = _ensure_col(MESH_COL_NAME)
+        props = context.scene.mq_props
+        _remove_col(TERRAIN_COL_NAME)
+        terrain_root = _ensure_col(TERRAIN_COL_NAME)
 
-        MAT_MESH = _ensure_mat("mq_mesh_surface", (0.05, 0.35, 1.00), strength=0.8, alpha=0.7)
+        sub        = props.subdivisions
+        wall_depth = props.wall_depth
+
+        MAT_TOP  = _ensure_mat("mq_terrain_top",  (0.55, 0.35, 0.10), strength=0.85)
+        MAT_WALL = _ensure_mat("mq_terrain_wall",  (0.22, 0.18, 0.08), strength=0.6)
 
         for n, ci in enumerate(CANONICAL_CASES):
             col_n = n % GRID_COLS
             row_n = n // GRID_COLS
             ox = col_n * 2.0
             oy = row_n * 2.0
+            h  = [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)]
 
-            # 四角高度（Blender Z）
-            h = [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)]
-            # h[0]=V0(BL), h[1]=V1(BR), h[2]=V2(TR), h[3]=V3(TL)
-            # 双线性插值：corner_xz = [(0,0),(1,0),(1,1),(0,1)]
-            # 在 u∈[0,1], v∈[0,1] 上：H(u,v) = (1-u)(1-v)*h0 + u(1-v)*h1 + u*v*h2 + (1-u)*v*h3
+            bm = bmesh.new()
 
-            sub = self.subdivisions
-            bm  = bmesh.new()
-            grid_verts = []
+            # ── 地面（双线性插值）────────────────────────────────────────────
+            gv = []
             for row in range(sub + 1):
-                v_row = []
+                r = []
                 for col in range(sub + 1):
-                    u = col / sub
-                    v = row / sub
-                    hz = ((1-u)*(1-v)*h[0] + u*(1-v)*h[1] +
-                          u*v*h[2] + (1-u)*v*h[3])
-                    v_row.append(bm.verts.new(Vector((ox + u, oy + v, hz))))
-                grid_verts.append(v_row)
-
+                    u  = col / sub
+                    v  = row / sub
+                    hz = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
+                    r.append(bm.verts.new(Vector((ox+u, oy+v, hz))))
+                gv.append(r)
             for row in range(sub):
                 for col in range(sub):
-                    v00 = grid_verts[row][col]
-                    v10 = grid_verts[row][col + 1]
-                    v01 = grid_verts[row + 1][col]
-                    v11 = grid_verts[row + 1][col + 1]
-                    bm.faces.new([v00, v10, v11, v01])
+                    f = bm.faces.new([gv[row][col], gv[row][col+1],
+                                      gv[row+1][col+1], gv[row+1][col]])
+                    f.material_index = 0
+
+            # ── 侧壁（沿 quad 四边向下延伸）─────────────────────────────────
+            if wall_depth > 0:
+                edge_segs = [
+                    ([(col, 0)        for col in range(sub + 1)], False),  # 前边 v=0
+                    ([(col, sub)      for col in range(sub + 1)], False),  # 后边 v=sub
+                    ([(0,   row)      for row in range(sub + 1)], True),   # 左边 u=0
+                    ([(sub, row)      for row in range(sub + 1)], True),   # 右边 u=sub
+                ]
+                for seg_indices, is_col_edge in edge_segs:
+                    for k in range(len(seg_indices) - 1):
+                        c0, r0 = seg_indices[k]
+                        c1, r1 = seg_indices[k + 1]
+                        vt0 = gv[r0][c0]
+                        vt1 = gv[r1][c1]
+                        vb0 = bm.verts.new(Vector((vt0.co.x, vt0.co.y, vt0.co.z - wall_depth)))
+                        vb1 = bm.verts.new(Vector((vt1.co.x, vt1.co.y, vt1.co.z - wall_depth)))
+                        f = bm.faces.new([vt0, vt1, vb1, vb0])
+                        f.material_index = 1
 
             bm.normal_update()
-            mesh = bpy.data.meshes.new(f"mq_mesh_{ci}")
+            mesh = bpy.data.meshes.new(f"mq_terrain_{ci}")
             bm.to_mesh(mesh); bm.free()
-            mesh.materials.append(MAT_MESH)
+            mesh.materials.append(MAT_TOP)
+            mesh.materials.append(MAT_WALL)
+            for poly in mesh.polygons:
+                poly.use_smooth = True
+            mesh.update()
 
             case_col = bpy.data.collections.new(f"case_{ci}")
-            mesh_root.children.link(case_col)
+            terrain_root.children.link(case_col)
             if case_col.name in context.scene.collection.children:
                 context.scene.collection.children.unlink(case_col)
-
-            obj = bpy.data.objects.new(f"mq_mesh_{ci}", mesh)
+            obj = bpy.data.objects.new(f"mq_terrain_{ci}", mesh)
             case_col.objects.link(obj)
             if obj.name in context.scene.collection.objects:
                 context.scene.collection.objects.unlink(obj)
 
-        self.report({'INFO'}, f"已生成 {len(CANONICAL_CASES)} 个 case 参考 mesh → {MESH_COL_NAME}")
+        self.report({'INFO'}, f"已生成 {len(CANONICAL_CASES)} 个 case 测试地形 → {TERRAIN_COL_NAME}")
         return {'FINISHED'}
 
 
@@ -326,7 +382,11 @@ class MQProperties(bpy.types.PropertyGroup):
     )
     subdivisions: bpy.props.IntProperty(
         name="细分数", default=8, min=1, max=32,
-        description="生成参考 Mesh 时每方向的细分段数"
+        description="地形 mesh 每方向细分段数，越高越平滑"
+    )
+    wall_depth: bpy.props.FloatProperty(
+        name="侧壁深度", default=0.5, min=0.0, max=2.0, step=5,
+        description="侧壁向下延伸的深度（0 = 无侧壁）"
     )
     export_dir: bpy.props.StringProperty(
         name    = "导出目录",
@@ -349,20 +409,21 @@ class MQ_PT_Panel(bpy.types.Panel):
         props  = context.scene.mq_props
         ci     = int(props.case_index)
 
-        # 1. 参考场景
+        # 1. 参考场景（线框 + 角点 + 标签 + 参考 Mesh 一键生成）
         box = layout.box()
         box.label(text="1. 参考场景", icon='MESH_GRID')
         box.operator("mq.setup_all_cases", icon='SCENE_DATA')
-        box.label(text="MQ_ArtMesh_Ref / MQ_Ctrl — 线框 + 角点 + 标签", icon='INFO')
+        box.label(text="MQ_ArtMesh_Ref / MQ_Ctrl + MQ_Meshes", icon='INFO')
 
         layout.separator()
 
-        # 2. Case Mesh
-        box2m = layout.box()
-        box2m.label(text="2. Case 参考 Mesh", icon='MESH_PLANE')
-        box2m.prop(context.scene.mq_props, "subdivisions")
-        box2m.operator("mq.generate_meshes", icon='MESH_UVSPHERE')
-        box2m.label(text="MQ_ArtMesh_Meshes — 双线性高度场 mesh", icon='INFO')
+        # 2. 测试地形（对标 MC 生成圆角 Cube）
+        box2 = layout.box()
+        box2.label(text="2. 测试地形", icon='MESH_PLANE')
+        box2.prop(props, "subdivisions")
+        box2.prop(props, "wall_depth")
+        box2.operator("mq.generate_terrain", icon='MESH_UVSPHERE')
+        box2.label(text="MQ_ArtMesh_Terrain — 地面 + 侧壁", icon='INFO')
 
         layout.separator()
 
@@ -411,7 +472,7 @@ class MQ_PT_Panel(bpy.types.Panel):
 _MQ_CLASSES = [
     MQProperties,
     MQ_OT_SetupAllCases,
-    MQ_OT_GenerateMeshes,
+    MQ_OT_GenerateTerrain,
     MQ_OT_ValidateMesh,
     MQ_OT_ExportCase,
     MQ_PT_Panel,
