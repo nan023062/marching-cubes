@@ -1,17 +1,14 @@
 import bpy
 import bmesh
+import math
 from mathutils import Vector
 
 # ── Case data ─────────────────────────────────────────────────────────────────
 #
-# 16 cases for 1-level height difference.
-# Bit mask: bit0=V0(BL), bit1=V1(BR), bit2=V2(TR), bit3=V3(TL)
-# 0 = base height (0), 1 = elevated height (1 unit)
-#
-# Corner world positions (unit quad, Y-up):
-#   V3(0,_,1) ─── V2(1,_,1)
-#       │               │
-#   V0(0,_,0) ─── V1(1,_,0)
+# 角点编号（每格 quad 四顶点，bit 0~3）：
+#   V3(TL) ─── V2(TR)       bit=1 = 高位（base+1）
+#     │               │       bit=0 = 低位（base）
+#   V0(BL) ─── V1(BR)
 #
 # 6 canonical cases: 0, 1, 3, 5, 7, 15
 
@@ -21,6 +18,9 @@ CORNER_XZ = [
     (1.0, 1.0),  # V2 TR
     (0.0, 1.0),  # V3 TL
 ]
+
+# quad 四边：V0-V1-V2-V3-V0
+QUAD_EDGES = [(0, 1), (1, 2), (2, 3), (3, 0)]
 
 CANONICAL_CASES = [0, 1, 3, 5, 7, 15]
 
@@ -33,141 +33,201 @@ CASE_NAMES = {
     15: "1111 – 全平（高位）",
 }
 
+REF_COL_NAME = "MQ_ArtMesh_Ref"
+GRID_COLS    = 3
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def _ensure_mat(name, rgb, strength=1.5, alpha=1.0):
+    if name in bpy.data.materials:
+        return bpy.data.materials[name]
+    mat = bpy.data.materials.new(name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nt.nodes.clear()
+    out = nt.nodes.new('ShaderNodeOutputMaterial')
+    em  = nt.nodes.new('ShaderNodeEmission')
+    em.inputs['Color'].default_value    = (*rgb, 1.0)
+    em.inputs['Strength'].default_value = strength
+    nt.links.new(em.outputs['Emission'], out.inputs['Surface'])
+    mat.diffuse_color = (*rgb, alpha)
+    return mat
+
+
+def _make_sphere(name, cx, cy, cz, r):
+    m  = bpy.data.meshes.new(name)
+    bm = bmesh.new()
+    bmesh.ops.create_icosphere(bm, subdivisions=2, radius=r)
+    for v in bm.verts:
+        v.co.x += cx; v.co.y += cy; v.co.z += cz
+    bm.to_mesh(m); bm.free(); m.update()
+    return m
+
+
+def _ensure_col(name, parent=None):
+    col = bpy.data.collections.get(name) or bpy.data.collections.new(name)
+    if parent is not None:
+        if name not in [c.name for c in parent.children]:
+            parent.children.link(col)
+            if col.name in bpy.context.scene.collection.children:
+                bpy.context.scene.collection.children.unlink(col)
+    else:
+        if name not in [c.name for c in bpy.context.scene.collection.children]:
+            bpy.context.scene.collection.children.link(col)
+    return col
+
+
+def _remove_col(name):
+    if name in bpy.data.collections:
+        bpy.data.collections.remove(bpy.data.collections[name], do_unlink=True)
+
+
+def _add_locked(col, name, mesh, mat):
+    mesh.materials.append(mat)
+    obj = bpy.data.objects.new(name, mesh)
+    col.objects.link(obj)
+    if obj.name in bpy.context.scene.collection.objects:
+        bpy.context.scene.collection.objects.unlink(obj)
+    obj.hide_select   = True
+    obj.lock_location = obj.lock_rotation = obj.lock_scale = (True, True, True)
+    return obj
+
+
 # ── Operators ─────────────────────────────────────────────────────────────────
 
-class MQ_OT_GenerateReference(bpy.types.Operator):
-    """Generate a reference mesh scaffold for the selected canonical case."""
-    bl_idname  = "mq.generate_reference"
-    bl_label   = "生成参考线框"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    case_index: bpy.props.IntProperty(name="Case Index", default=0)
+class MQ_OT_SetupAllCases(bpy.types.Operator):
+    """生成所有 6 个 canonical case 的参考线框、角点球和顶点编号标签"""
+    bl_idname = "mq.setup_all_cases"
+    bl_label  = "初始化全部 Case 参考场景"
 
     def execute(self, context):
-        ci = self.case_index
-        name = f"mq_case_{ci}_ref"
+        _remove_col(REF_COL_NAME)
 
-        # Remove existing reference with same name
-        if name in bpy.data.objects:
-            bpy.data.objects.remove(bpy.data.objects[name], do_unlink=True)
+        MAT_HIGH = _ensure_mat("mq_high", (1.00, 0.40, 0.10))  # 橙：高位
+        MAT_LOW  = _ensure_mat("mq_low",  (0.35, 0.35, 0.35))  # 灰：低位
+        MAT_WIRE = _ensure_mat("mq_wire", (0.10, 0.65, 0.15))  # 绿：线框
 
-        mesh = bpy.data.meshes.new(name)
-        obj  = bpy.data.objects.new(name, mesh)
-        bm   = bmesh.new()
+        ref_root = _ensure_col(REF_COL_NAME)
 
-        base_h = 0.0
-        high_h = 1.0
+        for n, ci in enumerate(CANONICAL_CASES):
+            col_n = n % GRID_COLS
+            row_n = n // GRID_COLS
+            ox = col_n * 2.0   # X 偏移
+            oz = row_n * 2.0   # Z 偏移（Blender 里用 Y/Z 按需）
+            oy = 0.0
 
-        # Create corner vertices at correct heights
-        verts = []
-        for i, (x, z) in enumerate(CORNER_XZ):
-            h = high_h if (ci & (1 << i)) else base_h
-            verts.append(bm.verts.new(Vector((x, h, z))))
+            case_col = bpy.data.collections.new(f"case_{ci}")
+            ref_root.children.link(case_col)
+            if case_col.name in context.scene.collection.children:
+                context.scene.collection.children.unlink(case_col)
 
-        # Create quad face (reference only – artist will model over this)
-        bm.faces.new(verts)
-        bm.to_mesh(mesh)
-        bm.free()
+            # ── Case 标签（index + bit pattern）──────────────────────────────
+            lbl = bpy.data.curves.new(f"_lbl_mq_{n}", type='FONT')
+            lbl.body     = f"ci={ci}  {bin(ci)[2:].zfill(4)}"
+            lbl.size     = 0.18
+            lbl.align_x  = 'LEFT'
+            lbl_obj = bpy.data.objects.new(f"_lbl_mq_{n}", lbl)
+            lbl_obj.location    = Vector((ox, oy, oz + 1.3))
+            lbl_obj.hide_select = True
+            lbl_obj.lock_location = lbl_obj.lock_rotation = lbl_obj.lock_scale = (True, True, True)
+            case_col.objects.link(lbl_obj)
+            if lbl_obj.name in context.scene.collection.objects:
+                context.scene.collection.objects.unlink(lbl_obj)
 
-        context.collection.objects.link(obj)
+            # ── 线框 quad（四边框，角点按高低显示 Y）────────────────────────
+            wire_mesh = bpy.data.meshes.new(f"_wire_mq_{n}")
+            bm = bmesh.new()
+            bvs = []
+            for i, (cx, cz) in enumerate(CORNER_XZ):
+                h = 1.0 if (ci & (1 << i)) else 0.0
+                bvs.append(bm.verts.new(Vector((ox + cx, oy + h, oz + cz))))
+            for ea, eb in QUAD_EDGES:
+                bm.edges.new([bvs[ea], bvs[eb]])
+            bm.to_mesh(wire_mesh); bm.free()
+            _add_locked(case_col, f"_wire_mq_{n}", wire_mesh, MAT_WIRE)
 
-        # Wireframe display so artist can see through it
-        obj.display_type = 'WIRE'
+            # ── 角点球 + 顶点编号标签 ─────────────────────────────────────────
+            corner_labels = ["V0\nBL", "V1\nBR", "V2\nTR", "V3\nTL"]
+            center_x, center_z = 0.5, 0.5
+            for i, (cx, cz) in enumerate(CORNER_XZ):
+                h    = 1.0 if (ci & (1 << i)) else 0.0
+                high = (ci & (1 << i)) != 0
 
-        # Select the new object
-        bpy.ops.object.select_all(action='DESELECT')
-        obj.select_set(True)
-        context.view_layer.objects.active = obj
+                # 球
+                r = 0.07 if high else 0.04
+                _add_locked(case_col, f"_sph_mq_{n}_{i}",
+                            _make_sphere(f"_sph_mq_{n}_{i}", ox+cx, oy+h, oz+cz, r),
+                            MAT_HIGH if high else MAT_LOW)
 
-        self.report({'INFO'}, f"Reference scaffold created: {name}")
-        return {'FINISHED'}
+                # 顶点编号标签
+                vl = bpy.data.curves.new(f"_vl_mq_{n}_{i}", type='FONT')
+                vl.body    = f"V{i}"
+                vl.size    = 0.10
+                vl.align_x = 'CENTER'
+                vl_obj = bpy.data.objects.new(f"_vl_mq_{n}_{i}", vl)
+                off_x = (cx - center_x) * 0.28
+                off_z = (cz - center_z) * 0.28
+                vl_obj.location    = Vector((ox+cx+off_x, oy+h+0.06, oz+cz+off_z))
+                vl_obj.hide_select = True
+                vl_obj.lock_location = vl_obj.lock_rotation = vl_obj.lock_scale = (True, True, True)
+                case_col.objects.link(vl_obj)
+                if vl_obj.name in context.scene.collection.objects:
+                    context.scene.collection.objects.unlink(vl_obj)
 
+        # 切换到材质预览
+        for area in context.screen.areas:
+            if area.type == 'VIEW_3D':
+                for sp in area.spaces:
+                    if sp.type == 'VIEW_3D':
+                        sp.shading.type = 'MATERIAL'
+                        break
 
-class MQ_OT_ShowCornerLabels(bpy.types.Operator):
-    """Overlay corner position markers for the active case."""
-    bl_idname  = "mq.show_corner_labels"
-    bl_label   = "显示角点标记"
-    bl_options = {'REGISTER', 'UNDO'}
-
-    case_index: bpy.props.IntProperty(name="Case Index", default=0)
-
-    def execute(self, context):
-        ci = self.case_index
-        col = bpy.data.collections.get("MQ_CornerMarkers")
-        if col is None:
-            col = bpy.data.collections.new("MQ_CornerMarkers")
-            context.scene.collection.children.link(col)
-
-        # Remove old markers
-        for obj in list(col.objects):
-            bpy.data.objects.remove(obj, do_unlink=True)
-
-        corner_names = ["V0_BL", "V1_BR", "V2_TR", "V3_TL"]
-        for i, (x, z) in enumerate(CORNER_XZ):
-            h    = 1.0 if (ci & (1 << i)) else 0.0
-            high = (ci & (1 << i)) != 0
-
-            # Empty as marker
-            empty = bpy.data.objects.new(corner_names[i], None)
-            empty.empty_display_type  = 'SPHERE'
-            empty.empty_display_size  = 0.06
-            empty.location            = Vector((x, h, z))
-
-            # Color: orange=high, grey=low
-            if bpy.context.preferences.themes:
-                pass  # colour is set via object color below
-            col.objects.link(empty)
-            empty.color = (1.0, 0.4, 0.1, 1.0) if high else (0.5, 0.5, 0.5, 1.0)
-
-        self.report({'INFO'}, f"Corner markers set for case {ci}")
+        self.report({'INFO'}, f"MQ 参考场景已初始化：{len(CANONICAL_CASES)} 个 canonical case")
         return {'FINISHED'}
 
 
 class MQ_OT_ValidateMesh(bpy.types.Operator):
-    """Check that the active mesh fits within the unit quad [0,1]×[0,1] and reports corner alignment."""
+    """检查当前选中 mesh 是否在 [0,1]×[0,1] XZ 范围内"""
     bl_idname = "mq.validate_mesh"
     bl_label  = "验证网格"
 
     def execute(self, context):
         obj = context.active_object
         if obj is None or obj.type != 'MESH':
-            self.report({'ERROR'}, "Select a mesh object first.")
+            self.report({'ERROR'}, "请先选中一个 Mesh 对象。")
             return {'CANCELLED'}
 
-        mesh = obj.data
         issues = []
-        tol = 0.001
-
-        for v in mesh.vertices:
+        tol    = 0.001
+        for v in obj.data.vertices:
             p = obj.matrix_world @ v.co
             if not (-tol <= p.x <= 1 + tol):
-                issues.append(f"Vertex X={p.x:.3f} out of [0,1]")
+                issues.append(f"顶点 X={p.x:.3f} 超出 [0,1]")
             if not (-tol <= p.z <= 1 + tol):
-                issues.append(f"Vertex Z={p.z:.3f} out of [0,1]")
+                issues.append(f"顶点 Z={p.z:.3f} 超出 [0,1]")
 
         if issues:
-            self.report({'WARNING'}, "Issues: " + " | ".join(issues[:5]))
+            self.report({'WARNING'}, "问题：" + " | ".join(issues[:5]))
         else:
-            self.report({'INFO'}, f"OK – {len(mesh.vertices)} vertices, all within [0,1]×[0,1] XZ.")
-
+            self.report({'INFO'}, f"OK – {len(obj.data.vertices)} 个顶点，全部在 [0,1]×[0,1] XZ 范围内。")
         return {'FINISHED'}
 
 
 class MQ_OT_ExportCase(bpy.types.Operator):
-    """Export active object as mq_case_N.fbx to the chosen directory."""
+    """将当前选中对象导出为 mq_case_N.fbx"""
     bl_idname = "mq.export_case"
     bl_label  = "导出 FBX"
 
     def execute(self, context):
-        props    = context.scene.mq_props
-        ci       = props.case_index
-        out_dir  = bpy.path.abspath(props.export_dir)
+        import os
+        props   = context.scene.mq_props
+        ci      = int(props.case_index)
+        out_dir = bpy.path.abspath(props.export_dir)
 
         if not out_dir:
             self.report({'ERROR'}, "请先设置导出目录。")
             return {'CANCELLED'}
 
-        import os
         os.makedirs(out_dir, exist_ok=True)
         filepath = os.path.join(out_dir, f"mq_case_{ci}.fbx")
 
@@ -180,7 +240,7 @@ class MQ_OT_ExportCase(bpy.types.Operator):
             global_scale     = 1.0,
             mesh_smooth_type = 'OFF',
         )
-        self.report({'INFO'}, f"Exported → {filepath}")
+        self.report({'INFO'}, f"已导出 → {filepath}")
         return {'FINISHED'}
 
 
@@ -188,8 +248,8 @@ class MQ_OT_ExportCase(bpy.types.Operator):
 
 class MQProperties(bpy.types.PropertyGroup):
     case_index: bpy.props.EnumProperty(
-        name  = "标准 Case",
-        items = [(str(c), f"Case {c}: {CASE_NAMES.get(c, '')}", "") for c in CANONICAL_CASES],
+        name    = "标准 Case",
+        items   = [(str(c), f"Case {c}：{CASE_NAMES.get(c, '')}", "") for c in CANONICAL_CASES],
         default = '0',
     )
     export_dir: bpy.props.StringProperty(
@@ -213,72 +273,59 @@ class MQ_PT_Panel(bpy.types.Panel):
         props  = context.scene.mq_props
         ci     = int(props.case_index)
 
-        # ── Case selector ─────────────────────────────────────────────────────
+        # 1. 参考场景
         box = layout.box()
-        box.label(text="标准 Case", icon='GRID')
-        box.prop(props, "case_index", text="")
+        box.label(text="1. 参考场景", icon='MESH_GRID')
+        box.operator("mq.setup_all_cases", icon='SCENE_DATA')
+        box.label(text="MQ_ArtMesh_Ref / 全部 6 个 case", icon='INFO')
 
-        # Corner state display
-        col = box.column(align=True)
-        col.label(text="角点高度（L=基准  H=+1）:")
-        row = col.row(align=True)
-        corners = ["V3(TL)", "V2(TR)"]
-        for i, name in zip([3, 2], corners):
-            h = (ci & (1 << i)) != 0
-            row.label(text=f"{name}={'H' if h else 'L'}",
-                      icon='LAYER_ACTIVE' if h else 'LAYER_USED')
-        row = col.row(align=True)
-        for i, name in zip([0, 1], ["V0(BL)", "V1(BR)"]):
-            h = (ci & (1 << i)) != 0
-            row.label(text=f"{name}={'H' if h else 'L'}",
-                      icon='LAYER_ACTIVE' if h else 'LAYER_USED')
+        layout.separator()
 
-        # ── Tools ─────────────────────────────────────────────────────────────
+        # 2. 验证
         box2 = layout.box()
-        box2.label(text="工具", icon='TOOL_SETTINGS')
+        box2.label(text="2. 验证网格", icon='VIEWZOOM')
+        box2.operator("mq.validate_mesh", icon='CHECKMARK')
+        box2.label(text="选中建模完成的 mesh 后验证", icon='INFO')
 
-        op = box2.operator("mq.generate_reference", text="Generate Reference Scaffold")
-        op.case_index = ci
+        layout.separator()
 
-        op2 = box2.operator("mq.show_corner_labels", text="Show Corner Markers")
-        op2.case_index = ci
-
-        box2.operator("mq.validate_mesh", text="Validate Mesh")
-
-        # ── Guide ─────────────────────────────────────────────────────────────
+        # 3. 导出
         box3 = layout.box()
-        box3.label(text="建模规范", icon='INFO')
-        box3.label(text="• 单位 quad: X=[0,1], Z=[0,1]")
-        box3.label(text="• 低角点: Y = 0")
-        box3.label(text="• 高角点: Y = 1")
-        box3.label(text="• 原点 (0,0,0) = V0/BL")
-        box3.label(text="• 接缝顶点必须精确")
+        box3.label(text="3. 导出 FBX", icon='EXPORT')
+        box3.prop(props, "case_index")
+        box3.prop(props, "export_dir", text="目录")
+        box3.operator("mq.export_case",
+                      text=f"导出  mq_case_{ci}.fbx", icon='EXPORT')
 
-        # ── Export ────────────────────────────────────────────────────────────
+        layout.separator()
+
+        # 4. 建模规范
         box4 = layout.box()
-        box4.label(text="导出", icon='EXPORT')
-        box4.prop(props, "export_dir", text="目录")
-        box4.operator("mq.export_case", text=f"Export  mq_case_{ci}.fbx")
+        box4.label(text="建模规范", icon='INFO')
+        box4.label(text="• 单位 quad：X=[0,1]  Z=[0,1]")
+        box4.label(text="• 低角点 Y = 0  高角点 Y = 1")
+        box4.label(text="• 原点 (0,0,0) = V0/BL")
+        box4.label(text="• 接缝顶点必须精确对齐")
 
-        # ── All canonical cases overview ───────────────────────────────────────
+        layout.separator()
+
+        # 5. Case 一览
         box5 = layout.box()
-        box5.label(text="全部 6 个标准 Case", icon='LINENUMBERS_ON')
+        box5.label(text="6 个标准 Case 一览", icon='LINENUMBERS_ON')
         for c in CANONICAL_CASES:
             row = box5.row()
-            name = CASE_NAMES.get(c, f"Case {c}")
-            corners_str = "".join(
-                ('H' if (c & (1 << i)) else 'L') for i in range(4))
-            done = "✓" if any(
-                obj.name == f"mq_case_{c}" for obj in bpy.data.objects) else "·"
-            row.label(text=f"{done} [{corners_str}]  Case {c}: {name.split('–')[-1].strip()}")
+            bits = "".join(('H' if (c & (1 << i)) else 'L') for i in range(4))
+            done = "✓" if any(obj.name == f"mq_case_{c}"
+                               for obj in bpy.data.objects) else "·"
+            desc = CASE_NAMES.get(c, "").split("–")[-1].strip()
+            row.label(text=f"{done} [{bits}] Case {c}：{desc}")
 
 
 # ── Registration ──────────────────────────────────────────────────────────────
 
 _MQ_CLASSES = [
     MQProperties,
-    MQ_OT_GenerateReference,
-    MQ_OT_ShowCornerLabels,
+    MQ_OT_SetupAllCases,
     MQ_OT_ValidateMesh,
     MQ_OT_ExportCase,
     MQ_PT_Panel,
