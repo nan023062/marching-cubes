@@ -248,7 +248,6 @@ namespace MarchingSquares
                 EnforceHeightConstraint(queue);
                 mesh.vertices = _vertices;
                 mesh.RecalculateNormals();
-                RebuildCliffMesh();
             }
             return dirty;
         }
