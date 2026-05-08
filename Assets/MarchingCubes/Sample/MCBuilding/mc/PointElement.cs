@@ -1,11 +1,12 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Serialization;
 
 namespace MarchingCubes.Sample
 {
     [RequireComponent(typeof(BoxCollider))]
     [RequireComponent(typeof(MeshRenderer))]
-    public abstract class PointElement : MonoBehaviour
+    public abstract class PointElement : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler
     {
         private MeshRenderer _renderer;
         [FormerlySerializedAs("marchingCubes")] public MCBuilding mcs;
@@ -16,6 +17,13 @@ namespace MarchingCubes.Sample
             _renderer.enabled = false;
         }
 
-        public void SetHighlight(bool active) => _renderer.enabled = active;
+        void IPointerClickHandler.OnPointerClick(PointerEventData eventData)
+        {
+            bool left = eventData.button == PointerEventData.InputButton.Left;
+            mcs.OnClicked(this, left, eventData.pointerCurrentRaycast.worldNormal);
+        }
+
+        void IPointerEnterHandler.OnPointerEnter(PointerEventData eventData) => _renderer.enabled = true;
+        void IPointerExitHandler.OnPointerExit(PointerEventData eventData)  => _renderer.enabled = false;
     }
 }

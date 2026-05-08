@@ -72,6 +72,14 @@ namespace MarchingCubes.Sample
 
         // ── Interactive building ──────────────────────────────────────────────
 
+        /// <summary>BuildState.OnEnter/Exit 调用，切换 PointElement 组件的响应开关。</summary>
+        public void EnableInteraction(bool active)
+        {
+            foreach (var cube in _pointCubes)
+                if (cube != null)
+                    cube.GetComponent<PointElement>().enabled = active;
+        }
+
         /// <summary>BuildState 从地形射线命中点调用，映射到 y=1 格层建造。</summary>
         public void TryCreateAtGround(Vector3 worldHitPoint)
         {
