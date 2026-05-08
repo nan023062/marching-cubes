@@ -587,7 +587,7 @@ class MCCubesProps(bpy.types.PropertyGroup):
 
 class MC_OT_SetupTerrain(bpy.types.Operator):
     bl_idname      = "mc.setup_terrain"
-    bl_label       = "Setup Reference Scene"
+    bl_label       = "初始化参考场景"
     bl_description = "生成 MC_ArtMesh_Ref（MC_Ctrl + MC_IsoSurface）"
 
     def execute(self, context):
@@ -709,7 +709,7 @@ class MC_OT_SetupTerrain(bpy.types.Operator):
 
 class MC_OT_GenerateCubes(bpy.types.Operator):
     bl_idname      = "mc.generate_cubes"
-    bl_label       = "Generate Cubes"
+    bl_label       = "生成方块网格"
     bl_description = "生成顶点八分体填充 case mesh → MC_ArtMesh_Cubes"
 
     def execute(self, context):
@@ -791,7 +791,7 @@ class MC_OT_GenerateCubes(bpy.types.Operator):
 
 class MC_OT_CheckCoverage(bpy.types.Operator):
     bl_idname      = "mc.check_coverage"
-    bl_label       = "Check Coverage"
+    bl_label       = "检查覆盖率"
     bl_description = "检查当前 active 对象覆盖了多少 canonical case"
 
     def execute(self, context):
@@ -839,7 +839,7 @@ class MC_OT_CheckCoverage(bpy.types.Operator):
 
 class MC_OT_ExportGeneratedMeshes(bpy.types.Operator):
     bl_idname      = "mc.export_generated"
-    bl_label       = "Export Generated as FBX"
+    bl_label       = "快速导出 FBX"
     bl_description = "将当前圆角参数生成的 case mesh 直接导出为 case_{n}.fbx（Unity 测试用）"
 
     def execute(self, context):
@@ -945,7 +945,7 @@ class MC_OT_ExportGeneratedMeshes(bpy.types.Operator):
 # ─────────────────────────────────────────────────────────────────────────────
 class MC_OT_ExtractCases(bpy.types.Operator):
     bl_idname      = "mc.extract_cases"
-    bl_label       = "Extract & Export FBX"
+    bl_label       = "提取并导出 FBX"
     bl_description = "从当前 active 对象切割 canonical case mesh 并导出 FBX"
 
     def execute(self, context):

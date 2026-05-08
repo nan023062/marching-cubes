@@ -25,12 +25,12 @@ CORNER_XZ = [
 CANONICAL_CASES = [0, 1, 3, 5, 7, 15]
 
 CASE_NAMES = {
-    0:  "0000 – Flat (all base)",
-    1:  "0001 – V0(BL) high",
-    3:  "0011 – V0+V1 (bottom edge) high",
-    5:  "0101 – V0+V2 (diagonal) high",
-    7:  "0111 – V0+V1+V2 high",
-    15: "1111 – Flat (all elevated)",
+    0:  "0000 – 全平（基准高度）",
+    1:  "0001 – V0(左下) 高",
+    3:  "0011 – V0+V1（底边）高",
+    5:  "0101 – V0+V2（对角）高",
+    7:  "0111 – V0+V1+V2 高",
+    15: "1111 – 全平（高位）",
 }
 
 # ── Operators ─────────────────────────────────────────────────────────────────
@@ -164,7 +164,7 @@ class MQ_OT_ExportCase(bpy.types.Operator):
         out_dir  = bpy.path.abspath(props.export_dir)
 
         if not out_dir:
-            self.report({'ERROR'}, "Set Export Directory first.")
+            self.report({'ERROR'}, "请先设置导出目录。")
             return {'CANCELLED'}
 
         import os
@@ -188,12 +188,12 @@ class MQ_OT_ExportCase(bpy.types.Operator):
 
 class MQProperties(bpy.types.PropertyGroup):
     case_index: bpy.props.EnumProperty(
-        name  = "Canonical Case",
+        name  = "标准 Case",
         items = [(str(c), f"Case {c}: {CASE_NAMES.get(c, '')}", "") for c in CANONICAL_CASES],
         default = '0',
     )
     export_dir: bpy.props.StringProperty(
-        name    = "Export Directory",
+        name    = "导出目录",
         subtype = 'DIR_PATH',
         default = "//mq_cases/",
     )
@@ -215,7 +215,7 @@ class MQ_PT_Panel(bpy.types.Panel):
 
         # ── Case selector ─────────────────────────────────────────────────────
         box = layout.box()
-        box.label(text="Canonical Case（标准 Case）", icon='GRID')
+        box.label(text="标准 Case", icon='GRID')
         box.prop(props, "case_index", text="")
 
         # Corner state display
@@ -262,7 +262,7 @@ class MQ_PT_Panel(bpy.types.Panel):
 
         # ── All canonical cases overview ───────────────────────────────────────
         box5 = layout.box()
-        box5.label(text="全部 6 个 Canonical Case", icon='LINENUMBERS_ON')
+        box5.label(text="全部 6 个标准 Case", icon='LINENUMBERS_ON')
         for c in CANONICAL_CASES:
             row = box5.row()
             name = CASE_NAMES.get(c, f"Case {c}")
