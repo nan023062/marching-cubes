@@ -6,7 +6,7 @@ namespace MarchingCubes.Sample
     public class MCBuilding : MonoBehaviour, IMeshStore
     {
         public int x, y, z;
-        public uint unit = 1;
+        public uint unit = BuildingConst.Unit;
 
         [SerializeField] private CasePrefabConfig[] _configs;
         [SerializeField] private int _currentConfigIndex = 0;
