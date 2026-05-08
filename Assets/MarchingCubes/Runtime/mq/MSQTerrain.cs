@@ -208,6 +208,12 @@ namespace MarchingSquares
             return min;
         }
 
+        /// <summary>
+        /// 相邻格点最大允许高差（超过则 BFS 传播约束）。
+        /// 由外部（MCTerrain.Init）从 BuildingConst.TerrainMaxHeightDiff 注入。
+        /// </summary>
+        public int MaxHeightDiff { get; set; } = 1;
+
         /// <summary>获取指定格点的高度值（terrain 本地网格单位）。</summary>
         public sbyte GetPointHeight(int x, int z)
         {
@@ -220,15 +226,18 @@ namespace MarchingSquares
         {
             (Vector3 center, float radiusSqr) = CalculateArea(brush, out int minX,
                 out int minZ, out int maxX, out int maxZ);
+
+            var queue = new Queue<(int x, int z)>();
             bool dirty = false;
+
             for (int x = minX; x <= maxX; x++)
             {
                 for (int z = minZ; z <= maxZ; z++)
                 {
                     Vector2 d = new Vector2(x - center.x, z - center.z);
-                    if (d.sqrMagnitude <= radiusSqr)
+                    if (d.sqrMagnitude <= radiusSqr && SetPointHeightDelta(x, z, delta))
                     {
-                        DetectChunkUpdated(x, z, delta);
+                        queue.Enqueue((x, z));
                         dirty = true;
                     }
                 }
@@ -236,11 +245,43 @@ namespace MarchingSquares
 
             if (dirty)
             {
+                EnforceHeightConstraint(queue);
                 mesh.vertices = _vertices;
                 mesh.RecalculateNormals();
                 RebuildCliffMesh();
             }
             return dirty;
+        }
+
+        static readonly (int dx, int dz)[] _neighbors4 = { (-1, 0), (1, 0), (0, -1), (0, 1) };
+
+        private void EnforceHeightConstraint(Queue<(int x, int z)> queue)
+        {
+            while (queue.Count > 0)
+            {
+                var (px, pz) = queue.Dequeue();
+                int h = _points[px, pz].high;
+
+                foreach (var (dx, dz) in _neighbors4)
+                {
+                    int nx = px + dx, nz = pz + dz;
+                    if (nx < 0 || nx > length || nz < 0 || nz > width) continue;
+
+                    int nh   = _points[nx, nz].high;
+                    int diff = h - nh;
+
+                    int target;
+                    if      (diff >  MaxHeightDiff) target = h - MaxHeightDiff;
+                    else if (diff < -MaxHeightDiff) target = h + MaxHeightDiff;
+                    else continue;
+
+                    target = Mathf.Clamp(target, -64, 64);
+                    if (target == nh) continue;
+
+                    ApplyPointHeight(nx, nz, (sbyte)target);
+                    queue.Enqueue((nx, nz));
+                }
+            }
         }
 
         private (Vector3, float) CalculateArea(Brush brush, out int minX, out int minZ, out int maxX, out int maxZ)
@@ -258,35 +299,43 @@ namespace MarchingSquares
             return (center, radiusSqr);
         }
 
-        private void DetectChunkUpdated(int x, int z, int d)
+        // 顶点更新逻辑（BrushMapHigh 和 EnforceHeightConstraint 共用）
+        private void ApplyPointHeight(int x, int z, sbyte newHigh)
+        {
+            _points[x, z].high = newHigh;
+            Vector3 p = new Vector3(x, newHigh, z);
+
+            if (x > 0 && z > 0)
+                _vertices[(x - 1 + (z - 1) * length) * 6 + 5] = p;
+            if (x > 0 && z < width)
+            {
+                int index = (x - 1 + z * length) * 6;
+                _vertices[index + 2] = p;
+                _vertices[index + 3] = p;
+            }
+            if (x < length && z < width)
+                _vertices[(x + z * length) * 6 + 0] = p;
+            if (x < length && z > 0)
+            {
+                int index = (x + (z - 1) * length) * 6;
+                _vertices[index + 1] = p;
+                _vertices[index + 4] = p;
+            }
+        }
+
+        private bool SetPointHeightDelta(int x, int z, int d)
         {
             ref var chunk = ref _points[x, z];
             sbyte high = (sbyte)Mathf.Clamp(d + chunk.high, -64, 64);
-            if (high != chunk.high)
-            {
-                chunk.high = high;
-                Vector3 p = new Vector3(x, chunk.high, z);
+            if (high == chunk.high) return false;
+            ApplyPointHeight(x, z, high);
+            return true;
+        }
 
-                if (x > 0 && z > 0)
-                    _vertices[(x - 1 + (z - 1) * length) * 6 + 5] = p;
-
-                if (x > 0 && z < width)
-                {
-                    int index = (x - 1 + z * length) * 6;
-                    _vertices[index + 2] = p;
-                    _vertices[index + 3] = p;
-                }
-
-                if (x < length && z < width)
-                    _vertices[(x + z * length) * 6 + 0] = p;
-
-                if (x < length && z > 0)
-                {
-                    int index = (x + (z - 1) * length) * 6;
-                    _vertices[index + 1] = p;
-                    _vertices[index + 4] = p;
-                }
-            }
+        private void DetectChunkUpdated(int x, int z, int d)
+        {
+            SetPointHeightDelta(x, z, d);
+        }
         }
 
         const int CliffSegX = 8;

@@ -50,6 +50,7 @@ namespace MarchingSquares
             Transform t   = transform;
             float unit    = 1f / BuildingConst.Unit;
             _terrain      = new MSQTerrain(renderWidth, renderDepth, heightRange, unit, t.position);
+            _terrain.MaxHeightDiff = BuildingConst.TerrainMaxHeightDiff;
             t.localScale  = _terrain.localToWorld.lossyScale;
             _meshFilter.sharedMesh   = _terrain.mesh;
             _meshCollider.sharedMesh = _terrain.mesh;
