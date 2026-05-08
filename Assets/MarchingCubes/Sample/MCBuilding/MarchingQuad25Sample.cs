@@ -7,113 +7,78 @@ namespace MarchingSquares
     [RequireComponent(typeof(MeshFilter))]
     public class MarchingQuad25Sample : MonoBehaviour
     {
-        [SerializeField]
-        private int width = 50;
-        [SerializeField]
-        private int height = 10;
-        [SerializeField]
-        private int pow = 8;
+        [SerializeField] private int width = 50;
+        [SerializeField] private int height = 10;
+        [SerializeField] private int pow = 8;
 
-        [SerializeField, Header("涂刷类型 0=泥 1=草 2=岩 3=雪 4=腐")]
-        [Range(0, 4)]
+        [SerializeField, Header("涂刷类型 0=泥 1=草 2=岩 3=雪 4=腐"), Range(0, 4)]
         private int textureLayer = 1;
+
+        [SerializeField] private Brush bush;
+        [SerializeField] private Material cliffMaterial;
 
         private MSQTerrain _terrain;
         private MeshCollider _meshCollider;
-        private MeshRenderer _meshRenderer;
         private MeshFilter _meshFilter;
-        [SerializeField] private Brush bush;
-        [SerializeField] private Material cliffMaterial;
         private MeshFilter _cliffFilter;
         private MeshRenderer _cliffRenderer;
+
+        // ── 供 BuildingManager / TerrainState 使用的接口 ─────────────────────
+
+        public MSQTerrain Terrain      => _terrain;
+        public Brush      Brush        => bush;
+        public int        Pow          => pow;
+        public int        TextureLayer { get => textureLayer; set => textureLayer = value; }
+
+        public void SetBrushVisible(bool visible)
+        {
+            if (bush != null) bush.gameObject.SetActive(visible);
+        }
+
+        public void RefreshMeshes()
+        {
+            _meshFilter.sharedMesh   = _terrain.mesh;
+            _meshCollider.sharedMesh = _terrain.mesh;
+            _cliffFilter.sharedMesh  = _terrain.cliffMesh;
+        }
+
+        // ── Lifecycle ─────────────────────────────────────────────────────────
 
         public void Awake()
         {
             _meshCollider = GetComponent<MeshCollider>();
-            _meshRenderer = GetComponent<MeshRenderer>();
-            _meshFilter = GetComponent<MeshFilter>();
-            Transform t = transform;
-            float unit = 1f / pow;
-            _terrain = new MSQTerrain(width, width, height, unit, t.position);
-            t.localScale = _terrain.localToWorld.lossyScale;
-            _meshFilter.sharedMesh = _terrain.mesh;
+            _meshFilter   = GetComponent<MeshFilter>();
+            Transform t   = transform;
+            float unit    = 1f / pow;
+            _terrain      = new MSQTerrain(width, width, height, unit, t.position);
+            t.localScale  = _terrain.localToWorld.lossyScale;
+            _meshFilter.sharedMesh   = _terrain.mesh;
             _meshCollider.sharedMesh = _terrain.mesh;
 
             var cliffGO = new GameObject("CliffWalls");
             cliffGO.transform.SetParent(t, false);
-            _cliffFilter = cliffGO.AddComponent<MeshFilter>();
+            _cliffFilter  = cliffGO.AddComponent<MeshFilter>();
             _cliffRenderer = cliffGO.AddComponent<MeshRenderer>();
             _cliffFilter.sharedMesh = _terrain.cliffMesh;
             if (cliffMaterial != null)
                 _cliffRenderer.sharedMaterial = cliffMaterial;
         }
 
-        private void Update()
-        {
-            Vector3 pos = Input.mousePosition;
-            Transform t = bush.transform;
-            Ray ray = Camera.main.ScreenPointToRay(pos);
-            int layerMask = 1 << LayerMask.NameToLayer("MarchingQuads");
-            if (Physics.Raycast(ray, out var hit, 1000, layerMask))
-            {
-                pos = hit.point;
-                t.localScale = _terrain.localToWorld.lossyScale;
-                t.rotation = _terrain.localToWorld.rotation;
-            }
-            else
-            {
-                Vector3 position = t.position;
-                float northDis = Vector3.Project(position - ray.origin, Vector3.up).magnitude;
-                float cos = Vector3.Dot(Vector3.down, ray.direction);
-                float distance = northDis / cos;
-                pos = ray.origin + ray.direction * distance;
-            }
-            float unit = 1f / pow;
-            pos.x = Mathf.RoundToInt(pos.x / unit) * unit;
-            pos.z = Mathf.RoundToInt(pos.z / unit) * unit;
-            t.position = pos;
-
-            if (Input.GetMouseButton(0) || Input.GetMouseButton(1))
-            {
-                bool dirty;
-                if (bush.colorBrush)
-                {
-                    int type = Input.GetMouseButton(0) ? textureLayer : 0;
-                    dirty = _terrain.PaintTerrainType(bush, type);
-                }
-                else
-                {
-                    int delta = Input.GetMouseButton(0) ? 1 : -1;
-                    dirty = _terrain.BrushMapHigh(bush, delta);
-                }
-
-                if (dirty)
-                {
-                    _meshFilter.sharedMesh = _terrain.mesh;
-                    _meshCollider.sharedMesh = _terrain.mesh;
-                    _cliffFilter.sharedMesh = _terrain.cliffMesh;
-                }
-            }
-        }
-
         public void OnDrawGizmos()
         {
-            if (null != _terrain)
-            {
-                Color color = Gizmos.color;
-                Gizmos.color = Color.black;
-                Gizmos.matrix = _terrain.localToWorld;
-                _terrain.OnDrawGizmos();
-                Gizmos.matrix = Matrix4x4.identity;
-                Gizmos.color = color;
-            }
+            if (_terrain == null) return;
+            Color color = Gizmos.color;
+            Gizmos.color  = Color.black;
+            Gizmos.matrix = _terrain.localToWorld;
+            _terrain.OnDrawGizmos();
+            Gizmos.matrix = Matrix4x4.identity;
+            Gizmos.color  = color;
         }
 
         public void OnDestroy()
         {
-            Destroy(_meshCollider.gameObject);
             _meshCollider = null;
-            _terrain = null;
+            _terrain      = null;
         }
     }
 }

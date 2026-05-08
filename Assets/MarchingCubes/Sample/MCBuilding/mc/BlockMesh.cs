@@ -13,9 +13,4 @@ namespace MarchingCubes.Sample
     {
         GameObject GetMesh(int cubeIndex);
     }
-    
-    public class BlockMesh
-    {
-        
-    }
 }

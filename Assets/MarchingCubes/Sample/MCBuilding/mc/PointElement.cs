@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.Serialization;
@@ -10,13 +9,11 @@ namespace MarchingCubes.Sample
     public abstract class PointElement : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler
     {
         private MeshRenderer _renderer;
-        private BoxCollider _collider;
         [FormerlySerializedAs("marchingCubes")] public MCBuilding mcs;
-        
+
         private void Awake()
         {
             _renderer = GetComponent<MeshRenderer>();
-            _collider = GetComponent<BoxCollider>();
             _renderer.enabled = false;
         }
 

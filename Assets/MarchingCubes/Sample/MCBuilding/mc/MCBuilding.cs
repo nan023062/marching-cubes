@@ -9,11 +9,8 @@ namespace MarchingCubes.Sample
 
         [SerializeField] private CasePrefabConfig[] _configs;
         [SerializeField] private int _currentConfigIndex = 0;
-        [SerializeField] private bool _showConfigUI = true;
 
         [SerializeField] private GameObject pointCubePrefab;
-        [SerializeField] private GameObject pointQuadPrefab;
-        [SerializeField] private Material planMaterial;
         [SerializeField] private bool showPoint;
         [SerializeField] private bool debugCube;
 
@@ -53,25 +50,7 @@ namespace MarchingCubes.Sample
             _building = new BlockBuilding(x, y, z, matrix, this);
             transform.localScale = scale;
 
-            CreatePlan();
-
             _pointCubes = new PointCube[x + 1, y + 1, z + 1];
-            for (int i = 1; i < x; i++)
-            {
-                for (int j = 1; j < z; j++)
-                {
-                    GameObject go = Instantiate(pointQuadPrefab);
-                    Transform t = go.transform;
-                    t.SetParent(transform);
-                    t.localPosition = new Vector3(i, 0.5f, j);
-                    t.localRotation = Quaternion.identity;
-                    t.localScale    = new Vector3(1, 0, 1);
-                    var quad = go.GetComponent<PointQuad>();
-                    quad.mcs = this;
-                    quad.x = i;
-                    quad.z = j;
-                }
-            }
         }
 
         private void OnDestroy()
@@ -87,44 +66,28 @@ namespace MarchingCubes.Sample
 
         // ── Config UI (OnGUI) ─────────────────────────────────────────────────
 
-        private void OnGUI()
-        {
-            if (!_showConfigUI || _configs == null || _configs.Length <= 1) return;
-
-            const float btnW = 140f, btnH = 28f, pad = 8f;
-            float totalW = _configs.Length * (btnW + pad) + pad;
-            GUI.Box(new Rect(pad, pad, totalW, btnH + pad * 2), GUIContent.none);
-
-            for (int i = 0; i < _configs.Length; i++)
-            {
-                if (_configs[i] == null) continue;
-                string label = _configs[i].name;
-                Rect r = new Rect(pad + i * (btnW + pad), pad + pad * 0.5f, btnW, btnH);
-                if (i == _currentConfigIndex)
-                    GUI.Box(r, label);
-                else if (GUI.Button(r, label))
-                    SwitchConfig(i);
-            }
-        }
-
-        // ── Building ──────────────────────────────────────────────────────────
-
-        private void CreatePlan()
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
-            go.name = "plan";
-            Object.Destroy(go.GetComponent<MeshCollider>());
-            if (planMaterial != null)
-                go.GetComponent<MeshRenderer>().sharedMaterial = planMaterial;
-
-            var t = go.transform;
-            t.SetParent(transform);
-            t.localPosition = new Vector3(x * 0.5f, 0.498f, z * 0.5f);
-            t.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            t.localScale    = new Vector3(x - 1, z - 1, 1f);
-        }
+        public string GetConfigName(int index) =>
+            (_configs != null && index >= 0 && index < _configs.Length && _configs[index] != null)
+                ? _configs[index].name : "";
 
         // ── Interactive building ──────────────────────────────────────────────
+
+        /// <summary>BuildState.OnEnter/Exit 调用，开关已放置 PointCube 的碰撞体。</summary>
+        public void EnableInteraction(bool active)
+        {
+            foreach (var cube in _pointCubes)
+                if (cube != null)
+                    cube.GetComponent<BoxCollider>().enabled = active;
+        }
+
+        /// <summary>BuildState 从地形射线命中点调用，映射到 y=1 格层建造。</summary>
+        public void TryCreateAtGround(Vector3 worldHitPoint)
+        {
+            var local = transform.InverseTransformPoint(worldHitPoint);
+            int cx = Mathf.RoundToInt(local.x);
+            int cz = Mathf.RoundToInt(local.z);
+            CreateCube(cx, 1, cz);
+        }
 
         public void OnClicked(PointElement element, bool left, in Vector3 normal)
         {
