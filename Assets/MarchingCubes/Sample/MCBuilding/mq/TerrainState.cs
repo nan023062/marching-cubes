@@ -11,8 +11,8 @@ namespace MarchingCubes.Sample
 
         static readonly string[] LayerNames = { "泥", "草", "岩", "雪", "腐" };
 
-        // 用屏幕坐标判断"鼠标是否移动"，屏幕没动 = 无输入 = 不触发
-        Vector2 _lastMousePos = new Vector2(float.NaN, float.NaN);
+        Vector2 _lastMousePos  = Vector2.negativeInfinity;
+        bool    _mouseWasDown;
 
         public TerrainState(MCTerrain sample, System.Action onTerrainChanged)
         {
@@ -80,11 +80,14 @@ namespace MarchingCubes.Sample
 
             if (!Input.GetMouseButton(0) && !Input.GetMouseButton(1))
             {
-                _lastMousePos = new Vector2(float.NaN, float.NaN);
+                _mouseWasDown = false;
                 return;
             }
-            var mousePos = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
-            if (mousePos == _lastMousePos) return;
+            var mousePos    = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
+            bool firstPress = !_mouseWasDown;           // release 后首次按下
+            bool mouseMoved = mousePos != _lastMousePos; // 屏幕坐标有变化
+            if (!firstPress && !mouseMoved) return;
+            _mouseWasDown = true;
             _lastMousePos = mousePos;
 
             bool dirty;
