@@ -1055,7 +1055,7 @@ class MC_OT_ExtractCases(bpy.types.Operator):
 
 class MC_PT_Panel(bpy.types.Panel):
     bl_idname      = "MC_PT_Panel"
-    bl_label       = "MC ArtMesh"
+    bl_label       = "MC 方块建造"
     bl_space_type  = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category    = 'Building ArtMesh'

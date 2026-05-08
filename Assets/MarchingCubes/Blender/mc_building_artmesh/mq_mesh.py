@@ -202,7 +202,7 @@ class MQProperties(bpy.types.PropertyGroup):
 # ── Panel ─────────────────────────────────────────────────────────────────────
 
 class MQ_PT_Panel(bpy.types.Panel):
-    bl_label       = "MQ ArtMesh"
+    bl_label       = "MQ 地形格"
     bl_idname      = "MQ_PT_panel"
     bl_space_type  = 'VIEW_3D'
     bl_region_type = 'UI'
