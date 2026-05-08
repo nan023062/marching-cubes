@@ -208,6 +208,14 @@ namespace MarchingSquares
             return min;
         }
 
+        /// <summary>获取指定格点的高度值（terrain 本地网格单位）。</summary>
+        public sbyte GetPointHeight(int x, int z)
+        {
+            x = Mathf.Clamp(x, 0, length);
+            z = Mathf.Clamp(z, 0, width);
+            return _points[x, z].high;
+        }
+
         public bool BrushMapHigh(Brush brush, int delta)
         {
             (Vector3 center, float radiusSqr) = CalculateArea(brush, out int minX,

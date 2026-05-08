@@ -7,15 +7,17 @@ namespace MarchingCubes.Sample
     {
         readonly MarchingQuad25Sample _sample;
         readonly int                  _terrainMask;
+        readonly System.Action        _onTerrainChanged;
 
         static readonly string[] LayerNames = { "泥", "草", "岩", "雪", "腐" };
 
         Vector3 _lastAppliedPos = new Vector3(float.NaN, 0f, float.NaN);
 
-        public TerrainState(MarchingQuad25Sample sample)
+        public TerrainState(MarchingQuad25Sample sample, System.Action onTerrainChanged)
         {
-            _sample      = sample;
-            _terrainMask = 1 << LayerMask.NameToLayer("MarchingQuads");
+            _sample           = sample;
+            _terrainMask      = 1 << LayerMask.NameToLayer("MarchingQuads");
+            _onTerrainChanged = onTerrainChanged;
         }
 
         public void OnEnter() => _sample.SetBrushVisible(true);
@@ -94,7 +96,11 @@ namespace MarchingCubes.Sample
                 int delta = Input.GetMouseButton(0) ? 1 : -1;
                 dirty = _sample.Terrain.BrushMapHigh(brush, delta);
             }
-            if (dirty) _sample.RefreshMeshes();
+            if (dirty)
+            {
+                _sample.RefreshMeshes();
+                _onTerrainChanged?.Invoke();
+            }
         }
     }
 }

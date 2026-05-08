@@ -29,7 +29,7 @@ namespace MarchingCubes.Sample
             Instance = this;
             _states = new IBuildState[]
             {
-                new TerrainState(_terrain),
+                new TerrainState(_terrain, () => _building.SyncWithTerrain(_terrain.Terrain)),
                 new BuildState(_building),
             };
         }

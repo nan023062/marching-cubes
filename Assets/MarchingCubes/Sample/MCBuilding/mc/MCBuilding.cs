@@ -91,6 +91,58 @@ namespace MarchingCubes.Sample
             if (showPoint) _building?.DrawPoints();
         }
 
+        // ── 地形同步 ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 地形高度变化后调用。
+        /// 1. PointQuad Y 跟随地形表面高度。
+        /// 2. 与地形产生穿插的 Cube 删除（Cube 任意格角点低于地形则视为冲突）。
+        /// 前提：terrain 与 MCBuilding 使用相同 unit 且世界原点对齐。
+        /// </summary>
+        public void SyncWithTerrain(MarchingSquares.MSQTerrain terrain)
+        {
+            // 1. PointQuad 高度跟随地形
+            int idx = 0;
+            for (int i = 1; i < x; i++)
+            {
+                for (int j = 1; j < z; j++)
+                {
+                    if (idx < _pointQuads.Count && _pointQuads[idx] != null)
+                    {
+                        // 取格子四角最高点，确保 Quad 始终在地形表面之上
+                        float h = Mathf.Max(
+                            terrain.GetPointHeight(i,     j),
+                            terrain.GetPointHeight(i + 1, j),
+                            terrain.GetPointHeight(i,     j + 1),
+                            terrain.GetPointHeight(i + 1, j + 1));
+                        var pos = _pointQuads[idx].transform.localPosition;
+                        pos.y = h + 0.5f;
+                        _pointQuads[idx].transform.localPosition = pos;
+                    }
+                    idx++;
+                }
+            }
+
+            // 2. 删除与地形穿插的 Cube
+            for (int ci = 0; ci <= x; ci++)
+            for (int cj = 0; cj <= y; cj++)
+            for (int ck = 0; ck <= z; ck++)
+            {
+                var cube = _pointCubes[ci, cj, ck];
+                if (cube == null) continue;
+
+                // cube 占据 (ci~ci+1, cj~cj+1, ck~ck+1) 的格子空间
+                // 只要底面四角任一格点的地形高度 >= cj（cube 底部），即视为穿插
+                bool conflict =
+                    terrain.GetPointHeight(ci,     ck)     > cj ||
+                    terrain.GetPointHeight(ci + 1, ck)     > cj ||
+                    terrain.GetPointHeight(ci,     ck + 1) > cj ||
+                    terrain.GetPointHeight(ci + 1, ck + 1) > cj;
+
+                if (conflict) DestroyCube(cube);
+            }
+        }
+
         // ── 交互开关（BuildState.OnEnter/Exit 调用）──────────────────────────
 
         public void EnableInteraction(bool active)
