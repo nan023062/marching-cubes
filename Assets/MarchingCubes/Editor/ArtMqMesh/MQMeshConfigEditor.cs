@@ -23,8 +23,9 @@ namespace MarchingCubes.Editor
         private const float CellSz = 36f;
         private const int   Cols   = 8;
 
-        // Canonical cases for MQ (D4 reduced from 16): 0,1,3,5,7,15
-        private static readonly int[] CanonicalCases = { 0, 1, 3, 5, 7, 15 };
+        // Canonical cases for MQ (D4 reduced from 16): 0,1,3,5,7
+        // Case 15（全高）与 case 0（全低）几何相同（均为平 quad），复用 mq_case_0.fbx
+        private static readonly int[] CanonicalCases = { 0, 1, 3, 5, 7 };
 
         // ── Inspector ────────────────────────────────────────────────────────
 
@@ -48,8 +49,9 @@ namespace MarchingCubes.Editor
         {
             EditorGUILayout.LabelField("Build MQ Case Prefabs (mq_case_*.fbx)", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "Canonical cases: 0, 1, 3, 5, 7, 15  →  6 FBX files required.\n" +
-                "Remaining 10 cases auto-generated via D4 rotation/flip.",
+                "Canonical cases: 0, 1, 3, 5, 7  →  5 FBX files required.\n" +
+                "Case 15（全高）= Case 0（全低），几何相同，自动复用 mq_case_0.fbx。\n" +
+                "Remaining 11 cases auto-generated via D4 rotation/flip.",
                 MessageType.Info);
 
             DrawFolderField("① Canonical FBX folder (mq_case_N.fbx)", ref _fbxFolder);

@@ -91,6 +91,12 @@ namespace MarchingSquares
                 _canonicalRotation[ci] = bestRot;
                 _canonicalFlipped[ci]  = bestFlip;
             }
+
+            // Case 15（全高）几何与 case 0（全低）完全相同——均为平 quad，
+            // 实际高度由 terrain 数据决定，mesh 复用 case 0。
+            _canonicalIndex[15]    = 0;
+            _canonicalRotation[15] = Quaternion.identity;
+            _canonicalFlipped[15]  = false;
         }
 
         // ── Public API ────────────────────────────────────────────────────────
