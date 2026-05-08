@@ -71,7 +71,7 @@ namespace MarchingCubes.Sample
                     t.position = ray.origin + ray.direction * (northDis / cos);
             }
 
-            float unit = 1f / _sample.Pow;
+            float unit = 1f / BuildingConst.Unit;
             var p = t.position;
             p.x = Mathf.RoundToInt(p.x / unit) * unit;
             p.z = Mathf.RoundToInt(p.z / unit) * unit;

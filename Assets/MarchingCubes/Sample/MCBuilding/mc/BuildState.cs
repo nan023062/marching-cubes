@@ -1,3 +1,5 @@
+using UnityEngine;
+
 namespace MarchingCubes.Sample
 {
     public class BuildState : IBuildState
