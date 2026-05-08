@@ -77,7 +77,7 @@ namespace MarchingCubes.Sample
         {
             foreach (var cube in _pointCubes)
                 if (cube != null)
-                    cube.GetComponent<PointElement>().enabled = active;
+                    cube.gameObject.SetActive(active);
         }
 
         /// <summary>BuildState 从地形射线命中点调用，映射到 y=1 格层建造。</summary>
