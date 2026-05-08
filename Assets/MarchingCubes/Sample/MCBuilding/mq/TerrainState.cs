@@ -5,15 +5,16 @@ namespace MarchingCubes.Sample
 {
     public class TerrainState : IBuildState
     {
-        readonly MarchingQuad25Sample _sample;
+        readonly MCTerrain _sample;
         readonly int                  _terrainMask;
         readonly System.Action        _onTerrainChanged;
 
         static readonly string[] LayerNames = { "泥", "草", "岩", "雪", "腐" };
 
-        Vector3 _lastAppliedPos = new Vector3(float.NaN, 0f, float.NaN);
+        // 只比较 XZ：Y 随地形高度变化，不作为"同一格"判断依据
+        Vector2 _lastAppliedXZ = new Vector2(float.NaN, float.NaN);
 
-        public TerrainState(MarchingQuad25Sample sample, System.Action onTerrainChanged)
+        public TerrainState(MCTerrain sample, System.Action onTerrainChanged)
         {
             _sample           = sample;
             _terrainMask      = 1 << LayerMask.NameToLayer("MarchingQuads");
@@ -79,11 +80,12 @@ namespace MarchingCubes.Sample
 
             if (!Input.GetMouseButton(0) && !Input.GetMouseButton(1))
             {
-                _lastAppliedPos = new Vector3(float.NaN, 0f, float.NaN);
+                _lastAppliedXZ = new Vector2(float.NaN, float.NaN);
                 return;
             }
-            if (p == _lastAppliedPos) return;
-            _lastAppliedPos = p;
+            var xz = new Vector2(p.x, p.z);
+            if (xz == _lastAppliedXZ) return;
+            _lastAppliedXZ = xz;
 
             bool dirty;
             if (brush.colorBrush)
