@@ -1058,7 +1058,7 @@ class MC_PT_Panel(bpy.types.Panel):
     bl_label       = "MC 方块建造"
     bl_space_type  = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category    = 'Building ArtMesh'
+    bl_category    = '建造美术网格'
 
     def draw(self, context):
         layout      = self.layout
@@ -1067,7 +1067,7 @@ class MC_PT_Panel(bpy.types.Panel):
 
         # 1. Reference Scene
         box = layout.box()
-        box.label(text="1. Reference Scene", icon='MESH_GRID')
+        box.label(text="1. 参考场景", icon='MESH_GRID')
         box.operator("mc.setup_terrain", icon='SCENE_DATA')
         box.label(text="MC_ArtMesh_Ref / MC_Ctrl + MC_IsoSurface", icon='INFO')
 
@@ -1075,7 +1075,7 @@ class MC_PT_Panel(bpy.types.Panel):
 
         # 2. Case Meshes
         box = layout.box()
-        box.label(text="2. Case Meshes", icon='MESH_CUBE')
+        box.label(text="2. Case 网格", icon='MESH_CUBE')
         box.prop(cubes_props, "mesh_mode", expand=True)
         box.prop(cubes_props, "radius")
         box.prop(cubes_props, "radius_top")
@@ -1088,30 +1088,30 @@ class MC_PT_Panel(bpy.types.Panel):
 
         # 3. Coverage
         box = layout.box()
-        box.label(text="3. Coverage Check", icon='VIEWZOOM')
+        box.label(text="3. 覆盖率检查", icon='VIEWZOOM')
         row = box.row()
         row.operator("mc.check_coverage", icon='CHECKMARK')
         if props.coverage_text:
             row.label(text=props.coverage_text)
-        box.label(text="Select source mesh first", icon='INFO')
+        box.label(text="先选中源网格", icon='INFO')
 
         layout.separator()
 
         # 4b. Quick Export（直接导出生成 mesh，测试用）
         box = layout.box()
-        box.label(text="4. Quick Export (Test)", icon='EXPORT')
+        box.label(text="4. 快速导出（测试）", icon='EXPORT')
         box.prop(props, "output_dir")
         box.operator("mc.export_generated", icon='EXPORT')
-        box.label(text="直接导出生成 mesh → case_{n}.fbx", icon='INFO')
+        box.label(text="直接导出生成的 mesh → case_N.fbx", icon='INFO')
 
         layout.separator()
 
         # 5. Export from art mesh
         box = layout.box()
-        box.label(text="5. Export FBX (Art Mesh)", icon='EXPORT')
+        box.label(text="5. 导出 FBX（美术网格）", icon='EXPORT')
         box.prop(props, "snap_dist")
         box.operator("mc.extract_cases", icon='EXPORT')
-        box.label(text="Select source mesh, then Export", icon='INFO')
+        box.label(text="先选中源网格，再导出", icon='INFO')
 
 
 # ─────────────────────────────────────────────────────────────────────────────

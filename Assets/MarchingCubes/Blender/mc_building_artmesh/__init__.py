@@ -1,11 +1,11 @@
 bl_info = {
-    "name":        "Building ArtMesh",
+    "name":        "建造美术网格工具",
     "author":      "MarchingCubes Project",
     "version":     (1, 0, 0),
     "blender":     (3, 6, 0),
-    "location":    "3D Viewport › N-Panel › Building ArtMesh",
-    "description": "MC ArtMesh (Cube cases) + MQ ArtMesh (Quad terrain tiles) — unified building art tool",
-    "category":    "Mesh",
+    "location":    "3D 视图 › N 面板 › 建造美术网格",
+    "description": "MC 方块 Case 网格 + MQ 地形格网格 — 建造系统美术制作工具",
+    "category":    "网格",
 }
 
 from . import mc_mesh

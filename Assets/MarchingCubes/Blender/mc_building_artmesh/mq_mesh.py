@@ -38,7 +38,7 @@ CASE_NAMES = {
 class MQ_OT_GenerateReference(bpy.types.Operator):
     """Generate a reference mesh scaffold for the selected canonical case."""
     bl_idname  = "mq.generate_reference"
-    bl_label   = "Generate Reference Scaffold"
+    bl_label   = "生成参考线框"
     bl_options = {'REGISTER', 'UNDO'}
 
     case_index: bpy.props.IntProperty(name="Case Index", default=0)
@@ -86,7 +86,7 @@ class MQ_OT_GenerateReference(bpy.types.Operator):
 class MQ_OT_ShowCornerLabels(bpy.types.Operator):
     """Overlay corner position markers for the active case."""
     bl_idname  = "mq.show_corner_labels"
-    bl_label   = "Show Corner Markers"
+    bl_label   = "显示角点标记"
     bl_options = {'REGISTER', 'UNDO'}
 
     case_index: bpy.props.IntProperty(name="Case Index", default=0)
@@ -126,7 +126,7 @@ class MQ_OT_ShowCornerLabels(bpy.types.Operator):
 class MQ_OT_ValidateMesh(bpy.types.Operator):
     """Check that the active mesh fits within the unit quad [0,1]×[0,1] and reports corner alignment."""
     bl_idname = "mq.validate_mesh"
-    bl_label  = "Validate Mesh"
+    bl_label  = "验证网格"
 
     def execute(self, context):
         obj = context.active_object
@@ -156,7 +156,7 @@ class MQ_OT_ValidateMesh(bpy.types.Operator):
 class MQ_OT_ExportCase(bpy.types.Operator):
     """Export active object as mq_case_N.fbx to the chosen directory."""
     bl_idname = "mq.export_case"
-    bl_label  = "Export as FBX"
+    bl_label  = "导出 FBX"
 
     def execute(self, context):
         props    = context.scene.mq_props
@@ -206,7 +206,7 @@ class MQ_PT_Panel(bpy.types.Panel):
     bl_idname      = "MQ_PT_panel"
     bl_space_type  = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category    = "MQ ArtMesh"
+    bl_category    = "建造美术网格"
 
     def draw(self, context):
         layout = self.layout
@@ -215,12 +215,12 @@ class MQ_PT_Panel(bpy.types.Panel):
 
         # ── Case selector ─────────────────────────────────────────────────────
         box = layout.box()
-        box.label(text="Canonical Case", icon='GRID')
+        box.label(text="Canonical Case（标准 Case）", icon='GRID')
         box.prop(props, "case_index", text="")
 
         # Corner state display
         col = box.column(align=True)
-        col.label(text="Corner heights  (L=base  H=+1):")
+        col.label(text="角点高度（L=基准  H=+1）:")
         row = col.row(align=True)
         corners = ["V3(TL)", "V2(TR)"]
         for i, name in zip([3, 2], corners):
@@ -235,7 +235,7 @@ class MQ_PT_Panel(bpy.types.Panel):
 
         # ── Tools ─────────────────────────────────────────────────────────────
         box2 = layout.box()
-        box2.label(text="Tools", icon='TOOL_SETTINGS')
+        box2.label(text="工具", icon='TOOL_SETTINGS')
 
         op = box2.operator("mq.generate_reference", text="Generate Reference Scaffold")
         op.case_index = ci
@@ -247,22 +247,22 @@ class MQ_PT_Panel(bpy.types.Panel):
 
         # ── Guide ─────────────────────────────────────────────────────────────
         box3 = layout.box()
-        box3.label(text="Mesh Guide", icon='INFO')
-        box3.label(text="• Unit quad: X=[0,1], Z=[0,1]")
-        box3.label(text="• Low corners: Y = 0")
-        box3.label(text="• High corners: Y = 1")
-        box3.label(text="• Origin at (0,0,0) = V0/BL")
-        box3.label(text="• Seam verts must be exact")
+        box3.label(text="建模规范", icon='INFO')
+        box3.label(text="• 单位 quad: X=[0,1], Z=[0,1]")
+        box3.label(text="• 低角点: Y = 0")
+        box3.label(text="• 高角点: Y = 1")
+        box3.label(text="• 原点 (0,0,0) = V0/BL")
+        box3.label(text="• 接缝顶点必须精确")
 
         # ── Export ────────────────────────────────────────────────────────────
         box4 = layout.box()
-        box4.label(text="Export", icon='EXPORT')
-        box4.prop(props, "export_dir", text="Dir")
+        box4.label(text="导出", icon='EXPORT')
+        box4.prop(props, "export_dir", text="目录")
         box4.operator("mq.export_case", text=f"Export  mq_case_{ci}.fbx")
 
         # ── All canonical cases overview ───────────────────────────────────────
         box5 = layout.box()
-        box5.label(text="All 6 Canonical Cases", icon='LINENUMBERS_ON')
+        box5.label(text="全部 6 个 Canonical Case", icon='LINENUMBERS_ON')
         for c in CANONICAL_CASES:
             row = box5.row()
             name = CASE_NAMES.get(c, f"Case {c}")
