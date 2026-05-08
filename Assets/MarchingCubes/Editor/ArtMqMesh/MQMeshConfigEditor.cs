@@ -103,13 +103,17 @@ namespace MarchingCubes.Editor
 
                 var root = new GameObject($"mq_case_{ci}");
 
-                // Pivot center of quad in XZ = (0.5, 0, 0.5)
-                var center   = new Vector3(0.5f, 0f, 0.5f);
+                // MQ quad 中心 (0.5, 0, 0.5)，与 MC 的 (0.5,0.5,0.5) 类比
+                // EnsureSymmetry 存储 ci→canonical 方向的旋转：
+                //   non-flip: d4apply = Inverse(d4)，pivot = S_CENTER
+                //   flip:     自逆变换，d4apply = d4，pivot = (-0.5, 0, 0.5)
+                var S_CENTER = new Vector3(0.5f, 0f, 0.5f);
                 var d4apply  = isFlipped ? d4 : Quaternion.Inverse(d4);
+                var pivot    = isFlipped ? new Vector3(-0.5f, 0f, 0.5f) : S_CENTER;
 
                 var child = (GameObject)PrefabUtility.InstantiatePrefab(canonPrefab, root.transform);
                 child.transform.localRotation = d4apply;
-                child.transform.localPosition = center - d4apply * center;
+                child.transform.localPosition = S_CENTER - d4apply * pivot;
                 child.transform.localScale    = isFlipped ? new Vector3(-1f, 1f, 1f) : Vector3.one;
 
                 string prefabPath = $"{relOut}/mq_case_{ci}.prefab";
