@@ -376,7 +376,7 @@ class MQ_OT_ValidateMesh(bpy.types.Operator):
 
 
 class MQ_OT_ExportAllCases(bpy.types.Operator):
-    """批量导出所有 canonical case mesh 为 mq_case_N.fbx"""
+    """批量导出全部 canonical case，以 V0(BL) 为原点，坐标系与 MC 一致"""
     bl_idname = "mq.export_all_cases"
     bl_label  = "批量导出全部 FBX"
 
@@ -384,6 +384,8 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
         import os
         props   = context.scene.mq_props
         out_dir = bpy.path.abspath(props.export_dir)
+        sub     = props.subdivisions
+        arc_s   = props.arc_strength
 
         if not out_dir:
             self.report({'ERROR'}, "请先设置导出目录。")
@@ -391,43 +393,64 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
 
         os.makedirs(out_dir, exist_ok=True)
 
-        # 从 MQ_ArtMesh_Terrain 里找各 case 的 mesh 对象
-        terrain_col = bpy.data.collections.get(TERRAIN_COL_NAME)
-        if terrain_col is None:
-            self.report({'ERROR'}, f"找不到 {TERRAIN_COL_NAME}，请先点「生成测试地形」。")
-            return {'CANCELLED'}
+        def arc(t):
+            arc_t = t * t * (3.0 - 2.0 * t)
+            return t * (1.0 - arc_s) + arc_t * arc_s
 
-        exported, skipped = [], []
+        exported = []
         for ci in CANONICAL_CASES:
-            obj_name = f"mq_terrain_{ci}"
-            obj = bpy.data.objects.get(obj_name)
-            if obj is None:
-                skipped.append(ci)
-                continue
+            h = [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)]
 
-            # 单独选中该对象导出
+            # 重新生成 mesh，V0(BL) 固定在原点 (0,0,0)
+            bm = bmesh.new()
+            gv = []
+            for row in range(sub + 1):
+                r = []
+                for col in range(sub + 1):
+                    u      = col / sub
+                    v      = row / sub
+                    hz_lin = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
+                    r.append(bm.verts.new(Vector((u, v, arc(hz_lin)))))
+                gv.append(r)
+            for row in range(sub):
+                for col in range(sub):
+                    bm.faces.new([gv[row][col],   gv[row][col+1],
+                                  gv[row+1][col+1], gv[row+1][col]])
+            bm.normal_update()
+
+            mesh = bpy.data.meshes.new(f"_exp_mq_{ci}")
+            bm.to_mesh(mesh); bm.free()
+            for p in mesh.polygons:
+                p.use_smooth = True
+            mesh.update()
+
+            exp_obj = bpy.data.objects.new(f"mq_case_{ci}", mesh)
+            context.scene.collection.objects.link(exp_obj)
+
             bpy.ops.object.select_all(action='DESELECT')
-            obj.select_set(True)
-            context.view_layer.objects.active = obj
+            exp_obj.select_set(True)
+            context.view_layer.objects.active = exp_obj
 
+            # 与 MC 插件保持相同导出设置
             filepath = os.path.join(out_dir, f"mq_case_{ci}.fbx")
             bpy.ops.export_scene.fbx(
-                filepath         = filepath,
-                use_selection    = True,
-                axis_forward     = 'Z',
-                axis_up          = 'Y',
-                apply_unit_scale = True,
-                global_scale     = 1.0,
-                mesh_smooth_type = 'FACE',
-                add_leaf_bones   = False,
+                filepath             = filepath,
+                use_selection        = True,
+                axis_forward         = 'Y',
+                axis_up              = 'Z',
+                apply_scale_options  = 'FBX_SCALE_ALL',
+                use_mesh_modifiers   = True,
+                mesh_smooth_type     = 'FACE',
+                add_leaf_bones       = False,
             )
+
+            context.scene.collection.objects.unlink(exp_obj)
+            bpy.data.objects.remove(exp_obj)
+            bpy.data.meshes.remove(mesh)
             exported.append(ci)
 
         bpy.ops.object.select_all(action='DESELECT')
-        msg = f"已导出 {len(exported)} 个 case → {out_dir}"
-        if skipped:
-            msg += f"  |  找不到 mesh：{skipped}"
-        self.report({'INFO'}, msg)
+        self.report({'INFO'}, f"已导出 {len(exported)} 个 case → {out_dir}  (mq_case_0/1/3/5/7.fbx)")
         return {'FINISHED'}
 
 
