@@ -157,6 +157,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9713e4d9560b38b4588a0b3c53c9dc93, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  _areaWidth: 10
+  _areaDepth: 10
+  _buildHeight: 5
   _terrain: {fileID: 518160456}
   _building: {fileID: 999007710}
   _switchKey: 9
@@ -173,7 +176,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 5
+  m_RootOrder: 4
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &330585543
 GameObject:
@@ -437,7 +440,7 @@ GameObject:
   - component: {fileID: 518160459}
   - component: {fileID: 518160458}
   m_Layer: 3
-  m_Name: MarchingQuad25
+  m_Name: MCTerrain
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -455,9 +458,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f5c2f9e3a7e04e3295b1ff5ebe2f2ceb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  width: 20
-  height: 5
-  pow: 4
   textureLayer: 0
   bush: {fileID: 1092352291}
   cliffMaterial: {fileID: 2100000, guid: 844ac55cf64e9f242843bd3b8976b020, type: 2}
@@ -471,9 +471,10 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
-  m_Children: []
+  m_Children:
+  - {fileID: 1092352294}
   m_Father: {fileID: 0}
-  m_RootOrder: 4
+  m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!64 &518160458
 MeshCollider:
@@ -583,22 +584,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 72f9cb9e26224fc29336f7fdc2c5bbed, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  x: 16
-  y: 16
-  z: 16
   unit: 1
   _configs:
   - {fileID: 11400000, guid: ede18fc881c57654abde4669f65f9b01, type: 2}
   - {fileID: 11400000, guid: 0d92fa65fc4e42c4e93ad96fede739a9, type: 2}
   _currentConfigIndex: 0
-  _showConfigUI: 1
   pointCubePrefab: {fileID: 7868424380929822012, guid: feb0a7700d43af04991198f783d23414,
     type: 3}
   pointQuadPrefab: {fileID: 4939792962505422401, guid: 6f0245377ba6b3c46a0fe61107b06a82,
     type: 3}
-  planMaterial: {fileID: 2100000, guid: 844ac55cf64e9f242843bd3b8976b020, type: 2}
-  showPoint: 0
-  debugCube: 1
 --- !u!33 &999007711
 MeshFilter:
   m_ObjectHideFlags: 0
@@ -737,10 +731,10 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1092352290}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 0.01, z: 1}
   m_Children: []
-  m_Father: {fileID: 0}
-  m_RootOrder: 3
+  m_Father: {fileID: 518160457}
+  m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

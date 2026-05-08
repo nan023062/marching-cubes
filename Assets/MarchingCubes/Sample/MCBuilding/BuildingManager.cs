@@ -19,7 +19,7 @@ namespace MarchingCubes.Sample
         [SerializeField] private int _buildHeight  = 5;
 
         [Header("组件引用")]
-        [SerializeField] private MarchingQuad25Sample _terrain;
+        [SerializeField] private MCTerrain _terrain;
         [SerializeField] private MCBuilding           _building;
         [SerializeField] private KeyCode              _switchKey   = KeyCode.Tab;
         [SerializeField] private BuildMode            _initialMode = BuildMode.Build;

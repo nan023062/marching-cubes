@@ -6,7 +6,7 @@ namespace MarchingSquares
     [RequireComponent(typeof(MeshCollider))]
     [RequireComponent(typeof(MeshRenderer))]
     [RequireComponent(typeof(MeshFilter))]
-    public class MarchingQuad25Sample : MonoBehaviour
+    public class MCTerrain : MonoBehaviour
     {
         // 尺寸由 BuildingManager.Init 注入，不在 Inspector 单独配置
         [SerializeField, Header("涂刷类型 0=泥 1=草 2=岩 3=雪 4=腐"), Range(0, 4)]
