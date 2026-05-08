@@ -7,8 +7,8 @@ namespace MarchingCubes.Editor
     [CustomEditor(typeof(MarchingSquares.MQMeshConfig))]
     public sealed class MQMeshConfigEditor : UnityEditor.Editor
     {
-        private string  _fbxFolder    = "Assets/MarchingCubes/ArtMesh/MQ/Cases";
-        private string  _prefabFolder = "Assets/MarchingCubes/ArtMesh/MQ/Prefabs";
+        private string  _fbxFolder    = "Assets/MarchingCubes/Sample/Resources/mq";
+        private string  _prefabFolder = "Assets/MarchingCubes/Sample/Resources/mq/prefabs";
         private string  _log          = "";
         private int     _selected     = -1;
         private Vector2 _gridScroll;
