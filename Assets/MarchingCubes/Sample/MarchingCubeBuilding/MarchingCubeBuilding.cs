@@ -10,6 +10,7 @@ namespace MarchingCubes.Sample
         [SerializeField] private ArtMeshCaseConfig _config;
         [SerializeField] private GameObject pointCubePrefab;
         [SerializeField] private GameObject pointQuadPrefab;
+        [SerializeField] private Material planMaterial;
         [SerializeField] private bool showPoint;
         [SerializeField] private bool debugCube;
 
@@ -23,6 +24,8 @@ namespace MarchingCubes.Sample
             Matrix4x4 matrix = Matrix4x4.TRS(transform.position, Quaternion.identity, scale);
             _building = new BlockBuilding(x, y, z, matrix, this);
             transform.localScale = scale;
+
+            CreatePlan();
 
             _pointCubes = new PointCube[x + 1, y + 1, z + 1];
             for (int i = 1; i < x; i++)
@@ -52,6 +55,21 @@ namespace MarchingCubes.Sample
         {
             if (showPoint)
                 _building?.DrawPoints();
+        }
+
+        private void CreatePlan()
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            go.name = "plan";
+            Object.Destroy(go.GetComponent<MeshCollider>());
+            if (planMaterial != null)
+                go.GetComponent<MeshRenderer>().sharedMaterial = planMaterial;
+
+            var t = go.transform;
+            t.SetParent(transform);
+            t.localPosition = new Vector3(x * 0.5f, 0.498f, z * 0.5f);
+            t.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            t.localScale    = new Vector3(x - 1, z - 1, 1f);
         }
 
         // ── Interactive building ──────────────────────────────────────────────
