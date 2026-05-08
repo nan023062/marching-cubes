@@ -109,13 +109,19 @@ namespace MarchingCubes.Editor
                 var pComp = root.AddComponent<CubedMeshPrefab>();
                 pComp.mask = (CubeVertexMask)ci;
 
-                // 实例化 canonical FBX 子节点
-                // Blender 导出时已做 b2u（swap Y↔Z），顶点直接是 Unity 坐标系。
-                // 只需叠加 D4 对称旋转即可，无需额外坐标转换。
+                // EnsureSymmetry 存的是「ci→canonical」方向的旋转 d4。
+                // 需要「canonical→ci」方向：
+                //   non-flip: 取逆旋转 Inverse(d4)
+                //   flip(R∘M): 变换自逆(T=T⁻¹)，直接用 d4
+                // localPosition pivot：
+                //   non-flip: S_CENTER（围绕 cube 中心旋转的平移补偿）
+                //   flip:     (-0.5,0.5,0.5)（X 镜像后的对称中心在原点坐标系中的位置）
+                var d4apply = isFlipped ? d4 : Quaternion.Inverse(d4);
+                var pivot   = isFlipped ? new Vector3(-0.5f, 0.5f, 0.5f) : S_CENTER;
                 var child = (GameObject)PrefabUtility.InstantiatePrefab(canonPrefab, root.transform);
                 child.transform.localRotation = Quaternion.identity;
-                child.transform.localPosition = S_CENTER - d4 * S_CENTER;
-                child.transform.localRotation  = d4;
+                child.transform.localPosition = S_CENTER - d4apply * pivot;
+                child.transform.localRotation  = d4apply;
                 child.transform.localScale     = isFlipped
                     ? new Vector3(-1f, 1f, 1f) : Vector3.one;
 

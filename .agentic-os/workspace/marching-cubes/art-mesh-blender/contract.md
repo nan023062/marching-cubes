@@ -55,6 +55,25 @@ Add-on 内部负责坐标系转换（`u2b` / `b2u`），美术直接在参考场
 | 深蓝 | `mc_cube_closed` | 封闭面：中平面（某轴坐标=0.5），实体截面，永久闭合 |
 | 浅灰 | `mc_cube_open` | 开放面：cube 边界（坐标=0 或 1），与相邻 cube 拼接后自然封闭 |
 
+## FBX 导出技术规格
+
+| 参数 | 值 |
+|------|----|
+| `axis_forward` | `'Y'` （Blender 原生前向轴，正Y） |
+| `axis_up` | `'Z'` （Blender 原生上轴） |
+| `apply_scale_options` | `'FBX_SCALE_ALL'` |
+| FBX 根节点旋转 | identity（无额外旋转） |
+| FBX 坐标系声明 | Z-up |
+
+## Unity 侧必要配套
+
+`Assets/MarchingCubes/Editor/ArtMesh/ArtMeshFbxPostprocessor.cs`  
+对 `fbx_case/` 下所有 FBX 自动设置 `bakeAxisConversion = true`。
+
+- **必须存在**：否则 Unity 导入结果 transform 为 X=-90，DoBuild 叠加 D4 旋转会出错
+- **效果**：Unity 把 Z-up→Y-up（X=-90）烧进顶点，根节点还原 identity
+- **触发**：首次导入或 Reimport 时自动生效
+
 ## 使用方
 
 | 使用方 | 使用方式 |

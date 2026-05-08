@@ -68,3 +68,40 @@
 - 根因：旧的 `bisect_plane` 方案对非凸激活区域产生矛盾约束——对角激活（如 ci=5）同时要求 x<0.5 和 x>0.5，所有几何体被切空
 - 修复：改用**密度场过滤法**——对每个面质心做三线性插值密度计算，删除密度<0.5的面；同时用 `dot(face_normal, face_center - cube_center)` 确保法线朝外
 - 此方案对全部 53 个 case 均正确，含对角/非凸情形
+
+## [2026-05-08 14:30:00]
+
+- type: incident
+- 现象：Quick Export（MC_OT_ExportGeneratedMeshes）导出的 FBX 在 Unity 中 Z 轴镜像
+- 根因：Python 层做了 b2u 顶点预变换（verts_unity / faces_unity），FBX exporter 把轴向矫正写进 FBX 根节点 transform（非顶点），Unity 导入时双重应用 → Z 镜像
+- 修复：删除 Python 预变换，顶点保持 Blender 原生坐标（Z-up）
+
+## [2026-05-08 14:30:00]
+
+- type: decision
+- FBX 导出轴向从 `axis_forward='-Z', axis_up='Y'`（Unity preset）改为 `axis_forward='-Y', axis_up='Z'`（Blender 原生轴）
+- 原因：Unity preset 把轴矫正编码为 FBX 根节点旋转（X=-90），Unity 的 `bakeAxisConversion` 只处理 FBX 坐标系声明差异，FBX 声明 Y-up 时认为无需转换而跳过，X=-90 无法被 bake；改用原生轴后 FBX 声明 Z-up，bakeAxisConversion 才真正生效
+- 影响：两个 Operator（MC_OT_ExportGeneratedMeshes + MC_OT_ExtractCases）均需同步修改
+- 勘误：`axis_forward='-Y'` 非 identity——Blender FBX exporter 内部 from_forward='Y'（正Y），`-Y` 会产生绕Z的180°旋转（在Unity呈现为Y=180）；正确 identity 为 `axis_forward='Y', axis_up='Z'`
+
+## [2026-05-08 15:00:00]
+
+- type: incident
+- 现象：DoBuild 生成的 201 个非 canonical prefab 中，156 个位置或朝向错误（通过"建一个点观察8邻格"发现）
+- 根因一（96 case）：non-flip 旋转方向反了。EnsureSymmetry 存的是「ci→canonical」方向的旋转，DoBuild 误当「canonical→ci」直接使用，导致 90°↔270° 对调。
+- 根因二（60 case）：flip case 的 localPosition pivot 错误。当前用 S_CENTER=(0.5,0.5,0.5) 作 pivot，但 flip（X 镜像）应以 (-0.5,0.5,0.5) 为 pivot（X 轴镜像中心在原点坐标系下的表示），导致 mesh 偏移出 cube 外。
+- 修复（ArtMeshCaseConfigEditor.cs DoBuild）：
+  ```
+  var d4apply = isFlipped ? d4 : Quaternion.Inverse(d4);
+  var pivot   = isFlipped ? new Vector3(-0.5f, 0.5f, 0.5f) : S_CENTER;
+  child.transform.localPosition = S_CENTER - d4apply * pivot;
+  child.transform.localRotation  = d4apply;
+  ```
+- 数学依据：flip 变换 T=R∘M 满足自逆性（T=T⁻¹），故 flip 旋转不需取逆；pivot 推导：unity transform 等式 `pos + R*(−vx,vy,vz) = R*(1−vx,vy,vz)` 解出 `pos = S_CENTER − R*(−0.5,0.5,0.5)`
+
+## [2026-05-08 14:30:00]
+
+- type: decision
+- 新增 Unity Editor 脚本 `ArtMeshFbxPostprocessor.cs`（路径：`Assets/MarchingCubes/Editor/ArtMesh/`）
+- 对 `fbx_case/` 下所有 FBX 自动设置 `bakeAxisConversion = true`，把 Z-up→Y-up 烧进顶点，导入 transform 还原为 identity
+- 必要条件：FBX 须以 `axis_forward='-Y', axis_up='Z'` 导出（声明 Z-up）才能触发 bake

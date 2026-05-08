@@ -848,20 +848,12 @@ class MC_OT_ExportGeneratedMeshes(bpy.types.Operator):
             if not verts_local:
                 continue
 
-            # ── Blender→Unity 坐标系转换（b2u: swap Y↔Z）─────────────────────
-            # axis_forward='-Z',axis_up='Y' 只改 FBX 元数据，不变换顶点。
-            # 直接在 Python 层把顶点转到 Unity 坐标系，确保导入无歧义。
-            # swap Y↔Z 是反射变换 → 同步修正三角面绕序以保持法线朝向正确。
-            verts_unity = [(v[0], v[2], v[1]) for v in verts_local]
-            faces_unity  = [(f[0], f[2], f[1]) for f in faces_local]
-
-            # 临时 mesh 放在场景原点，坐标已是 Unity [0,1]³
+            # 保持 Blender 坐标系（Z-up），用 Blender 原生轴导出（axis_forward='-Y', axis_up='Z'）。
+            # 这样 FBX 根节点无额外旋转，Unity 侧 bakeAxisConversion 才能真正把 Z→Y 烧进顶点。
             mesh = bpy.data.meshes.new(f"_exp_{ci}")
-            mesh.from_pydata(verts_unity, [], faces_unity)
+            mesh.from_pydata(verts_local, [], faces_local)
             mesh.update()
 
-            # ── 顶面识别并分类（Unity 坐标系）─────────────────────────────────
-            # Unity Y-up：顶面法线 +Y → Blender 存储为 poly.normal.y（swap 后）
             EPS_e = 1e-4
             MAT_EXP_CLOSED = _ensure_mat("mc_cube_closed", (0.04, 0.12, 0.55), strength=1.1)
             MAT_EXP_OPEN   = _ensure_mat("mc_cube_open",   (0.60, 0.60, 0.60), strength=0.7)
@@ -871,7 +863,7 @@ class MC_OT_ExportGeneratedMeshes(bpy.types.Operator):
             mesh.materials.append(MAT_EXP_TOP)
 
             for poly in mesh.polygons:
-                pvs = [verts_unity[vi] for vi in poly.vertices]
+                pvs = [verts_local[vi] for vi in poly.vertices]
                 is_open = (
                     all(abs(v[0]) < EPS_e for v in pvs) or
                     all(abs(v[0] - 1.0) < EPS_e for v in pvs) or
@@ -882,7 +874,7 @@ class MC_OT_ExportGeneratedMeshes(bpy.types.Operator):
                 )
                 if is_open:
                     poly.material_index = 1
-                elif poly.normal.y > 0.9:      # Unity +Y = 顶面（b2u 后 Blender.y = Unity.y）
+                elif poly.normal.z > 0.9:      # Blender Z-up：顶面法线 +Z
                     poly.material_index = 2
                 else:
                     poly.material_index = 0
@@ -920,7 +912,7 @@ class MC_OT_ExportGeneratedMeshes(bpy.types.Operator):
             fbx_path = os.path.join(output_dir, f"case_{ci}.fbx")
             bpy.ops.export_scene.fbx(
                 filepath=fbx_path, use_selection=True,
-                axis_forward='-Z', axis_up='Y',
+                axis_forward='Y', axis_up='Z',
                 apply_scale_options='FBX_SCALE_ALL',
                 use_mesh_modifiers=True, mesh_smooth_type='FACE',
                 add_leaf_bones=False,
@@ -1024,7 +1016,7 @@ class MC_OT_ExtractCases(bpy.types.Operator):
                     fbx_path = os.path.join(output_dir, f"case_{canonical_ci}.fbx")
                     bpy.ops.export_scene.fbx(
                         filepath=fbx_path, use_selection=True,
-                        axis_forward='-Z', axis_up='Y',
+                        axis_forward='Y', axis_up='Z',
                         apply_scale_options='FBX_SCALE_ALL',
                         use_mesh_modifiers=True, mesh_smooth_type='FACE',
                         add_leaf_bones=False,
