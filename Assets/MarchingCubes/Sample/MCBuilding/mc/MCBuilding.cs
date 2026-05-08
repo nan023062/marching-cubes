@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace MarchingCubes.Sample
@@ -11,16 +12,17 @@ namespace MarchingCubes.Sample
         [SerializeField] private int _currentConfigIndex = 0;
 
         [SerializeField] private GameObject pointCubePrefab;
+        [SerializeField] private GameObject pointQuadPrefab;
         [SerializeField] private bool showPoint;
         [SerializeField] private bool debugCube;
 
         private BlockBuilding _building;
-        private PointCube[,,] _pointCubes;
-        private static readonly Vector3 s_center = new Vector3(0.5f, 0.5f, 0.5f);
+        private PointCube[,,]      _pointCubes;
+        private List<GameObject>   _pointQuads = new List<GameObject>();
 
         // ── Config 访问 ───────────────────────────────────────────────────────
 
-        public int ConfigCount => _configs != null ? _configs.Length : 0;
+        public int ConfigCount        => _configs != null ? _configs.Length : 0;
         public int CurrentConfigIndex => _currentConfigIndex;
 
         private CasePrefabConfig CurrentConfig
@@ -41,53 +43,66 @@ namespace MarchingCubes.Sample
             _building?.RefreshAllMeshes();
         }
 
+        public string GetConfigName(int index) =>
+            (_configs != null && index >= 0 && index < _configs.Length && _configs[index] != null)
+                ? _configs[index].name : "";
+
         // ── Lifecycle ─────────────────────────────────────────────────────────
 
         private void Awake()
         {
-            Vector3 scale = Vector3.one / unit;
+            Vector3 scale  = Vector3.one / unit;
             Matrix4x4 matrix = Matrix4x4.TRS(transform.position, Quaternion.identity, scale);
             _building = new BlockBuilding(x, y, z, matrix, this);
             transform.localScale = scale;
 
             _pointCubes = new PointCube[x + 1, y + 1, z + 1];
+
+            // PointQuad：地面格点交互体（hover 描边 + 点击建造）
+            for (int i = 1; i < x; i++)
+            {
+                for (int j = 1; j < z; j++)
+                {
+                    var go = Instantiate(pointQuadPrefab);
+                    var t  = go.transform;
+                    t.SetParent(transform);
+                    t.localPosition = new Vector3(i, 0.5f, j);
+                    t.localRotation = Quaternion.identity;
+                    t.localScale    = new Vector3(1f, 0f, 1f);
+
+                    var quad = go.GetComponent<PointQuad>();
+                    quad.mcs = this;
+                    quad.x   = i;
+                    quad.z   = j;
+
+                    _pointQuads.Add(go);
+                }
+            }
         }
 
         private void OnDestroy()
         {
             _pointCubes = null;
+            _pointQuads.Clear();
         }
 
         private void OnDrawGizmos()
         {
-            if (showPoint)
-                _building?.DrawPoints();
+            if (showPoint) _building?.DrawPoints();
         }
 
-        // ── Config UI (OnGUI) ─────────────────────────────────────────────────
+        // ── 交互开关（BuildState.OnEnter/Exit 调用）──────────────────────────
 
-        public string GetConfigName(int index) =>
-            (_configs != null && index >= 0 && index < _configs.Length && _configs[index] != null)
-                ? _configs[index].name : "";
-
-        // ── Interactive building ──────────────────────────────────────────────
-
-        /// <summary>BuildState.OnEnter/Exit 调用，切换 PointElement 组件的响应开关。</summary>
         public void EnableInteraction(bool active)
         {
+            foreach (var go in _pointQuads)
+                if (go != null) go.SetActive(active);
+
             foreach (var cube in _pointCubes)
-                if (cube != null)
-                    cube.gameObject.SetActive(active);
+                if (cube != null) cube.gameObject.SetActive(active);
         }
 
-        /// <summary>BuildState 从地形射线命中点调用，映射到 y=1 格层建造。</summary>
-        public void TryCreateAtGround(Vector3 worldHitPoint)
-        {
-            var local = transform.InverseTransformPoint(worldHitPoint);
-            int cx = Mathf.RoundToInt(local.x);
-            int cz = Mathf.RoundToInt(local.z);
-            CreateCube(cx, 1, cz);
-        }
+        // ── 点击处理 ─────────────────────────────────────────────────────────
 
         public void OnClicked(PointElement element, bool left, in Vector3 normal)
         {
@@ -127,16 +142,16 @@ namespace MarchingCubes.Sample
             ref var cube = ref _pointCubes[cx, cy, cz];
             if (cube != null) return;
 
-            GameObject go = Instantiate(pointCubePrefab);
-            Transform t = go.transform;
+            var go = Instantiate(pointCubePrefab);
+            var t  = go.transform;
             t.SetParent(transform);
             t.localPosition = new Vector3(cx, cy, cz);
             t.localRotation = Quaternion.identity;
             t.localScale    = Vector3.one;
 
-            cube = go.GetComponent<PointCube>();
+            cube     = go.GetComponent<PointCube>();
             cube.mcs = this;
-            cube.x = cx; cube.y = cy; cube.z = cz;
+            cube.x   = cx; cube.y = cy; cube.z = cz;
             _building.SetPointStatus(cx, cy, cz, true);
         }
 

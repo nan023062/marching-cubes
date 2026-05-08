@@ -1,17 +1,10 @@
-using UnityEngine;
-
 namespace MarchingCubes.Sample
 {
     public class BuildState : IBuildState
     {
         readonly MCBuilding _building;
-        readonly int        _terrainMask;
 
-        public BuildState(MCBuilding building)
-        {
-            _building    = building;
-            _terrainMask = 1 << LayerMask.NameToLayer("MarchingQuads");
-        }
+        public BuildState(MCBuilding building) => _building = building;
 
         public void OnEnter() => _building.EnableInteraction(true);
         public void OnExit()  => _building.EnableInteraction(false);
@@ -36,12 +29,6 @@ namespace MarchingCubes.Sample
             }
         }
 
-        public void OnUpdate()
-        {
-            if (!Input.GetMouseButtonDown(0)) return;
-            var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out var hit, 1000f, _terrainMask))
-                _building.TryCreateAtGround(hit.point);
-        }
+        public void OnUpdate() { }
     }
 }
