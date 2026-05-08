@@ -6,8 +6,8 @@ namespace MarchingCubes.Sample
     public enum BuildMode { Terrain, Build }
 
     /// <summary>
-    /// 建造系统总管。对外暴露地形接口和 Cube 建造接口，
-    /// 通过 TerrainState / BuildState 两个游戏状态管理输入和交互方式。
+    /// 建造系统总管：持有数据组件引用、驱动状态机、渲染模式切换 UI。
+    /// 交互逻辑全部封装在 TerrainState / BuildState 内部，BuildingManager 不做代理。
     /// </summary>
     public class BuildingManager : MonoBehaviour
     {
@@ -29,14 +29,13 @@ namespace MarchingCubes.Sample
             Instance = this;
             _states = new IBuildState[]
             {
-                new TerrainState(this, _terrain),
-                new BuildState(this, _building),
+                new TerrainState(_terrain),
+                new BuildState(_building),
             };
         }
 
         private void Start()
         {
-            // 直接赋值并调 OnEnter，不走 SwitchTo，避免初始 CurrentMode == _initialMode 时跳过
             CurrentMode = _initialMode;
             _states[(int)CurrentMode].OnEnter();
         }
@@ -60,8 +59,6 @@ namespace MarchingCubes.Sample
             _states[(int)CurrentMode].OnGUI();
         }
 
-        // ── State machine ─────────────────────────────────────────────────────
-
         public void SwitchTo(BuildMode mode)
         {
             if (mode == CurrentMode) return;
@@ -69,28 +66,6 @@ namespace MarchingCubes.Sample
             CurrentMode = mode;
             _states[(int)CurrentMode].OnEnter();
         }
-
-        // ── 地形接口 ──────────────────────────────────────────────────────────
-
-        public bool BrushTerrain(int delta)
-        {
-            bool dirty = _terrain.Terrain.BrushMapHigh(_terrain.Brush, delta);
-            if (dirty) _terrain.RefreshMeshes();
-            return dirty;
-        }
-
-        public bool PaintTerrain(int type)
-        {
-            bool dirty = _terrain.Terrain.PaintTerrainType(_terrain.Brush, type);
-            if (dirty) _terrain.RefreshMeshes();
-            return dirty;
-        }
-
-        // ── Cube 建造接口 ─────────────────────────────────────────────────────
-
-        public void CreateAtGround(Vector3 worldHit) => _building.TryCreateAtGround(worldHit);
-
-        public void SwitchConfig(int index) => _building.SwitchConfig(index);
 
         // ── UI ────────────────────────────────────────────────────────────────
 
@@ -123,22 +98,19 @@ namespace MarchingCubes.Sample
             void OnGUI();
         }
 
-        // ── TerrainState：刷子入口，全权管理地形输入与 GUI ──────────────────
+        // ── TerrainState：刷子入口，全权管理地形交互与 GUI ───────────────────
 
         class TerrainState : IBuildState
         {
-            readonly BuildingManager      _mgr;
             readonly MarchingQuad25Sample _sample;
             readonly int                  _terrainMask;
 
             static readonly string[] _layerNames = { "泥", "草", "岩", "雪", "腐" };
 
-            // 焦点进入触发：刷子移入新格子才生效，停留不重复，必须移出再移入才再触发
             Vector3 _lastAppliedPos = new Vector3(float.NaN, 0f, float.NaN);
 
-            public TerrainState(BuildingManager mgr, MarchingQuad25Sample sample)
+            public TerrainState(MarchingQuad25Sample sample)
             {
-                _mgr         = mgr;
                 _sample      = sample;
                 _terrainMask = 1 << LayerMask.NameToLayer("MarchingQuads");
             }
@@ -149,7 +121,6 @@ namespace MarchingCubes.Sample
             public void OnGUI()
             {
                 const float btnW = 80f, btnH = 28f, pad = 8f, gap = 4f;
-                // 高度刷子 / 涂色刷子 切换
                 float y = Screen.height - btnH * 3 - pad * 3 - 22f;
                 var brush = _sample.Brush;
 
@@ -161,7 +132,6 @@ namespace MarchingCubes.Sample
                         brush.colorBrush ? "[ 涂色 ]" : "  涂色  "))
                     brush.colorBrush = true;
 
-                // 涂色模式下显示图层选择
                 if (brush.colorBrush)
                 {
                     y -= btnH + gap;
@@ -202,7 +172,6 @@ namespace MarchingCubes.Sample
                 p.z = Mathf.RoundToInt(p.z / unit) * unit;
                 t.position = p;
 
-                // 抬起 = 失去焦点，重置触发位置
                 if (!Input.GetMouseButton(0) && !Input.GetMouseButton(1))
                 {
                     _lastAppliedPos = new Vector3(float.NaN, 0f, float.NaN);
@@ -211,16 +180,18 @@ namespace MarchingCubes.Sample
                 if (p == _lastAppliedPos) return;
                 _lastAppliedPos = p;
 
+                bool dirty;
                 if (brush.colorBrush)
                 {
                     int type = Input.GetMouseButton(0) ? _sample.TextureLayer : 0;
-                    _mgr.PaintTerrain(type);
+                    dirty = _sample.Terrain.PaintTerrainType(brush, type);
                 }
                 else
                 {
                     int delta = Input.GetMouseButton(0) ? 1 : -1;
-                    _mgr.BrushTerrain(delta);
+                    dirty = _sample.Terrain.BrushMapHigh(brush, delta);
                 }
+                if (dirty) _sample.RefreshMeshes();
             }
         }
 
@@ -228,13 +199,11 @@ namespace MarchingCubes.Sample
 
         class BuildState : IBuildState
         {
-            readonly BuildingManager _mgr;
-            readonly MCBuilding      _building;
-            readonly int             _terrainMask;
+            readonly MCBuilding _building;
+            readonly int        _terrainMask;
 
-            public BuildState(BuildingManager mgr, MCBuilding building)
+            public BuildState(MCBuilding building)
             {
-                _mgr         = mgr;
                 _building    = building;
                 _terrainMask = 1 << LayerMask.NameToLayer("MarchingQuads");
             }
@@ -258,7 +227,7 @@ namespace MarchingCubes.Sample
                     if (i == _building.CurrentConfigIndex)
                         GUI.Box(r, label);
                     else if (GUI.Button(r, label))
-                        _mgr.SwitchConfig(i);
+                        _building.SwitchConfig(i);
                 }
             }
 
@@ -267,7 +236,7 @@ namespace MarchingCubes.Sample
                 if (!Input.GetMouseButtonDown(0)) return;
                 var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
                 if (Physics.Raycast(ray, out var hit, 1000f, _terrainMask))
-                    _mgr.CreateAtGround(hit.point);
+                    _building.TryCreateAtGround(hit.point);
             }
         }
     }
