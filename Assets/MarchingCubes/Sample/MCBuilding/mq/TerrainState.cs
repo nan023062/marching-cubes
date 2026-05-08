@@ -11,8 +11,8 @@ namespace MarchingCubes.Sample
 
         static readonly string[] LayerNames = { "泥", "草", "岩", "雪", "腐" };
 
-        // 只比较 XZ：Y 随地形高度变化，不作为"同一格"判断依据
-        Vector2 _lastAppliedXZ = new Vector2(float.NaN, float.NaN);
+        // 用屏幕坐标判断"鼠标是否移动"，屏幕没动 = 无输入 = 不触发
+        Vector2 _lastMousePos = new Vector2(float.NaN, float.NaN);
 
         public TerrainState(MCTerrain sample, System.Action onTerrainChanged)
         {
@@ -80,12 +80,12 @@ namespace MarchingCubes.Sample
 
             if (!Input.GetMouseButton(0) && !Input.GetMouseButton(1))
             {
-                _lastAppliedXZ = new Vector2(float.NaN, float.NaN);
+                _lastMousePos = new Vector2(float.NaN, float.NaN);
                 return;
             }
-            var xz = new Vector2(p.x, p.z);
-            if (xz == _lastAppliedXZ) return;
-            _lastAppliedXZ = xz;
+            var mousePos = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
+            if (mousePos == _lastMousePos) return;
+            _lastMousePos = mousePos;
 
             bool dirty;
             if (brush.colorBrush)
