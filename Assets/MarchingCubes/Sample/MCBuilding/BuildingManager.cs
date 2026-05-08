@@ -38,10 +38,11 @@ namespace MarchingCubes.Sample
             _terrain.Init(_areaWidth, _areaDepth, _buildHeight);
             _building.Init(_areaWidth, _buildHeight, _areaDepth);
 
+            var buildState = new BuildState(_building);
             _states = new IBuildState[]
             {
-                new TerrainState(_terrain, () => _building.SyncWithTerrain(_terrain.Terrain)),
-                new BuildState(_building),
+                new TerrainState(_terrain, () => buildState.SyncWithTerrain(_terrain.Terrain)),
+                buildState,
             };
         }
 
