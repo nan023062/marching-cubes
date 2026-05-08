@@ -254,7 +254,7 @@ namespace MarchingCubes.Editor
             EditorGUILayout.LabelField($"Case {ci}  (binary: {System.Convert.ToString(ci, 2).PadLeft(4, '0')})", EditorStyles.boldLabel);
             cfg.EnsureSymmetry();
             EditorGUILayout.LabelField($"Canonical: {cfg.GetCanonicalIndex(ci)}   D4 rotY: {cfg.GetRotation(ci).eulerAngles.y:F0}°   Flip: {cfg.GetFlipped(ci)}", EditorStyles.miniLabel);
-            EditorGUILayout.LabelField($"Corners: V0(BL)={(ci&1)>0?'H':'L'}  V1(BR)={(ci&2)>0?'H':'L'}  V2(TR)={(ci&4)>0?'H':'L'}  V3(TL)={(ci&8)>0?'H':'L'}", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField($"Corners: V0(BL)={((ci&1)>0?'H':'L')}  V1(BR)={((ci&2)>0?'H':'L')}  V2(TR)={((ci&4)>0?'H':'L')}  V3(TL)={((ci&8)>0?'H':'L')}", EditorStyles.miniLabel);
             EditorGUILayout.Space(4);
 
             EditorGUI.BeginChangeCheck();
