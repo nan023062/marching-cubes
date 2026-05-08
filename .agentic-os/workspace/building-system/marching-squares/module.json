@@ -1,0 +1,29 @@
+{
+  "name": "marching-squares",
+  "workspaceType": "csharp-unity",
+  "summary": "2.5D Marching Squares 地形系统，支持高度场笔刷雕刻、地形类型混合（splatmap）和悬崖壁面独立网格生成",
+  "workspace": [
+    "Assets/MarchingCubes/Runtime/mq",
+    "Assets/MarchingCubes/Sample/MCBuilding/MarchingQuad25Sample.cs"
+  ],
+  "dependencies": [],
+  "boundary": "semi-open",
+  "publicApi": [
+    "MSQTerrain — 地形主类（partial：MSQTerrain.cs + Chunk.cs）",
+    "MSQTerrain.Point — 数据点（high:sbyte + terrainType:byte）",
+    "MSQTerrain.BrushMapHigh(Brush, int) — 高度刷绘，返回 dirty",
+    "MSQTerrain.PaintTerrainType(Brush, int) — 地形类型刷绘，返回 dirty",
+    "MSQTerrain.RebuildCliffMesh() — 强制重建悬崖网格",
+    "MSQTerrain.mesh — 地形 Mesh（预分配顶点，只更新 UV/Color）",
+    "MSQTerrain.cliffMesh — 悬崖壁面 Mesh（动态 List 构建）",
+    "MSQTerrain.localToWorld / worldToLocal — 坐标变换矩阵",
+    "Brush — 笔刷 MonoBehaviour（Size 属性 + colorBrush 标志）"
+  ],
+  "constraints": [
+    "MSQTerrain 是 partial class，必须同时编译 MSQTerrain.cs 和 Chunk.cs",
+    "Point.high 运行时 clamp 到 -64~64（DetectChunkUpdated 硬约束，声明类型 sbyte 范围更大）",
+    "纹理系统已从 tile-atlas 迁移为 splatmap（uv0 格坐标；uv1~uv3 MS case index；Color32 地形类型编码）",
+    "TerrainTypeCount = 5（泥/草/岩/雪/腐），EncodeType(t) = t * 51（byte 0/51/102/153/204）",
+    "悬崖网格（cliffMesh）必须挂载到独立子 GameObject 的 MeshRenderer，不可与地形 mesh 共用"
+  ]
+}

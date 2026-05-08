@@ -5,8 +5,8 @@ using UnityEngine;
 
 namespace MarchingCubes.Editor
 {
-    [CustomEditor(typeof(ArtMeshCaseConfig))]
-    public sealed class ArtMeshCaseConfigEditor : UnityEditor.Editor
+    [CustomEditor(typeof(D4FbxCaseConfig))]
+    public sealed class D4FbxCaseConfigEditor : UnityEditor.Editor
     {
         // ── State ────────────────────────────────────────────────────────────
         private string  _fbxFolder    = "Assets/MarchingCubes/ArtMesh/Cases";
@@ -31,7 +31,7 @@ namespace MarchingCubes.Editor
         // ════════════════════════════════════════════════════════════════════
         public override void OnInspectorGUI()
         {
-            var cfg = (ArtMeshCaseConfig)target;
+            var cfg = (D4FbxCaseConfig)target;
             serializedObject.Update();
 
             DrawBuildSection(cfg);
@@ -47,7 +47,7 @@ namespace MarchingCubes.Editor
         // Build 255 Prefabs
         // ════════════════════════════════════════════════════════════════════
 
-        void DrawBuildSection(ArtMeshCaseConfig cfg)
+        void DrawBuildSection(D4FbxCaseConfig cfg)
         {
             EditorGUILayout.LabelField("Build Case Prefabs (p_case_xx)", EditorStyles.boldLabel);
 
@@ -78,7 +78,7 @@ namespace MarchingCubes.Editor
             }
         }
 
-        void DoBuild(ArtMeshCaseConfig cfg)
+        void DoBuild(D4FbxCaseConfig cfg)
         {
             _log = "";
             cfg.EnsureSymmetry();
@@ -150,7 +150,7 @@ namespace MarchingCubes.Editor
         // Grid
         // ════════════════════════════════════════════════════════════════════
 
-        void DrawGrid(ArtMeshCaseConfig cfg)
+        void DrawGrid(D4FbxCaseConfig cfg)
         {
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -200,7 +200,7 @@ namespace MarchingCubes.Editor
             }
         }
 
-        void DrawCell(ArtMeshCaseConfig cfg, int ci, Rect r)
+        void DrawCell(D4FbxCaseConfig cfg, int ci, Rect r)
         {
             bool hasPrefab = ci > 0 && ci < 255 && cfg.GetPrefab(ci) != null;
             bool isCanon   = ci > 0 && ci < 255 && cfg.IsCanonical(ci);
@@ -226,7 +226,7 @@ namespace MarchingCubes.Editor
             r.y += 3; EditorGUI.DrawRect(r, c);
         }
 
-        void DoValidate(ArtMeshCaseConfig cfg)
+        void DoValidate(D4FbxCaseConfig cfg)
         {
             int total = 0, filled = 0;
             for (int ci = 1; ci <= 254; ci++) { total++; if (cfg.GetPrefab(ci) != null) filled++; }
@@ -238,7 +238,7 @@ namespace MarchingCubes.Editor
         // Detail
         // ════════════════════════════════════════════════════════════════════
 
-        void DrawDetail(ArtMeshCaseConfig cfg, int ci)
+        void DrawDetail(D4FbxCaseConfig cfg, int ci)
         {
             EditorGUI.DrawRect(GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none,
                 GUILayout.ExpandWidth(true), GUILayout.Height(1)), new Color(0,0,0,0.3f));

@@ -1,0 +1,25 @@
+{
+  "name": "building-system",
+  "workspaceType": "csharp-unity",
+  "summary": "地形改造 + 3D 建造的统一建造系统，整合 MQ 地形与 MC 建造两套 Marching 算法",
+  "workspace": [
+    "Assets/MarchingCubes/Runtime/mq",
+    "Assets/MarchingCubes/Sample/MCBuilding"
+  ],
+  "dependencies": [
+    { "target": "marching-cubes", "type": "Association" }
+  ],
+  "submodules": [
+    "marching-squares",
+    "mc-building"
+  ],
+  "boundary": "semi-open",
+  "publicApi": [
+    "MarchingQuad25Sample — 地形改造入口（MonoBehaviour）",
+    "MCBuilding — 3D 建造入口（MonoBehaviour）"
+  ],
+  "constraints": [
+    "两子模块 unit 必须对齐：MSQTerrain.unit(float) 与 MCBuilding.unit(uint) 数值相同，MSQTerrain.unit 必须为正整数值",
+    "子模块之间无直接代码依赖——协同通过宿主场景坐标系对齐实现"
+  ]
+}

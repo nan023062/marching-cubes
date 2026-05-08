@@ -389,17 +389,35 @@ def _is_midplane(f):
             all(abs(z - 0.5) < _EPS for z in zs))
 
 
-def _make_case_mesh_vf(ci, radius=0.0, segments=4, radius_top=0.0):
+def _six_connected_components(active):
+    """六连通 BFS 将 active 八分体集合分成若干连通分量（各返回 set）。"""
+    remaining = set(active)
+    components = []
+    while remaining:
+        start = next(iter(remaining))
+        comp = set()
+        queue = [start]
+        while queue:
+            cur = queue.pop()
+            if cur in comp:
+                continue
+            comp.add(cur)
+            remaining.discard(cur)
+            for dx, dy, dz in _FACE_DIRS:
+                nb = (cur[0]+dx, cur[1]+dy, cur[2]+dz)
+                if nb in active and nb not in comp:
+                    queue.append(nb)
+        components.append(comp)
+    return components
+
+
+def _make_case_mesh_vf(ci, radius=0.0, segments=4, radius_top=0.0, profile=0.5, mode='DIAGONAL'):
     """
-    顶点八分体填充法（连通分量独立处理）：
-      1. 六连通 BFS 将 active 八分体分成 K 个连通分量
-      2. 每个分量独立 bmesh：
-           - 生成八分体面（closed_layer 标记中平面封闭面）
-           - remove_doubles（仅分量内，无跨分量顶点污染）
-           - dissolve 共面 closed-closed 拼缝边 → 合并同平面面片
-           - bevel 剩余 closed-closed 边（dissolve 后均为 90°，凸/凹均可）
-           - triangulate
-      3. 合并所有分量输出
+    顶点八分体填充法，支持两种模式：
+      DIAGONAL  — 所有 active 八分体放入同一 bmesh（26-全连通），
+                  remove_doubles 合并对角共享顶点，产生对角桥接造型。
+      SEPARATE  — 六连通 BFS 分量各自独立 bmesh，对角接触的八分体不合并，
+                  每个分量单独 bevel，bevel 不干扰相邻分量。
     返回 (verts, faces)，坐标在 Blender [0,1]³ 内。
     """
     if not ci:
@@ -414,23 +432,10 @@ def _make_case_mesh_vf(ci, radius=0.0, segments=4, radius_top=0.0):
     if not active:
         return [], []
 
-    # 六连通 BFS → 连通分量列表
-    visited, components = set(), []
-    for start in active:
-        if start in visited:
-            continue
-        comp, stack = set(), [start]
-        while stack:
-            node = stack.pop()
-            if node in visited:
-                continue
-            visited.add(node)
-            comp.add(node)
-            for dx, dy, dz in _FACE_DIRS:
-                nb = (node[0]+dx, node[1]+dy, node[2]+dz)
-                if nb in active and nb not in visited:
-                    stack.append(nb)
-        components.append(comp)
+    if mode == 'SEPARATE':
+        components = _six_connected_components(active)
+    else:  # DIAGONAL
+        components = [active]
 
     all_verts, all_faces = [], []
 
@@ -505,7 +510,7 @@ def _make_case_mesh_vf(ci, radius=0.0, segments=4, radius_top=0.0):
                 bmesh.ops.bevel(
                     bm, geom=top_edges,
                     offset=radius_top, offset_type='OFFSET',
-                    segments=segments, profile=0.5,
+                    segments=segments, profile=profile,
                     affect='EDGES', clamp_overlap=True,
                 )
             # 其余封闭边用 radius（重新刷新，避免第一次 bevel 影响引用）
@@ -526,7 +531,7 @@ def _make_case_mesh_vf(ci, radius=0.0, segments=4, radius_top=0.0):
                     bmesh.ops.bevel(
                         bm, geom=other_fresh,
                         offset=radius, offset_type='OFFSET',
-                        segments=segments, profile=0.5,
+                        segments=segments, profile=profile,
                         affect='EDGES', clamp_overlap=True,
                     )
 
@@ -570,6 +575,19 @@ class MCCubesProps(bpy.types.PropertyGroup):
     segments: bpy.props.IntProperty(
         name="Arc Segments", default=4, min=1, max=12,
         description="圆弧细分段数（越大越平滑）",
+    )
+    profile: bpy.props.FloatProperty(
+        name="Arc Profile", default=0.5, min=0.0, max=1.0, step=1,
+        description="圆弧截面形状（0=斜切  0.5=标准圆弧  1=鼓出）",
+    )
+    mesh_mode: bpy.props.EnumProperty(
+        name="Mode",
+        items=[
+            ('DIAGONAL', "Diagonal", "26-全连通：对角接触的八分体合并，产生对角桥接圆滑造型"),
+            ('SEPARATE', "Separate", "六连通：对角接触的八分体各自独立，分量间无顶点共享"),
+        ],
+        default='DIAGONAL',
+        description="八分体合并策略",
     )
 
 
@@ -725,7 +743,8 @@ class MC_OT_GenerateCubes(bpy.types.Operator):
 
             verts_local, faces_local = _make_case_mesh_vf(
                 ci, radius=cubes_props.radius, segments=cubes_props.segments,
-                radius_top=cubes_props.radius_top)
+                radius_top=cubes_props.radius_top, profile=cubes_props.profile,
+                mode=cubes_props.mesh_mode)
             if not verts_local:
                 continue
 
@@ -757,6 +776,10 @@ class MC_OT_GenerateCubes(bpy.types.Operator):
                 else:
                     poly.material_index = 0
 
+            mesh.update()
+
+            for poly in mesh.polygons:
+                poly.use_smooth = True
             mesh.update()
 
             obj = bpy.data.objects.new(f"cube_{ci}", mesh)
@@ -844,6 +867,8 @@ class MC_OT_ExportGeneratedMeshes(bpy.types.Operator):
                 radius=cubes_props.radius,
                 segments=cubes_props.segments,
                 radius_top=cubes_props.radius_top,
+                profile=cubes_props.profile,
+                mode=cubes_props.mesh_mode,
             )
             if not verts_local:
                 continue
@@ -1061,9 +1086,11 @@ class MC_PT_Panel(bpy.types.Panel):
         # 2. Case Meshes
         box = layout.box()
         box.label(text="2. Case Meshes", icon='MESH_CUBE')
+        box.prop(cubes_props, "mesh_mode", expand=True)
         box.prop(cubes_props, "radius")
         box.prop(cubes_props, "radius_top")
         box.prop(cubes_props, "segments")
+        box.prop(cubes_props, "profile")
         box.operator("mc.generate_cubes", icon='MESH_UVSPHERE')
         box.label(text="→ MC_ArtMesh_Cubes  深蓝=封闭  浅灰=开放", icon='INFO')
 
