@@ -7,21 +7,14 @@ namespace MarchingCubes.Sample
         readonly MCBuilding _building;
         readonly int        _terrainMask;
 
-        PointElement _hovered;
-
         public BuildState(MCBuilding building)
         {
             _building    = building;
             _terrainMask = 1 << LayerMask.NameToLayer("MarchingQuads");
         }
 
-        public void OnEnter() { }
-
-        public void OnExit()
-        {
-            _hovered?.SetHighlight(false);
-            _hovered = null;
-        }
+        public void OnEnter() => _building.EnableInteraction(true);
+        public void OnExit()  => _building.EnableInteraction(false);
 
         public void OnGUI()
         {
@@ -45,34 +38,10 @@ namespace MarchingCubes.Sample
 
         public void OnUpdate()
         {
+            if (!Input.GetMouseButtonDown(0)) return;
             var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            Physics.Raycast(ray, out var hit, 1000f);
-
-            // Hover 高亮
-            var newHovered = hit.collider != null
-                ? hit.collider.GetComponent<PointElement>() : null;
-            if (newHovered != _hovered)
-            {
-                _hovered?.SetHighlight(false);
-                _hovered = newHovered;
-                _hovered?.SetHighlight(true);
-            }
-
-            bool leftDown  = Input.GetMouseButtonDown(0);
-            bool rightDown = Input.GetMouseButtonDown(1);
-            if (!leftDown && !rightDown || hit.collider == null) return;
-
-            var element = hit.collider.GetComponent<PointElement>();
-            if (element != null)
-            {
-                // PointCube：左键 = 相邻建造，右键 = 删除
-                _building.OnClicked(element, leftDown, hit.normal);
-            }
-            else if (leftDown && ((1 << hit.collider.gameObject.layer) & _terrainMask) != 0)
-            {
-                // 地形：左键 = 从地面建造
+            if (Physics.Raycast(ray, out var hit, 1000f, _terrainMask))
                 _building.TryCreateAtGround(hit.point);
-            }
         }
     }
 }

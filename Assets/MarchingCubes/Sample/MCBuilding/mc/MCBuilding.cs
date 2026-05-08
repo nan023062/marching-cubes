@@ -72,14 +72,6 @@ namespace MarchingCubes.Sample
 
         // ── Interactive building ──────────────────────────────────────────────
 
-        /// <summary>BuildState.OnEnter/Exit 调用，开关已放置 PointCube 的碰撞体。</summary>
-        public void EnableInteraction(bool active)
-        {
-            foreach (var cube in _pointCubes)
-                if (cube != null)
-                    cube.GetComponent<BoxCollider>().enabled = active;
-        }
-
         /// <summary>BuildState 从地形射线命中点调用，映射到 y=1 格层建造。</summary>
         public void TryCreateAtGround(Vector3 worldHitPoint)
         {
@@ -107,7 +99,7 @@ namespace MarchingCubes.Sample
                         Mathf.RoundToInt(coord.z));
                 }
             }
-            else if (Input.GetMouseButtonUp(1))
+            else
             {
                 if (element is PointCube cube)
                     DestroyCube(cube);
