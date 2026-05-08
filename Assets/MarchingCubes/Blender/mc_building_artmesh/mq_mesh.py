@@ -86,6 +86,27 @@ def _remove_col(name):
         bpy.data.collections.remove(bpy.data.collections[name], do_unlink=True)
 
 
+def _make_cube_wire(name, ox, oy):
+    """生成 1×1×1 cube 线框（底面 Z=0，顶面 Z=1，XY 平面水平）"""
+    # 8 顶点：底面4 + 顶面4
+    pts = [
+        (ox+0, oy+0, 0), (ox+1, oy+0, 0), (ox+1, oy+1, 0), (ox+0, oy+1, 0),
+        (ox+0, oy+0, 1), (ox+1, oy+0, 1), (ox+1, oy+1, 1), (ox+0, oy+1, 1),
+    ]
+    edges = [
+        (0,1),(1,2),(2,3),(3,0),  # 底面
+        (4,5),(5,6),(6,7),(7,4),  # 顶面
+        (0,4),(1,5),(2,6),(3,7),  # 竖边
+    ]
+    m  = bpy.data.meshes.new(name)
+    bm = bmesh.new()
+    bvs = [bm.verts.new(Vector(p)) for p in pts]
+    for a, b in edges:
+        bm.edges.new([bvs[a], bvs[b]])
+    bm.to_mesh(m); bm.free()
+    return m
+
+
 def _add_locked(col, name, mesh, mat):
     mesh.materials.append(mat)
     obj = bpy.data.objects.new(name, mesh)
@@ -151,6 +172,11 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
                 bm.edges.new([bvs[ea], bvs[eb]])
             bm.to_mesh(wire_mesh); bm.free()
             _add_locked(case_col, f"_wire_mq_{n}", wire_mesh, MAT_WIRE)
+
+            # ── 1×1×1 Cube 线框（MQ mesh 所在空间边界）──────────────────────
+            MAT_CUBE = _ensure_mat("mq_cube_wire", (0.10, 0.55, 0.85), strength=0.9)
+            cube_mesh = _make_cube_wire(f"_cube_mq_{n}", ox, oy)
+            _add_locked(case_col, f"_cube_mq_{n}", cube_mesh, MAT_CUBE)
 
             # ── 角点球 + 顶点编号标签 ─────────────────────────────────────────
             center_x, center_y = 0.5, 0.5
