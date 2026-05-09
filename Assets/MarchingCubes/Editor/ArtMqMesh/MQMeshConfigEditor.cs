@@ -97,6 +97,9 @@ namespace MarchingCubes.Editor
 
                 // 直接实例化，不做任何旋转/翻转
                 var root  = new GameObject($"mq_case_{ci}");
+                var dbg   = root.AddComponent<MarchingSquares.MqTilePrefab>();
+                dbg.caseIndex = ci;
+
                 var child = (GameObject)PrefabUtility.InstantiatePrefab(fbx, root.transform);
                 child.transform.localPosition = Vector3.zero;
                 child.transform.localRotation = Quaternion.identity;
