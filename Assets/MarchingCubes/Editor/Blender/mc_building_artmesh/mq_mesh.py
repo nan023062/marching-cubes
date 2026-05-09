@@ -24,7 +24,7 @@ QUAD_EDGES = [(0, 1), (1, 2), (2, 3), (3, 0)]
 
 # 每格 mesh 以四角最低点为基准，绝对高度由 terrain 数据决定
 # case 15（全高）几何同 case 0（全平），GetMeshCase() 永远不返回 15，但仍生成保持数组完整
-ALL_CASES = list(range(16))
+ALL_CASES = list(range(15))   # case 15（全高）等同 case 0 偏移 y+1，GetMeshCase() 不会返回
 
 CASE_NAMES = {
     0:  "0000 – 全平（base，case 15 复用）",
@@ -42,7 +42,7 @@ CASE_NAMES = {
     12: "1100 – V2+V3（顶边）高",
     13: "1101 – V0+V2+V3 高",
     14: "1110 – V1+V2+V3 高",
-    15: "1111 – 全高（= 全平，同 case 0）",
+    # case 15（全高）不生成：GetMeshCase() base=最低点，不可能4角全高于base
 }
 
 REF_COL_NAME     = "MQ_ArtMesh_Ref"

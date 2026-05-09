@@ -44,9 +44,8 @@ namespace MarchingCubes.Editor
         {
             EditorGUILayout.LabelField("Build MQ Case Prefabs (mq_case_*.fbx)", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "需要 16 个独立 FBX（mq_case_0.fbx … mq_case_15.fbx）。\n" +
-                "每个 case 有独立 UV，满足 Mesh 几何 + 纹理双重组合要求。\n" +
-                "Case 0 与 case 15 均为平 quad，可共用同一 FBX。",
+                "需要 15 个独立 FBX（mq_case_0.fbx … mq_case_14.fbx）。\n" +
+                "Case 15（全高）= GetMeshCase() 不可能返回，跳过不生成。",
                 MessageType.Info);
 
             DrawFolderField("① FBX 文件夹 (mq_case_N.fbx)", ref _fbxFolder);
@@ -87,11 +86,10 @@ namespace MarchingCubes.Editor
 
             int ok = 0, skip = 0;
 
-            for (int ci = 0; ci < 16; ci++)
+            // case 15（全高）= GetMeshCase() 永不返回，不生成 prefab
+            for (int ci = 0; ci < 15; ci++)
             {
-                // Case 15（全高平 quad）复用 case 0 的 FBX
-                int fbxCase  = (ci == 15) ? 0 : ci;
-                string fbxPath = $"{_fbxFolder.TrimEnd('/', '\\')}/mq_case_{fbxCase}.fbx";
+                string fbxPath = $"{_fbxFolder.TrimEnd('/', '\\')}/mq_case_{ci}.fbx";
                 var fbx = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
                 if (fbx == null) { skip++; continue; }
 
@@ -117,7 +115,7 @@ namespace MarchingCubes.Editor
                 ok++;
 
                 if (ci % 4 == 0)
-                    EditorUtility.DisplayProgressBar("Building MQ Prefabs", $"mq_case_{ci}", ci / 15f);
+                    EditorUtility.DisplayProgressBar("Building MQ Prefabs", $"mq_case_{ci}", ci / 14f);
             }
 
             EditorUtility.ClearProgressBar();
