@@ -26,6 +26,10 @@ namespace MarchingSquares
         public readonly Mesh   colliderMesh;
         private readonly Vector3[] _vertices;
 
+        // ── 点阵纹理（每像素=一个格点的 terrainType，供 Shader 采样）────────
+        // 尺寸：(length+1) × (width+1)，R 通道 = terrainType / (TerrainTypeCount-1)
+        public readonly Texture2D pointTex;
+
         // ── 视觉 Tile（地形 + 悬崖 prefab 实例）────────────────────────────────
         private readonly TileCaseConfig  _config;
         private readonly Transform       _parent;
@@ -75,6 +79,16 @@ namespace MarchingSquares
             colliderMesh.vertices  = _vertices;
             colliderMesh.triangles = triangles;
             colliderMesh.RecalculateNormals();
+
+            // 点阵纹理：(length+1) × (width+1)，逐点存 terrainType
+            // Point.FilterMode = Point（不插值），Format = R8（0-255 线性映射 0-4）
+            pointTex = new Texture2D(length + 1, width + 1, TextureFormat.R8, false)
+            {
+                filterMode = FilterMode.Point,
+                wrapMode   = TextureWrapMode.Clamp,
+                name       = "TerrainPointTex",
+            };
+            RefreshPointTexAll();
         }
 
         // ── 地形操作 ──────────────────────────────────────────────────────────
@@ -128,9 +142,11 @@ namespace MarchingSquares
                 {
                     _points[x, z].terrainType = (byte)type;
                     UpdateAffectedTileColors(x, z);
+                    SetPointTexPixel(x, z);
                     dirty = true;
                 }
             }
+            if (dirty) pointTex.Apply();
             return dirty;
         }
 
@@ -297,6 +313,24 @@ namespace MarchingSquares
             if (dbg != null) { dbg.tileType = TileType.Cliff; dbg.caseIndex = cliffCase; dbg.baseHeight = baseH - cliffH; }
 
             _cliffTiles[cx, cz] = tile;
+        }
+
+        // ── 点阵纹理 ──────────────────────────────────────────────────────────
+
+        /// <summary>全量刷新点阵纹理并上传 GPU。</summary>
+        public void RefreshPointTexAll()
+        {
+            for (int x = 0; x <= length; x++)
+            for (int z = 0; z <= width; z++)
+                SetPointTexPixel(x, z);
+            pointTex.Apply();
+        }
+
+        private void SetPointTexPixel(int x, int z)
+        {
+            // R8：terrainType(0-4) 映射到 0-255（÷(TerrainTypeCount-1) 归一化）
+            byte v = (byte)(_points[x, z].terrainType * 255 / (TerrainTypeCount - 1));
+            pointTex.SetPixel(x, z, new Color32(v, 0, 0, 255));
         }
 
         // ── Gizmos ────────────────────────────────────────────────────────────
