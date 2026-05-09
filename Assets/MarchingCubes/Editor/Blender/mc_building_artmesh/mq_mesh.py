@@ -65,6 +65,25 @@ REF_MESH_COL     = "MQ_Meshes"      # 参考 mesh（ref 根节点下）
 TERRAIN_COL_NAME = "MQ_ArtMesh_Terrain"
 GRID_COLS        = 4   # 4×4 grid（16 case）
 
+# ── Arc helper ────────────────────────────────────────────────────────────────
+
+def apply_arc(t, arc_s, flat):
+    """t ∈ [0,1] → [0,1]。底部和顶部各保留 flat 平台，中间做 smooth-step。
+    arc_s=0 → 线性过渡（参考 mesh 用，保留硬边缘）
+    arc_s=1 → 完整 smooth-step（测试 mesh / 导出用）"""
+    if t <= flat:       return 0.0
+    if t >= 1.0 - flat: return 1.0
+    t2 = (t - flat) / (1.0 - 2.0 * flat)
+    t_smooth = t2 * t2 * (3.0 - 2.0 * t2)
+    return t2 * (1.0 - arc_s) + t_smooth * arc_s
+
+
+def apply_arc_scaled(hz_lin, max_h, arc_s, flat):
+    """归一化到 [0,1] 后应用 apply_arc，再还原到实际高度范围。"""
+    if max_h <= 0: return 0.0
+    return apply_arc(hz_lin / max_h, arc_s, flat) * max_h
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _ensure_mat(name, rgb, strength=1.5, alpha=1.0):
@@ -233,22 +252,26 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
         mesh_root = _ensure_col(REF_MESH_COL, parent=ref_root)
         MAT_REF   = _ensure_mat("mq_ref_mesh", (0.05, 0.35, 1.00), strength=0.7, alpha=0.7)
         sub       = 8
+        flat      = context.scene.mq_props.flat_margin
 
         for n, ci in enumerate(ALL_CASES):
             col_n = n % GRID_COLS
             row_n = n // GRID_COLS
-            ox = col_n * 2.0
-            oy = row_n * 2.0
-            h  = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
+            ox    = col_n * 2.0
+            oy    = row_n * 2.0
+            h     = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
+            max_h = max(h) or 1.0
 
             bm2 = bmesh.new()
             gv  = []
             for row in range(sub + 1):
                 r = []
                 for col in range(sub + 1):
-                    u  = col / sub
-                    v  = row / sub
-                    hz = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
+                    u      = col / sub
+                    v      = row / sub
+                    hz_lin = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
+                    # 参考 mesh：arc_s=0（线性过渡，硬边缘），展示最终几何形状
+                    hz = apply_arc_scaled(hz_lin, max_h, arc_s=0.0, flat=flat)
                     r.append(bm2.verts.new(Vector((ox+u, oy+v, hz))))
                 gv.append(r)
             for row in range(sub):
@@ -297,15 +320,6 @@ class MQ_OT_GenerateTerrain(bpy.types.Operator):
         arc_s      = props.arc_strength
         flat       = props.flat_margin
 
-        def arc(t):
-            """底部和顶部各保留 flat 平台，中间做 smooth-step 过渡。
-            flat=0 → 退化为原始 smooth-step；flat=0.25 → 各端 25% 保持平面。"""
-            if t <= flat:      return 0.0
-            if t >= 1.0 - flat: return 1.0
-            t2 = (t - flat) / (1.0 - 2.0 * flat)   # 重映射到 [0,1]
-            t_smooth = t2 * t2 * (3.0 - 2.0 * t2)
-            return t2 * (1.0 - arc_s) + t_smooth * arc_s
-
         MAT_TOP  = _ensure_mat("mq_terrain_top",  (0.55, 0.35, 0.10), strength=0.85)
         MAT_WALL = _ensure_mat("mq_terrain_wall",  (0.22, 0.18, 0.08), strength=0.6)
 
@@ -327,7 +341,8 @@ class MQ_OT_GenerateTerrain(bpy.types.Operator):
                     u  = col / sub
                     v  = row / sub
                     hz_lin = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
-                    hz = arc(hz_lin / max_h) * max_h  # 归一化后应用 arc，再还原到实际高度
+                    # 测试 mesh：在参考 mesh 基础上加 smooth-step 圆滑
+                    hz = apply_arc_scaled(hz_lin, max_h, arc_s, flat)
                     r.append(bm.verts.new(Vector((ox+u, oy+v, hz))))
                 gv.append(r)
             for row in range(sub):
@@ -423,13 +438,6 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
 
         os.makedirs(out_dir, exist_ok=True)
 
-        def arc(t):
-            if t <= flat:       return 0.0
-            if t >= 1.0 - flat: return 1.0
-            t2 = (t - flat) / (1.0 - 2.0 * flat)
-            t_smooth = t2 * t2 * (3.0 - 2.0 * t2)
-            return t2 * (1.0 - arc_s) + t_smooth * arc_s
-
         exported = []
         for ci in ALL_CASES:
             h     = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
@@ -444,7 +452,7 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
                     u      = col / sub
                     v      = row / sub
                     hz_lin = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
-                    hz = arc(hz_lin / max_h) * max_h  # 归一化后应用 arc（含平台），再还原
+                    hz = apply_arc_scaled(hz_lin, max_h, arc_s, flat)
                     r.append(bm.verts.new(Vector((u, v, hz))))
                 gv.append(r)
             for row in range(sub):
