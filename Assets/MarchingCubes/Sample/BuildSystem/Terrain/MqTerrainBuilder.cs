@@ -161,7 +161,8 @@ namespace MarchingSquares
             if (_config == null) return;
 
             int caseIndex = GetCaseIndex(x, z, out int baseH);
-            var prefab    = _config.GetPrefab(caseIndex);
+            // 当前 case 未配置时回退到 case 0（平地默认块），确保初始地形可见
+            var prefab = _config.GetPrefab(caseIndex) ?? _config.GetPrefab(0);
             if (prefab == null) return;
 
             var tile = Object.Instantiate(prefab);
