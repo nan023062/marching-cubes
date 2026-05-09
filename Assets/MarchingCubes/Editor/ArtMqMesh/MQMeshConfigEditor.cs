@@ -230,8 +230,17 @@ namespace MarchingCubes.Editor
 
             if (cur != null)
             {
+                // 固定分配 80×80 空间，避免 AssetPreview 异步加载期间 Layout/Repaint 控件数不一致
+                Rect r = GUILayoutUtility.GetRect(80, 80, GUILayout.Width(80), GUILayout.Height(80));
                 var tex = AssetPreview.GetAssetPreview(cur);
-                if (tex != null) GUILayout.Label(tex, GUILayout.Width(80), GUILayout.Height(80));
+                if (Event.current.type == EventType.Repaint)
+                {
+                    if (tex != null)
+                        GUI.DrawTexture(r, tex, ScaleMode.ScaleToFit);
+                    else
+                        EditorGUI.DrawRect(r, new Color(0.15f, 0.15f, 0.15f));
+                }
+                if (tex == null) Repaint();
             }
         }
     }

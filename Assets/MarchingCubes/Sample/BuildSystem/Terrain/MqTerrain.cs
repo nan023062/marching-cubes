@@ -29,6 +29,7 @@ namespace MarchingSquares
         {
             _meshFilter   = GetComponent<MeshFilter>();
             _meshCollider = GetComponent<MeshCollider>();
+            GetComponent<MeshRenderer>().enabled = false; // 视觉由 tile prefab 负责，MeshFilter 仅供 MeshCollider 射线检测
 
             float unit = 1f / BuildingConst.Unit;
             Builder = new MqTerrainBuilder(
