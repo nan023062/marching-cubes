@@ -1,5 +1,6 @@
 {
   "name": "runtime",
+  "type": "code",
   "workspaceType": "csharp-unity",
   "summary": "Marching Cubes/Squares 运行时算法库及第三人称控制器，提供纯 C# 核心算法和通用场景组件",
   "workspace": ["Assets/MarchingCubes/Runtime"],

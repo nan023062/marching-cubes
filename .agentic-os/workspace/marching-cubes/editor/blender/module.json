@@ -1,5 +1,6 @@
 {
   "name": "blender",
+  "type": "code",
   "workspaceType": "blender-python",
   "summary": "Blender Add-on（mc_building_artmesh）：DCC 侧建模工作流——D4 对称 53-case MC 参考场景、MQ tile 参考场景、程序化测试 mesh 对比、覆盖率检查、FBX 批量导出",
   "workspace": ["Assets/MarchingCubes/Editor/Blender"],

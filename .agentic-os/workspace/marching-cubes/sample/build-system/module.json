@@ -1,4 +1,5 @@
 {
+   "type": "code",
   "name": "build-system",
   "workspaceType": "csharp-unity",
   "summary": "地形改造 + 3D 建造综合演示：BuildingManager 状态机协调 TerrainState（地形刷）与 BuildState（方块建造），BuildingConst 保证双子模块 unit 对齐",

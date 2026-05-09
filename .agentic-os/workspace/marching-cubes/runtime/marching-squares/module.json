@@ -1,5 +1,6 @@
 {
   "name": "marching-squares",
+  "type": "code",
   "workspaceType": "csharp-unity",
   "summary": "2.5D Marching Squares 算法基础层：16-case 查表（MqTable）、核心类型定义（Tile.cs）、程序化连续 tile mesh 生成器（TileTerrain）、prefab 调试组件（MqTilePrefab）",
   "workspace": ["Assets/MarchingCubes/Runtime/MarchingSquares"],

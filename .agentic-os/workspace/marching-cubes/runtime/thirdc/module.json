@@ -1,5 +1,6 @@
 {
   "name": "thirdc",
+  "type": "code",
   "workspaceType": "csharp-unity",
   "summary": "第三人称场景通用控制器：飞行/俯视相机（CameraController）、TPS 角色控制（Character + CharacterController）、TPS 相机（TPSCamera），供 Sample 场景复用",
   "workspace": ["Assets/MarchingCubes/Runtime/Thirdc"],

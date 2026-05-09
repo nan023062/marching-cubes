@@ -1,5 +1,6 @@
 {
   "name": "marching-cubes",
+  "type": "code",
   "workspaceType": "csharp-unity",
   "summary": "3D Marching Cubes 等值面提取核心算法：256-case 查表（CubeTable）、平面/平滑 mesh 构建器、程序化 case mesh 生成（算法插槽 + 圆角八分体默认实现）",
   "workspace": ["Assets/MarchingCubes/Runtime/MarchingCubes"],

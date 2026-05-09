@@ -1,5 +1,6 @@
 {
   "name": "art-mq-texture",
+  "type": "code",
   "workspaceType": "csharp-unity",
   "summary": "MQ 地形贴图生成器：为 5 种地形类型程序化生成 Texture2DArray（base + overlay）、悬崖贴图/网格、Splatmap 材质和 CliffWall 材质",
   "workspace": ["Assets/MarchingCubes/Editor/ArtMqTexture"],
