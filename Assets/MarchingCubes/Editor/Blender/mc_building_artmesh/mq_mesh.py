@@ -553,6 +553,17 @@ class MQ_PT_Panel(bpy.types.Panel):
         props  = context.scene.mq_props
         ci     = int(props.case_index)
 
+        # 0. 一键全导出（地形 + 悬崖）
+        box0 = layout.box()
+        box0.label(text="一键导出全部 FBX（地形 19 + 悬崖 5）", icon='EXPORT')
+        box0.prop(props, "export_dir",       text="地形目录")
+        box0.prop(props, "cliff_export_dir", text="悬崖目录")
+        box0.prop(props, "arc_strength")
+        box0.prop(props, "flat_margin")
+        box0.operator("mq.export_all", icon='EXPORT')
+
+        layout.separator()
+
         # 1. 参考场景（线框 + 角点 + 标签 + 参考 Mesh 一键生成）
         box = layout.box()
         box.label(text="1. 参考场景", icon='MESH_GRID')
@@ -678,6 +689,19 @@ def _build_cliff_bm(ci):
     return bm
 
 
+class MQ_OT_ExportAll(bpy.types.Operator):
+    """一键导出所有地形 case（19 个）+ 悬崖规范 case（5 个）"""
+    bl_idname = "mq.export_all"
+    bl_label  = "导出全部（地形 19 + 悬崖 5）"
+
+    def execute(self, context):
+        r1 = bpy.ops.mq.export_all_cases()
+        r2 = bpy.ops.mq.export_cliff_cases()
+        if 'FINISHED' in r1 and 'FINISHED' in r2:
+            self.report({'INFO'}, "全部导出完成：地形 19 个 + 悬崖 5 个")
+        return {'FINISHED'}
+
+
 class MQ_OT_SetupCliffCases(bpy.types.Operator):
     """生成 5 个规范悬崖 case 的参考 mesh（垂直墙面，中心为原点）"""
     bl_idname = "mq.setup_cliff_cases"
@@ -780,6 +804,7 @@ class MQ_OT_ExportCliffCases(bpy.types.Operator):
 
 _MQ_CLASSES = [
     MQProperties,
+    MQ_OT_ExportAll,
     MQ_OT_SetupAllCases,
     MQ_OT_GenerateTerrain,
     MQ_OT_ValidateMesh,
