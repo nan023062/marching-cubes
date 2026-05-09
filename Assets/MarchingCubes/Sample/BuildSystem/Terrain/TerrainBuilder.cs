@@ -278,12 +278,20 @@ namespace MarchingSquares
             var prefab = _config.GetCliffPrefab(cliffCase); // case 0 = 无悬崖，不作为 fallback
             if (prefab == null) return;
 
+            // 实际悬崖高度 = 当前格 base 与最低相邻格 base 的最大高差
+            int cliffH = 0;
+            if ((cliffCase & 1) != 0 && cz > 0)        cliffH = Mathf.Max(cliffH, baseH - GetCellBaseHeight(cx,     cz - 1));
+            if ((cliffCase & 2) != 0 && cx < length - 1) cliffH = Mathf.Max(cliffH, baseH - GetCellBaseHeight(cx + 1, cz    ));
+            if ((cliffCase & 4) != 0 && cz < width - 1)  cliffH = Mathf.Max(cliffH, baseH - GetCellBaseHeight(cx,     cz + 1));
+            if ((cliffCase & 8) != 0 && cx > 0)          cliffH = Mathf.Max(cliffH, baseH - GetCellBaseHeight(cx - 1, cz    ));
+            if (cliffH <= 0) return;
+
             var tile = Object.Instantiate(prefab);
             tile.transform.SetParent(_parent);
-            // 悬崖 Mesh 以格子 XZ 中心为原点，放在格子 baseH-1 高度（低侧地面）
-            tile.transform.localPosition = new Vector3(cx + 0.5f, baseH - 1, cz + 0.5f);
+            // 悬崖 Mesh 1 unit 高，Y 轴按实际高差缩放；底部放在低侧地面（baseH - cliffH）
+            tile.transform.localPosition = new Vector3(cx + 0.5f, baseH - cliffH, cz + 0.5f);
             tile.transform.localRotation = Quaternion.identity;
-            tile.transform.localScale    = Vector3.one;
+            tile.transform.localScale    = new Vector3(1f, cliffH, 1f);
 
             var dbg = tile.GetComponent<TilePrefab>();
             if (dbg != null) { dbg.tileType = TileType.Cliff; dbg.caseIndex = cliffCase; dbg.baseHeight = baseH - 1; }

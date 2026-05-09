@@ -14,9 +14,11 @@ namespace MarchingCubes.Sample
         public const int Unit = 1;
 
         /// <summary>
-        /// 地形相邻格点允许的最大高差（单位：Unit）。
-        /// 值为 1 表示相邻格点最多差 1 个 Unit 的世界高度。
-        /// 后期美术提供多高差 mesh 变体后可调大此值以接入更丰富的地形变化。
+        /// 悬崖最大高度（单位：Unit）。调大此值可刷出更高的悬崖墙面。
+        /// 悬崖 Tile Mesh（固定 1 unit 高）在运行时按实际高差自动缩放 Y，无需新增美术 Case。
+        ///
+        /// 注意：坡面 Tile 的相邻格点高差始终强制 ≤ 1（19-case 坡面系统的硬约束，不受此值影响）。
+        /// 相邻格 base 高差 > 1 时，坡面 tile 以最近似的 case 显示，垂直部分由悬崖 tile 补足。
         /// </summary>
         public const int TerrainMaxHeightDiff = 1;
     }
