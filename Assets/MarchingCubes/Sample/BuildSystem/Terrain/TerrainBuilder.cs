@@ -294,7 +294,7 @@ namespace MarchingSquares
             tile.transform.localScale    = new Vector3(1f, cliffH, 1f);
 
             var dbg = tile.GetComponent<TilePrefab>();
-            if (dbg != null) { dbg.tileType = TileType.Cliff; dbg.caseIndex = cliffCase; dbg.baseHeight = baseH - 1; }
+            if (dbg != null) { dbg.tileType = TileType.Cliff; dbg.caseIndex = cliffCase; dbg.baseHeight = baseH - cliffH; }
 
             _cliffTiles[cx, cz] = tile;
         }
