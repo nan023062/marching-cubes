@@ -59,7 +59,7 @@ namespace MarchingCubes.Sample
 
             if (Physics.Raycast(ray, out var hit, 1000f, _terrainMask))
             {
-                var lw = _sample.Terrain.localToWorld;
+                var lw = _sample.Builder.localToWorld;
                 t.position   = hit.point;
                 t.localScale = lw.lossyScale;
                 t.rotation   = lw.rotation;
