@@ -197,7 +197,7 @@ namespace MarchingSquares
         }
 
         private int GetCaseIndex(int x, int z, out int baseH)
-            => MqTable.GetCaseIndex(
+            => MqTable.GetMeshCase(
                 _points[x,     z    ].high,
                 _points[x + 1, z    ].high,
                 _points[x + 1, z + 1].high,

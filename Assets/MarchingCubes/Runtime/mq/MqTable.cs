@@ -1,23 +1,23 @@
 namespace MarchingSquares
 {
     /// <summary>
-    /// Marching Squares 全局静态配置表（类比 CubeTable）。
-    /// 集中定义角点、D4 对称置换、canonical case 归约表，供所有 MQ 组件共用。
+    /// Marching Squares 全局静态映射表（类比 CubeTable）。
     ///
-    /// 角点编号（unit quad，XZ 平面，Y = 高度）：
-    ///   V3(0,1) ─── V2(1,1)       bit mask：bit_i = 1 表示 Vi 高于 base
-    ///     │               │
-    ///   V0(0,0) ─── V1(1,0)
+    /// 两类组合映射：
+    ///   1. Mesh 组合映射 — 四角高差（高/低）→ 16 种几何 case
+    ///   2. 纹理组合映射 — 四角 terrainType → 16 种 overlay 混合 case
     ///
-    /// 16 cases → D4 归约 → 5 canonical：{0, 1, 3, 5, 7}
-    /// Case 15（全高）与 case 0（全低）几何相同，均为平 quad。
+    /// 角点编号（unit quad，XZ 平面）：
+    ///   V3(TL) ─── V2(TR)       bit mask：bit_i = 1 表示 Vi 高于 base（Mesh）
+    ///     │               │                         或 Vi 属于 overlay 类型（纹理）
+    ///   V0(BL) ─── V1(BR)
     /// </summary>
     public static class MqTable
     {
-        // ── 角点 ─────────────────────────────────────────────────────────────
-
         public const int CornerCount = 4;
         public const int CaseCount   = 16;
+
+        // ── 角点坐标 ─────────────────────────────────────────────────────────
 
         /// <summary>四个角点的 (x, z) 坐标（unit quad [0,1]×[0,1]）。</summary>
         public static readonly (int x, int z)[] Corners =
@@ -28,68 +28,14 @@ namespace MarchingSquares
             (0, 1),  // V3 TL
         };
 
-        // ── Canonical cases ───────────────────────────────────────────────────
-
-        /// <summary>D4 归约后的 5 个 canonical case。</summary>
-        public static readonly int[] CanonicalCases = { 0, 1, 3, 5, 7 };
-
-        // ── D4 置换表 ─────────────────────────────────────────────────────────
+        // ── Mesh 组合映射 ─────────────────────────────────────────────────────
 
         /// <summary>
-        /// 8 个 D4 变换的角点置换：perm[t][i] = 变换 t 后，角点 i 移动到的新位置。
-        /// 顺序：e / r(270°CW) / r²(180°) / r³(90°CW) / s(flipX) / sr / sr² / sr³
-        /// rotY 对应：0 / 270 / 180 / 90 / 0 / 270 / 180 / 90（flip=true 时加镜像）
+        /// 根据四角高度计算 Mesh case index 和 base 高度。
+        /// h0=V0(BL), h1=V1(BR), h2=V2(TR), h3=V3(TL)。
+        /// base = 四角最小高度，bit_i=1 表示该角点高于 base。
         /// </summary>
-        public static readonly int[][] D4Perms =
-        {
-            new[] { 0, 1, 2, 3 },  // e      rotY=0
-            new[] { 3, 0, 1, 2 },  // r      rotY=270 (90° CW from above)
-            new[] { 2, 3, 0, 1 },  // r²     rotY=180
-            new[] { 1, 2, 3, 0 },  // r³     rotY=90
-            new[] { 1, 0, 3, 2 },  // s      rotY=0,   flip
-            new[] { 2, 1, 0, 3 },  // sr     rotY=270, flip
-            new[] { 3, 2, 1, 0 },  // sr²    rotY=180, flip
-            new[] { 0, 3, 2, 1 },  // sr³    rotY=90,  flip
-        };
-
-        public static readonly float[] D4RotY  = { 0f, 270f, 180f, 90f, 0f, 270f, 180f, 90f };
-        public static readonly bool[]  D4Flipped = { false, false, false, false, true, true, true, true };
-
-        // ── 预计算 canonical 归约表 ───────────────────────────────────────────
-
-        /// <summary>
-        /// CanonicalIndex[ci]：ci 在 D4 群下的最小等价 case（canonical form）。
-        /// 特例：case 15（全高）→ 归约为 0（全低），两者几何相同。
-        /// </summary>
-        public static readonly int[] CanonicalIndex;
-
-        static MqTable()
-        {
-            CanonicalIndex = new int[CaseCount];
-            for (int ci = 0; ci < CaseCount; ci++)
-            {
-                int best = ci;
-                for (int t = 0; t < D4Perms.Length; t++)
-                {
-                    int mapped = 0;
-                    for (int i = 0; i < CornerCount; i++)
-                        if ((ci & (1 << i)) != 0)
-                            mapped |= 1 << D4Perms[t][i];
-                    if (mapped < best) best = mapped;
-                }
-                CanonicalIndex[ci] = best;
-            }
-            // case 15（全高）几何与 case 0（全低）相同，强制归约
-            CanonicalIndex[15] = 0;
-        }
-
-        // ── 工具方法 ─────────────────────────────────────────────────────────
-
-        /// <summary>
-        /// 根据四角高度计算 case index 和 base 高度。
-        /// h0=BL, h1=BR, h2=TR, h3=TL（与 Corners[] 顺序一致）。
-        /// </summary>
-        public static int GetCaseIndex(int h0, int h1, int h2, int h3, out int baseH)
+        public static int GetMeshCase(int h0, int h1, int h2, int h3, out int baseH)
         {
             baseH = h0;
             if (h1 < baseH) baseH = h1;
@@ -104,6 +50,50 @@ namespace MarchingSquares
             return ci;
         }
 
-        public static bool IsCanonical(int ci) => CanonicalIndex[ci] == ci;
+        // ── 纹理组合映射 ──────────────────────────────────────────────────────
+
+        /// <summary>
+        /// 根据四角 terrainType 计算纹理 overlay case index。
+        /// overlayType = 本格需要混合的 overlay 地形类型（大于 baseType 的类型）。
+        /// bit_i=1 表示 Vi 的 terrainType >= overlayType（参与混合）。
+        /// 结果用于查询纹理 atlas（4×4 共 16 种混合图案）。
+        /// </summary>
+        public static int GetTextureCase(byte t0, byte t1, byte t2, byte t3, byte overlayType)
+        {
+            int ci = 0;
+            if (t0 >= overlayType) ci |= 1;
+            if (t1 >= overlayType) ci |= 2;
+            if (t2 >= overlayType) ci |= 4;
+            if (t3 >= overlayType) ci |= 8;
+            return ci;
+        }
+
+        /// <summary>
+        /// 从四角 terrainType 提取 baseType（最小值）和最多 3 层 overlayType。
+        /// 返回 overlay 层数（0~3）。
+        /// </summary>
+        public static int GetTerrainLayers(byte t0, byte t1, byte t2, byte t3,
+                                            out byte baseType,
+                                            out byte overlay1, out byte overlay2, out byte overlay3)
+        {
+            baseType = t0;
+            if (t1 < baseType) baseType = t1;
+            if (t2 < baseType) baseType = t2;
+            if (t3 < baseType) baseType = t3;
+
+            overlay1 = overlay2 = overlay3 = 0;
+            int count = 0;
+            for (byte t = (byte)(baseType + 1); t < 5; t++)
+            {
+                if (t == t0 || t == t1 || t == t2 || t == t3)
+                {
+                    if      (count == 0) overlay1 = t;
+                    else if (count == 1) overlay2 = t;
+                    else                 overlay3 = t;
+                    count++;
+                }
+            }
+            return count;
+        }
     }
 }
