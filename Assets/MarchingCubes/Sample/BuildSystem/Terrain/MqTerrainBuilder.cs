@@ -155,7 +155,7 @@ namespace MarchingSquares
         {
             if (_tiles[x, z] != null)
             {
-                Object.DestroyImmediate(_tiles[x, z]);
+                Object.Destroy(_tiles[x, z]);
                 _tiles[x, z] = null;
             }
             if (_config == null) return;

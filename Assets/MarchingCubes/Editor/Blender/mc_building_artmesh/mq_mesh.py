@@ -22,23 +22,34 @@ CORNER_XZ = [
 # quad 四边：V0-V1-V2-V3-V0
 QUAD_EDGES = [(0, 1), (1, 2), (2, 3), (3, 0)]
 
-# Case 15（全高）与 case 0（全低）几何完全相同（均为平 quad），复用 mq_case_0.fbx
 # 每格 mesh 以四角最低点为基准，绝对高度由 terrain 数据决定
-CANONICAL_CASES = [0, 1, 3, 5, 7]
+# case 15（全高）几何同 case 0（全平），GetMeshCase() 永远不返回 15，但仍生成保持数组完整
+ALL_CASES = list(range(16))
 
 CASE_NAMES = {
-    0: "0000 – 全平（基准，case 15 复用此 mesh）",
-    1: "0001 – V0(左下) 高",
-    3: "0011 – V0+V1（底边）高",
-    5: "0101 – V0+V2（对角）高",
-    7: "0111 – V0+V1+V2 高",
+    0:  "0000 – 全平（base，case 15 复用）",
+    1:  "0001 – V0(BL) 高",
+    2:  "0010 – V1(BR) 高",
+    3:  "0011 – V0+V1（底边）高",
+    4:  "0100 – V2(TR) 高",
+    5:  "0101 – V0+V2（对角 /）高",
+    6:  "0110 – V1+V2（右边）高",
+    7:  "0111 – V0+V1+V2 高",
+    8:  "1000 – V3(TL) 高",
+    9:  "1001 – V0+V3（左边）高",
+    10: "1010 – V1+V3（对角 \\）高",
+    11: "1011 – V0+V1+V3 高",
+    12: "1100 – V2+V3（顶边）高",
+    13: "1101 – V0+V2+V3 高",
+    14: "1110 – V1+V2+V3 高",
+    15: "1111 – 全高（= 全平，同 case 0）",
 }
 
 REF_COL_NAME     = "MQ_ArtMesh_Ref"
 CTRL_COL_NAME    = "MQ_Ctrl"
 REF_MESH_COL     = "MQ_Meshes"      # 参考 mesh（ref 根节点下）
 TERRAIN_COL_NAME = "MQ_ArtMesh_Terrain"
-GRID_COLS        = 3
+GRID_COLS        = 4   # 4×4 grid（16 case）
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -121,7 +132,7 @@ def _add_locked(col, name, mesh, mat):
 # ── Operators ─────────────────────────────────────────────────────────────────
 
 class MQ_OT_SetupAllCases(bpy.types.Operator):
-    """生成所有 6 个 canonical case 的参考线框、角点球和顶点编号标签"""
+    """生成全部 16 个 case 的参考线框、角点球和顶点编号标签"""
     bl_idname = "mq.setup_all_cases"
     bl_label  = "初始化全部 Case 参考场景"
 
@@ -135,7 +146,7 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
         ref_root  = _ensure_col(REF_COL_NAME)
         ctrl_root = _ensure_col(CTRL_COL_NAME, parent=ref_root)
 
-        for n, ci in enumerate(CANONICAL_CASES):
+        for n, ci in enumerate(ALL_CASES):
             col_n = n % GRID_COLS
             row_n = n // GRID_COLS
             # Blender Z-up：水平面 = XY，高度 = Z
@@ -210,7 +221,7 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
         MAT_REF   = _ensure_mat("mq_ref_mesh", (0.05, 0.35, 1.00), strength=0.7, alpha=0.7)
         sub       = 8
 
-        for n, ci in enumerate(CANONICAL_CASES):
+        for n, ci in enumerate(ALL_CASES):
             col_n = n % GRID_COLS
             row_n = n // GRID_COLS
             ox = col_n * 2.0
@@ -253,7 +264,7 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
                         sp.shading.type = 'MATERIAL'
                         break
 
-        self.report({'INFO'}, f"MQ 参考场景已初始化：{len(CANONICAL_CASES)} 个 canonical case")
+        self.report({'INFO'}, f"MQ 参考场景已初始化：{len(ALL_CASES)} 个 case")
         return {'FINISHED'}
 
 
@@ -281,7 +292,7 @@ class MQ_OT_GenerateTerrain(bpy.types.Operator):
         MAT_TOP  = _ensure_mat("mq_terrain_top",  (0.55, 0.35, 0.10), strength=0.85)
         MAT_WALL = _ensure_mat("mq_terrain_wall",  (0.22, 0.18, 0.08), strength=0.6)
 
-        for n, ci in enumerate(CANONICAL_CASES):
+        for n, ci in enumerate(ALL_CASES):
             col_n = n % GRID_COLS
             row_n = n // GRID_COLS
             ox = col_n * 2.0
@@ -344,7 +355,7 @@ class MQ_OT_GenerateTerrain(bpy.types.Operator):
             if obj.name in context.scene.collection.objects:
                 context.scene.collection.objects.unlink(obj)
 
-        self.report({'INFO'}, f"已生成 {len(CANONICAL_CASES)} 个 case 测试地形 → {TERRAIN_COL_NAME}")
+        self.report({'INFO'}, f"已生成 {len(ALL_CASES)} 个 case 测试地形 → {TERRAIN_COL_NAME}")
         return {'FINISHED'}
 
 
@@ -398,7 +409,7 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
             return t * (1.0 - arc_s) + arc_t * arc_s
 
         exported = []
-        for ci in CANONICAL_CASES:
+        for ci in ALL_CASES:
             h = [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)]
 
             # 重新生成 mesh，V0(BL) 固定在原点 (0,0,0)
@@ -416,6 +427,12 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
                 for col in range(sub):
                     bm.faces.new([gv[row][col],   gv[row][col+1],
                                   gv[row+1][col+1], gv[row+1][col]])
+
+            # 平面 UV（U=X，V=Y），与顶点坐标 (u,v,height) 对应
+            uv_layer = bm.loops.layers.uv.new("UVMap")
+            for face in bm.faces:
+                for loop in face.loops:
+                    loop[uv_layer].uv = (loop.vert.co.x, loop.vert.co.y)
             bm.normal_update()
 
             mesh = bpy.data.meshes.new(f"_exp_mq_{ci}")
@@ -450,7 +467,7 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
             exported.append(ci)
 
         bpy.ops.object.select_all(action='DESELECT')
-        self.report({'INFO'}, f"已导出 {len(exported)} 个 case → {out_dir}  (mq_case_0/1/3/5/7.fbx)")
+        self.report({'INFO'}, f"已导出 {len(exported)} 个 case → {out_dir}  (mq_case_0..15.fbx)")
         return {'FINISHED'}
 
 
@@ -458,8 +475,8 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
 
 class MQProperties(bpy.types.PropertyGroup):
     case_index: bpy.props.EnumProperty(
-        name    = "标准 Case",
-        items   = [(str(c), f"Case {c}：{CASE_NAMES.get(c, '')}", "") for c in CANONICAL_CASES],
+        name    = "Case",
+        items   = [(str(c), f"Case {c}：{CASE_NAMES.get(c, '')}", "") for c in ALL_CASES],
         default = '0',
     )
     subdivisions: bpy.props.IntProperty(
@@ -527,7 +544,7 @@ class MQ_PT_Panel(bpy.types.Panel):
         box3.label(text="4. 批量导出 FBX", icon='EXPORT')
         box3.prop(props, "export_dir", text="目录")
         box3.operator("mq.export_all_cases", icon='EXPORT')
-        box3.label(text="从 MQ_ArtMesh_Terrain 批量导出全部 case", icon='INFO')
+        box3.label(text="导出 mq_case_0..15.fbx（含 UVMap）", icon='INFO')
 
         layout.separator()
 
@@ -543,8 +560,8 @@ class MQ_PT_Panel(bpy.types.Panel):
 
         # 5. Case 一览
         box5 = layout.box()
-        box5.label(text="6 个标准 Case 一览", icon='LINENUMBERS_ON')
-        for c in CANONICAL_CASES:
+        box5.label(text="16 个 Case 一览", icon='LINENUMBERS_ON')
+        for c in ALL_CASES:
             row = box5.row()
             bits = "".join(('H' if (c & (1 << i)) else 'L') for i in range(4))
             done = "✓" if any(obj.name == f"mq_case_{c}"
