@@ -7,7 +7,7 @@ namespace MarchingSquares
     /// MQ 地形核心逻辑（纯 C#，类比 McStructureBuilder）。
     /// 持有地形数据（高度 + 地形类型）、碰撞 Mesh、视觉 Tile 生命周期。
     /// </summary>
-    public class MqTerrainBuilder
+    public class TerrainBuilder
     {
         public const int TerrainTypeCount = 5;
 
@@ -27,7 +27,7 @@ namespace MarchingSquares
         private readonly Vector3[] _vertices;
 
         // ── 视觉 Tile（地形 + 悬崖 prefab 实例）────────────────────────────────
-        private readonly MqMeshConfig  _config;
+        private readonly TileCaseConfig  _config;
         private readonly Transform     _parent;
         private readonly GameObject[,] _tiles;      // [length, width]
         private readonly GameObject[,] _cliffTiles; // [length, width]
@@ -38,8 +38,8 @@ namespace MarchingSquares
 
         // ── 构造 ─────────────────────────────────────────────────────────────
 
-        public MqTerrainBuilder(int width, int length, int height, float unit,
-                                 Vector3 worldPosition, MqMeshConfig config, Transform parent)
+        public TerrainBuilder(int width, int length, int height, float unit,
+                                 Vector3 worldPosition, TileCaseConfig config, Transform parent)
         {
             this.width  = width;
             this.length = length;

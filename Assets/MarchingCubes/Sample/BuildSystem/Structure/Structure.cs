@@ -7,7 +7,7 @@ namespace MarchingCubes.Sample
     /// 只负责：持有预制体引用、config 配置、IMeshStore、Transform 坐标系初始化。
     /// 建造逻辑（McStructureBuilder、PointCube/Quad、点击处理）全部在 BuildState 中实现。
     /// </summary>
-    public class McStructure : MonoBehaviour
+    public class Structure : MonoBehaviour
     {
         public uint unit = BuildingConst.Unit;
 

@@ -10,16 +10,16 @@ namespace MarchingSquares
     [RequireComponent(typeof(MeshCollider))]
     [RequireComponent(typeof(MeshRenderer))]
     [RequireComponent(typeof(MeshFilter))]
-    public class MqTerrain : MonoBehaviour
+    public class Terrain : MonoBehaviour
     {
         [SerializeField] private Brush        _brush;
-        [SerializeField] private MqMeshConfig _meshConfig;
+        [SerializeField] private TileCaseConfig _meshConfig;
         [SerializeField, Header("涂刷类型 0=泥 1=草 2=岩 3=雪 4=腐"), Range(0, 4)]
         private int _textureLayer = 1;
 
         public Brush            Brush        => _brush;
         public int              TextureLayer { get => _textureLayer; set => _textureLayer = value; }
-        public MqTerrainBuilder Builder      { get; private set; }
+        public TerrainBuilder Builder      { get; private set; }
 
         private MeshFilter   _meshFilter;
         private MeshCollider _meshCollider;
@@ -33,7 +33,7 @@ namespace MarchingSquares
             GetComponent<MeshRenderer>().enabled = false; // 视觉由 tile prefab 负责，MeshFilter 仅供 MeshCollider 射线检测
 
             float unit = 1f / BuildingConst.Unit;
-            Builder = new MqTerrainBuilder(
+            Builder = new TerrainBuilder(
                 renderWidth, renderDepth, heightRange,
                 unit, transform.position, _meshConfig, transform);
             Builder.MaxHeightDiff = BuildingConst.TerrainMaxHeightDiff * BuildingConst.Unit;

@@ -15,7 +15,7 @@ namespace MarchingCubes.Sample
         private readonly Point[,,] _points;
         private readonly Cube[,,] _cubes;
         private Matrix4x4 _localToWorld;
-        public readonly McStructure MeshStore;
+        public readonly Structure MeshStore;
         
         public Matrix4x4 localToWorld
         {
@@ -63,7 +63,7 @@ namespace MarchingCubes.Sample
             Gizmos.matrix = Matrix4x4.identity;
         }
 
-        public McStructureBuilder(int x, int y, int z, Matrix4x4 localToWorld, McStructure meshStore)
+        public McStructureBuilder(int x, int y, int z, Matrix4x4 localToWorld, Structure meshStore)
         {
             this.X = x;
             this.Y = y;

@@ -18,8 +18,8 @@ namespace MarchingSquares
     ///   case 0：无悬崖，留空。case 1-15：由 D4 旋转生成。
     ///   规范 case：1(南墙) 3(南+东) 5(南+北对穿) 7(南+东+北) 15(四面)
     /// </summary>
-    [CreateAssetMenu(fileName = "MqMeshConfig", menuName = "MarchingCubes/Mq Mesh Config")]
-    public sealed class MqMeshConfig : ScriptableObject
+    [CreateAssetMenu(fileName = "TileCaseConfig", menuName = "MarchingCubes/Mq Mesh Config")]
+    public sealed class TileCaseConfig : ScriptableObject
     {
         public const int TerrainCaseCount = 19;
         public const int CliffCaseCount   = 16;

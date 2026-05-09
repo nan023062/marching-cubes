@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace MarchingCubes.Editor
 {
-    [CustomEditor(typeof(MarchingSquares.MqMeshConfig))]
+    [CustomEditor(typeof(MarchingSquares.TileCaseConfig))]
     public sealed class MQMeshConfigEditor : UnityEditor.Editor
     {
         // ── 地形 ──────────────────────────────────────────────────────────────
@@ -38,7 +38,7 @@ namespace MarchingCubes.Editor
 
         public override void OnInspectorGUI()
         {
-            var cfg = (MarchingSquares.MqMeshConfig)target;
+            var cfg = (MarchingSquares.TileCaseConfig)target;
             serializedObject.Update();
 
             // ── 一键全 Build ───────────────────────────────────────────────────
@@ -120,7 +120,7 @@ namespace MarchingCubes.Editor
 
         // ── 地形 Build ────────────────────────────────────────────────────────
 
-        void DoTerrainBuild(MarchingSquares.MqMeshConfig cfg)
+        void DoTerrainBuild(MarchingSquares.TileCaseConfig cfg)
         {
             _terrainLog = "";
             string relOut = _prefabFolder.TrimEnd('/', '\\');
@@ -128,7 +128,7 @@ namespace MarchingCubes.Editor
             AssetDatabase.Refresh();
 
             int ok = 0, skip = 0;
-            int total = MarchingSquares.MqMeshConfig.TerrainCaseCount;
+            int total = MarchingSquares.TileCaseConfig.TerrainCaseCount;
 
             for (int ci = 0; ci < total; ci++)
             {
@@ -168,7 +168,7 @@ namespace MarchingCubes.Editor
 
         // ── 悬崖 Build（D4 旋转）──────────────────────────────────────────────
 
-        void DoCliffBuild(MarchingSquares.MqMeshConfig cfg)
+        void DoCliffBuild(MarchingSquares.TileCaseConfig cfg)
         {
             _cliffLog = "";
             string relOut = _cliffPrefabFolder.TrimEnd('/', '\\');
@@ -177,7 +177,7 @@ namespace MarchingCubes.Editor
 
             int ok = 0, skip = 0;
 
-            for (int ci = 1; ci < MarchingSquares.MqMeshConfig.CliffCaseCount; ci++)
+            for (int ci = 1; ci < MarchingSquares.TileCaseConfig.CliffCaseCount; ci++)
             {
                 var (canonical, rotCount) = MarchingSquares.TileTable.CliffD4Map[ci];
                 string fbxPath = $"{_cliffFbxFolder.TrimEnd('/', '\\')}/mq_cliff_{canonical}.fbx";
@@ -217,7 +217,7 @@ namespace MarchingCubes.Editor
 
         // ── 地形 Grid / Detail ────────────────────────────────────────────────
 
-        void DrawTerrainGrid(MarchingSquares.MqMeshConfig cfg)
+        void DrawTerrainGrid(MarchingSquares.TileCaseConfig cfg)
         {
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -225,7 +225,7 @@ namespace MarchingCubes.Editor
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Validate", GUILayout.Width(66)))
                 {
-                    int total = MarchingSquares.MqMeshConfig.TerrainCaseCount;
+                    int total = MarchingSquares.TileCaseConfig.TerrainCaseCount;
                     int filled = 0;
                     for (int ci = 0; ci < total; ci++) if (cfg.GetPrefab(ci) != null) filled++;
                     EditorUtility.DisplayDialog("Terrain Validate", $"Cases 0–{total-1}: {total}\n有: {filled}  缺: {total-filled}", "OK");
@@ -233,7 +233,7 @@ namespace MarchingCubes.Editor
             }
             EditorGUI.DrawRect(GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.ExpandWidth(true), GUILayout.Height(1)), new Color(0,0,0,0.3f));
 
-            int cnt = MarchingSquares.MqMeshConfig.TerrainCaseCount;
+            int cnt = MarchingSquares.TileCaseConfig.TerrainCaseCount;
             float h = Mathf.Ceil((float)cnt / Cols) * CellSz;
             _terrainScroll = EditorGUILayout.BeginScrollView(_terrainScroll, GUILayout.Height(h + 4));
             Rect outer = GUILayoutUtility.GetRect(Cols * CellSz, h);
@@ -259,7 +259,7 @@ namespace MarchingCubes.Editor
             }
         }
 
-        void DrawTerrainDetail(MarchingSquares.MqMeshConfig cfg, int ci)
+        void DrawTerrainDetail(MarchingSquares.TileCaseConfig cfg, int ci)
         {
             EditorGUI.DrawRect(GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.ExpandWidth(true), GUILayout.Height(1)), new Color(0,0,0,0.3f));
             EditorGUILayout.Space(4);
@@ -273,7 +273,7 @@ namespace MarchingCubes.Editor
 
         // ── 悬崖 Grid / Detail ────────────────────────────────────────────────
 
-        void DrawCliffGrid(MarchingSquares.MqMeshConfig cfg)
+        void DrawCliffGrid(MarchingSquares.TileCaseConfig cfg)
         {
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -313,7 +313,7 @@ namespace MarchingCubes.Editor
             }
         }
 
-        void DrawCliffDetail(MarchingSquares.MqMeshConfig cfg, int ci)
+        void DrawCliffDetail(MarchingSquares.TileCaseConfig cfg, int ci)
         {
             if (ci == 0) return;
             EditorGUI.DrawRect(GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.ExpandWidth(true), GUILayout.Height(1)), new Color(0,0,0,0.3f));
