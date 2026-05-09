@@ -2,9 +2,15 @@ Shader "MarchingSquares/SplatmapTerrain"
 {
     Properties
     {
-        _BaseArray ("Base Textures", 2DArray) = "" {}
+        _BaseArray    ("Base Textures",   2DArray) = "" {}
         _OverlayArray ("Overlay Atlases", 2DArray) = "" {}
-        _Tiling ("Base Tiling", Float) = 1
+        _Tiling       ("Base Tiling",     Float)   = 1
+
+        // ── Per-tile，由 MaterialPropertyBlock 注入（不在 Inspector 显示）──────
+        // _TerrainPointTex   : 点阵纹理（每像素 = 一个格点的 terrainType，R8）
+        // _TerrainPointTexST : xy = BL 角点像素中心 UV，zw = 单步间距（1/texW, 1/texH）
+        [HideInInspector] _TerrainPointTex ("Point Tex",   2D)     = "black" {}
+        [HideInInspector] _TerrainPointTexST ("Point ST",  Vector) = (0,0,1,1)
     }
 
     SubShader
@@ -26,67 +32,106 @@ Shader "MarchingSquares/SplatmapTerrain"
 
             UNITY_DECLARE_TEX2DARRAY(_BaseArray);
             UNITY_DECLARE_TEX2DARRAY(_OverlayArray);
-            float _Tiling;
+
+            sampler2D _TerrainPointTex;
+            float4    _TerrainPointTexST;   // xy=BL像素中心UV, zw=单步间距
+            float     _Tiling;
 
             struct appdata
             {
                 float4 vertex : POSITION;
                 float3 normal : NORMAL;
-                float2 uv0 : TEXCOORD0;
-                float2 uv1 : TEXCOORD1;
-                float2 uv2 : TEXCOORD2;
-                float2 uv3 : TEXCOORD3;
-                float4 color : COLOR;
+                float2 uv     : TEXCOORD0;  // 格内 [0,1] UV（Blender 导出的平面 UV）
             };
 
             struct v2f
             {
-                float4 pos : SV_POSITION;
-                float2 uv0 : TEXCOORD0;
-                float2 uv1 : TEXCOORD1;
-                float2 uv2 : TEXCOORD2;
-                float2 uv3 : TEXCOORD3;
-                float4 color : TEXCOORD4;
-                float3 worldNormal : TEXCOORD5;
+                float4 pos         : SV_POSITION;
+                float2 baseUV      : TEXCOORD0;  // uv * _Tiling，采样基础纹理
+                float2 localUV     : TEXCOORD1;  // 原始 [0,1]，用于 overlay atlas 定位
+                float3 worldNormal : TEXCOORD2;
             };
+
+            // 从点阵纹理采样整数地形类型（0-4）
+            float SampleType(float2 uv)
+            {
+                return round(tex2D(_TerrainPointTex, uv).r * 4.0);
+            }
 
             v2f vert(appdata v)
             {
                 v2f o;
-                o.pos = UnityObjectToClipPos(v.vertex);
-                o.uv0 = v.uv0 * _Tiling;
-                o.uv1 = v.uv1;
-                o.uv2 = v.uv2;
-                o.uv3 = v.uv3;
-                o.color = v.color;
+                o.pos         = UnityObjectToClipPos(v.vertex);
+                o.baseUV      = v.uv * _Tiling;
+                o.localUV     = v.uv;
                 o.worldNormal = UnityObjectToWorldNormal(v.normal);
                 return o;
             }
 
             fixed4 frag(v2f i) : SV_Target
             {
-                // Decode type indices from vertex color (byte * 51 → 0-4)
-                float baseIdx = round(i.color.r * 5.0);
-                float over1Idx = round(i.color.g * 5.0);
-                float over2Idx = round(i.color.b * 5.0);
-                float over3Idx = round(i.color.a * 5.0);
+                // ── 1. 采样 4 个角点的 terrainType ──────────────────────────────
+                float2 c = _TerrainPointTexST.xy;   // BL 像素中心 UV
+                float2 d = _TerrainPointTexST.zw;   // 一格步长
 
-                // Base: seamless tiling, always opaque
-                fixed4 col = UNITY_SAMPLE_TEX2DARRAY(_BaseArray, float3(i.uv0, baseIdx));
+                float t0 = SampleType(c);                    // V0 BL
+                float t1 = SampleType(c + float2(d.x, 0));  // V1 BR
+                float t2 = SampleType(c + d);                // V2 TR
+                float t3 = SampleType(c + float2(0, d.y));  // V3 TL
 
-                // Overlay 1: MS tile atlas with alpha
-                fixed4 o1 = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(i.uv1, over1Idx));
-                col.rgb = lerp(col.rgb, o1.rgb, o1.a);
+                // ── 2. 基础层 = 四角最小类型 ────────────────────────────────────
+                float baseType = min(min(t0, t1), min(t2, t3));
+                fixed4 col = UNITY_SAMPLE_TEX2DARRAY(_BaseArray, float3(i.baseUV, baseType));
 
-                // Overlay 2
-                fixed4 o2 = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(i.uv2, over2Idx));
-                col.rgb = lerp(col.rgb, o2.rgb, o2.a);
+                // ── 3. 叠加层（最多 3 层，手动展开避免 GPU 动态分支开销）───────
+                // Overlay Atlas：4×4 grid，case N 占第 (N%4, N/4) 格，格内 UV = localUV
+                // atlasUV = ((N%4 + localUV.x) * 0.25, (N/4 + localUV.y) * 0.25)
 
-                // Overlay 3
-                fixed4 o3 = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(i.uv3, over3Idx));
-                col.rgb = lerp(col.rgb, o3.rgb, o3.a);
+                float2 lUV = i.localUV;
 
-                // Lambert lighting
+                // 叠加层 1
+                {
+                    float ot = baseType + 1;
+                    if (ot <= 4 && (t0 >= ot || t1 >= ot || t2 >= ot || t3 >= ot))
+                    {
+                        int mask = (t0 >= ot ? 1 : 0) | (t1 >= ot ? 2 : 0)
+                                 | (t2 >= ot ? 4 : 0) | (t3 >= ot ? 8 : 0);
+                        float2 aUV = float2((mask % 4 + lUV.x) * 0.25,
+                                            (mask / 4 + lUV.y) * 0.25);
+                        fixed4 ov = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(aUV, ot));
+                        col.rgb = lerp(col.rgb, ov.rgb, ov.a);
+                    }
+                }
+
+                // 叠加层 2
+                {
+                    float ot = baseType + 2;
+                    if (ot <= 4 && (t0 >= ot || t1 >= ot || t2 >= ot || t3 >= ot))
+                    {
+                        int mask = (t0 >= ot ? 1 : 0) | (t1 >= ot ? 2 : 0)
+                                 | (t2 >= ot ? 4 : 0) | (t3 >= ot ? 8 : 0);
+                        float2 aUV = float2((mask % 4 + lUV.x) * 0.25,
+                                            (mask / 4 + lUV.y) * 0.25);
+                        fixed4 ov = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(aUV, ot));
+                        col.rgb = lerp(col.rgb, ov.rgb, ov.a);
+                    }
+                }
+
+                // 叠加层 3
+                {
+                    float ot = baseType + 3;
+                    if (ot <= 4 && (t0 >= ot || t1 >= ot || t2 >= ot || t3 >= ot))
+                    {
+                        int mask = (t0 >= ot ? 1 : 0) | (t1 >= ot ? 2 : 0)
+                                 | (t2 >= ot ? 4 : 0) | (t3 >= ot ? 8 : 0);
+                        float2 aUV = float2((mask % 4 + lUV.x) * 0.25,
+                                            (mask / 4 + lUV.y) * 0.25);
+                        fixed4 ov = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(aUV, ot));
+                        col.rgb = lerp(col.rgb, ov.rgb, ov.a);
+                    }
+                }
+
+                // ── 4. Lambert 光照 ──────────────────────────────────────────────
                 float ndl = max(0.2, dot(i.worldNormal, _WorldSpaceLightPos0.xyz));
                 col.rgb *= ndl * _LightColor0.rgb;
                 col.a = 1;

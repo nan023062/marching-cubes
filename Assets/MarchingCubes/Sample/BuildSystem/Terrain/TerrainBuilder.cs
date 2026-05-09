@@ -219,10 +219,12 @@ namespace MarchingSquares
         {
             var mpb = new MaterialPropertyBlock();
             mpb.SetTexture("_TerrainPointTex", pointTex);
-            // ST.xy = UV 偏移（tile 左下角），ST.zw = UV 缩放（单格尺寸）
+            // 纹理尺寸：(length+1)×(width+1)，像素中心 UV = (i+0.5)/size
+            // ST.xy = BL 角点像素中心，ST.zw = 相邻像素间距（1 step）
+            float tw = length + 1, th = width + 1;
             mpb.SetVector("_TerrainPointTexST", new Vector4(
-                (float)x / length, (float)z / width,
-                1f / length,       1f / width));
+                (x + 0.5f) / tw, (z + 0.5f) / th,
+                1f / tw,         1f / th));
             foreach (var mr in tile.GetComponentsInChildren<MeshRenderer>())
                 mr.SetPropertyBlock(mpb);
         }
