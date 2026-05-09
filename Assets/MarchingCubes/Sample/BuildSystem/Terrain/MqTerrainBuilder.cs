@@ -27,7 +27,7 @@ namespace MarchingSquares
         private readonly Vector3[] _vertices;
 
         // ── 视觉 Tile（case prefab 实例）────────────────────────────────────
-        private readonly MQMeshConfig  _config;
+        private readonly MqMeshConfig  _config;
         private readonly Transform     _parent;
         private readonly GameObject[,] _tiles; // [length, width]
 
@@ -37,7 +37,7 @@ namespace MarchingSquares
         // ── 构造 ─────────────────────────────────────────────────────────────
 
         public MqTerrainBuilder(int width, int length, int height, float unit,
-                                 Vector3 worldPosition, MQMeshConfig config, Transform parent)
+                                 Vector3 worldPosition, MqMeshConfig config, Transform parent)
         {
             this.width  = width;
             this.length = length;
@@ -197,19 +197,12 @@ namespace MarchingSquares
         }
 
         private int GetCaseIndex(int x, int z, out int baseH)
-        {
-            int h0 = _points[x,     z    ].high; // BL
-            int h1 = _points[x + 1, z    ].high; // BR
-            int h2 = _points[x + 1, z + 1].high; // TR
-            int h3 = _points[x,     z + 1].high; // TL
-            baseH  = Mathf.Min(h0, Mathf.Min(h1, Mathf.Min(h2, h3)));
-            int ci = 0;
-            if (h0 > baseH) ci |= 1;
-            if (h1 > baseH) ci |= 2;
-            if (h2 > baseH) ci |= 4;
-            if (h3 > baseH) ci |= 8;
-            return ci;
-        }
+            => MqTable.GetCaseIndex(
+                _points[x,     z    ].high,
+                _points[x + 1, z    ].high,
+                _points[x + 1, z + 1].high,
+                _points[x,     z + 1].high,
+                out baseH);
 
         // ── 数据访问 ─────────────────────────────────────────────────────────
 

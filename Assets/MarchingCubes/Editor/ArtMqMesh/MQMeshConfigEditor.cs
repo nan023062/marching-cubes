@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace MarchingCubes.Editor
 {
-    [CustomEditor(typeof(MarchingSquares.MQMeshConfig))]
+    [CustomEditor(typeof(MarchingSquares.MqMeshConfig))]
     public sealed class MQMeshConfigEditor : UnityEditor.Editor
     {
         private string   _fbxFolder    = "Assets/MarchingCubes/Sample/Resources/mq";
@@ -24,15 +24,14 @@ namespace MarchingCubes.Editor
         private const float CellSz = 36f;
         private const int   Cols   = 8;
 
-        // Canonical cases for MQ (D4 reduced from 16): 0,1,3,5,7
-        // Case 15（全高）与 case 0（全低）几何相同（均为平 quad），复用 mq_case_0.fbx
-        private static readonly int[] CanonicalCases = { 0, 1, 3, 5, 7 };
+        // 直接使用 MqTable 中的 canonical cases，无需维护副本
+        private static int[] CanonicalCases => MarchingSquares.MqTable.CanonicalCases;
 
         // ── Inspector ────────────────────────────────────────────────────────
 
         public override void OnInspectorGUI()
         {
-            var cfg = (MarchingSquares.MQMeshConfig)target;
+            var cfg = (MarchingSquares.MqMeshConfig)target;
             serializedObject.Update();
 
             DrawBuildSection(cfg);
@@ -46,7 +45,7 @@ namespace MarchingCubes.Editor
 
         // ── Build ─────────────────────────────────────────────────────────────
 
-        void DrawBuildSection(MarchingSquares.MQMeshConfig cfg)
+        void DrawBuildSection(MarchingSquares.MqMeshConfig cfg)
         {
             EditorGUILayout.LabelField("Build MQ Case Prefabs (mq_case_*.fbx)", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
@@ -81,7 +80,7 @@ namespace MarchingCubes.Editor
             }
         }
 
-        void DoBuild(MarchingSquares.MQMeshConfig cfg)
+        void DoBuild(MarchingSquares.MqMeshConfig cfg)
         {
             _log = "";
             cfg.EnsureSymmetry();
@@ -147,7 +146,7 @@ namespace MarchingCubes.Editor
 
         // ── Grid ──────────────────────────────────────────────────────────────
 
-        void DrawGrid(MarchingSquares.MQMeshConfig cfg)
+        void DrawGrid(MarchingSquares.MqMeshConfig cfg)
         {
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -197,7 +196,7 @@ namespace MarchingCubes.Editor
             }
         }
 
-        void DrawCell(MarchingSquares.MQMeshConfig cfg, int ci, Rect r)
+        void DrawCell(MarchingSquares.MqMeshConfig cfg, int ci, Rect r)
         {
             bool hasPrefab = cfg.GetPrefab(ci) != null;
             bool isCanon   = cfg.IsCanonical(ci);
@@ -251,7 +250,7 @@ namespace MarchingCubes.Editor
             r.y += 3; EditorGUI.DrawRect(r, c);
         }
 
-        void DoValidate(MarchingSquares.MQMeshConfig cfg)
+        void DoValidate(MarchingSquares.MqMeshConfig cfg)
         {
             int filled = 0;
             for (int ci = 0; ci < 16; ci++) if (cfg.GetPrefab(ci) != null) filled++;
@@ -261,7 +260,7 @@ namespace MarchingCubes.Editor
 
         // ── Detail ────────────────────────────────────────────────────────────
 
-        void DrawDetail(MarchingSquares.MQMeshConfig cfg, int ci)
+        void DrawDetail(MarchingSquares.MqMeshConfig cfg, int ci)
         {
             EditorGUI.DrawRect(GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none,
                 GUILayout.ExpandWidth(true), GUILayout.Height(1)), new Color(0, 0, 0, 0.3f));

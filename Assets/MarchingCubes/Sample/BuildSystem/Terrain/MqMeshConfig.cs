@@ -17,7 +17,7 @@ namespace MarchingSquares
     /// 6 个 canonical cases：0, 1, 3, 5, 7, 15
     /// </summary>
     [CreateAssetMenu(fileName = "MQMeshConfig", menuName = "MarchingCubes/MQ Mesh Config")]
-    public sealed class MQMeshConfig : ScriptableObject
+    public sealed class MqMeshConfig : ScriptableObject
     {
         [SerializeField] private GameObject[] _prefabs = new GameObject[16];
 
@@ -47,43 +47,29 @@ namespace MarchingSquares
         {
             if (_canonicalIndex != null) return;
 
-            // 8 D4 permutations: perm[t][i] = which position corner i moves to
-            int[][] perms = {
-                new[]{0, 1, 2, 3},  // e      rotY=0
-                new[]{3, 0, 1, 2},  // r      rotY=270 (90° CW viewed from above)
-                new[]{2, 3, 0, 1},  // r²     rotY=180
-                new[]{1, 2, 3, 0},  // r³     rotY=90
-                new[]{1, 0, 3, 2},  // s      rotY=0, flip
-                new[]{2, 1, 0, 3},  // sr     rotY=270, flip
-                new[]{3, 2, 1, 0},  // sr²    rotY=180, flip
-                new[]{0, 3, 2, 1},  // sr³    rotY=90, flip
-            };
+            // 直接使用 MqTable 中的置换表和预计算结果
+            _canonicalIndex    = new int[MqTable.CaseCount];
+            _canonicalRotation = new Quaternion[MqTable.CaseCount];
+            _canonicalFlipped  = new bool[MqTable.CaseCount];
 
-            float[] rotY  = { 0f, 270f, 180f, 90f, 0f, 270f, 180f, 90f };
-            bool[]  flip  = { false, false, false, false, true, true, true, true };
-
-            _canonicalIndex    = new int[16];
-            _canonicalRotation = new Quaternion[16];
-            _canonicalFlipped  = new bool[16];
-
-            for (int ci = 0; ci < 16; ci++)
+            for (int ci = 0; ci < MqTable.CaseCount; ci++)
             {
                 int  bestIdx  = ci;
-                var  bestRot  = Quaternion.identity;
+                var  bestRot  = UnityEngine.Quaternion.identity;
                 bool bestFlip = false;
 
-                for (int t = 0; t < 8; t++)
+                for (int t = 0; t < MqTable.D4Perms.Length; t++)
                 {
                     int mapped = 0;
-                    for (int i = 0; i < 4; i++)
+                    for (int i = 0; i < MqTable.CornerCount; i++)
                         if ((ci & (1 << i)) != 0)
-                            mapped |= 1 << perms[t][i];
+                            mapped |= 1 << MqTable.D4Perms[t][i];
 
                     if (mapped < bestIdx)
                     {
                         bestIdx  = mapped;
-                        bestRot  = Quaternion.Euler(0, rotY[t], 0);
-                        bestFlip = flip[t];
+                        bestRot  = UnityEngine.Quaternion.Euler(0, MqTable.D4RotY[t], 0);
+                        bestFlip = MqTable.D4Flipped[t];
                     }
                 }
 
@@ -92,10 +78,9 @@ namespace MarchingSquares
                 _canonicalFlipped[ci]  = bestFlip;
             }
 
-            // Case 15（全高）几何与 case 0（全低）完全相同——均为平 quad，
-            // 实际高度由 terrain 数据决定，mesh 复用 case 0。
+            // Case 15 复用 case 0（MqTable 已预计算，此处与之保持一致）
             _canonicalIndex[15]    = 0;
-            _canonicalRotation[15] = Quaternion.identity;
+            _canonicalRotation[15] = UnityEngine.Quaternion.identity;
             _canonicalFlipped[15]  = false;
         }
 
