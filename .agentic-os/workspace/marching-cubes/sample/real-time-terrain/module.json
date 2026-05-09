@@ -1,0 +1,20 @@
+{
+  "name": "real-time-terrain",
+  "workspaceType": "csharp-unity",
+  "summary": "2D 无限地形演示：以 Spot 为中心动态加载/卸载 11×11 chunk，每 chunk 用 Perlin noise 生成高度场 + CubeMeshSmooth 渲染平滑地形，含碰撞 mesh",
+  "workspace": ["Assets/MarchingCubes/Sample/Real-timeTerrain"],
+  "dependencies": [
+    { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" }
+  ],
+  "boundary": "closed",
+  "publicApi": [
+    "RealtimeTerrain — MonoBehaviour：管理 2D chunk 视域（11×11），Spot 移动超过一格时触发 UpdateViewChunks",
+    "RealtimeTerrainChunk — MonoBehaviour（IMarchingCubeReceiver）：持有 CubeMeshSmooth，RebuildTerrain(chunkX,chunkZ) 填充 Perlin noise 高度场"
+  ],
+  "constraints": [
+    "ChunkCell=32, ChunkHeight=16, CellSize=0.5f, Offset=5（ViewSize=11×11）",
+    "iso(i,j,k) = height(i,k) + j；IsoPass = iso < ChunkHeight + 0.1f（低于高度为实心）",
+    "chunk 生命周期：每帧最多创建/销毁一个 chunk（TickDirtyChunks 限流），避免卡顿",
+    "ChunkId 使用 StructLayout(Explicit) 将 (int x, int z) 映射为 long 作为 Dictionary 键"
+  ]
+}

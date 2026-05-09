@@ -1,0 +1,17 @@
+{
+  "name": "sample",
+  "workspaceType": "csharp-unity",
+  "summary": "Marching Cubes/Squares 演示案例集合，涵盖建造系统、球形生成、Gizmos 调试、无限地形、实时雕刻等多种应用场景",
+  "workspace": ["Assets/MarchingCubes/Sample"],
+  "dependencies": [
+    { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" },
+    { "target": "marching-cubes/runtime/marching-squares", "type": "Association" }
+  ],
+  "submodules": ["build-system", "generate-sphere", "polygon-drawer", "real-time-terrain", "realtime-world", "smooth-cube-mesh"],
+  "boundary": "open",
+  "publicApi": [],
+  "constraints": [
+    "各案例之间无代码依赖（Resources 资产共享除外），可独立运行",
+    "所有案例实现 IMarchingCubeReceiver 接口与运行时算法解耦"
+  ]
+}

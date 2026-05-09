@@ -1,0 +1,23 @@
+{
+  "name": "blender",
+  "workspaceType": "blender-python",
+  "summary": "Blender Add-on（mc_building_artmesh）：DCC 侧建模工作流——D4 对称 53-case MC 参考场景、MQ tile 参考场景、程序化测试 mesh 对比、覆盖率检查、FBX 批量导出",
+  "workspace": ["Assets/MarchingCubes/Editor/Blender"],
+  "dependencies": [],
+  "boundary": "closed",
+  "publicApi": [
+    "mc_building_artmesh.zip — Blender Add-on（N-Panel > MC ArtMesh）：Setup Reference Scene / Check Coverage / Extract & Export FBX",
+    "build_zip.py — 打包脚本：python build_zip.py → mc_building_artmesh.zip",
+    "mc_building_artmesh/__init__.py — 插件主体（含全部 Operator + Panel）",
+    "mc_building_artmesh/cube_table.py — Unity CubeTable.cs 的 Python 移植（VERTICES / EDGES / TRI_TABLE / EDGE_TABLE）",
+    "mc_building_artmesh/mc_mesh.py — MC case mesh 程序化生成（等值面 + 圆角 bevel）",
+    "mc_building_artmesh/mq_mesh.py — MQ tile mesh 程序化生成"
+  ],
+  "constraints": [
+    "对称群使用 D4（4 个 Y 轴旋转 × LR 镜像翻转 = 8 种变换），产出 53 个 canonical case（含 0/255 共 55 个），与 Unity 的 D4FbxCaseConfig 完全一致",
+    "顶点约定与 CubeTable.Vertices 完全一致：V0(0,0,1) V1(1,0,1) V2(1,0,0) V3(0,0,0) V4(0,1,1) V5(1,1,1) V6(1,1,0) V7(0,1,0)",
+    "FBX 导出轴向：axis_forward='Y'，axis_up='Z'（Blender 原生轴）；Unity 侧 ArtMeshFbxPostprocessor 开启 bakeAxisConversion=true 对应烘入",
+    "格子布局：GRID_COLS=9，步进 2（Unity 坐标），case n 位于 (col*2, 0, row*2)；扫描时直接遍历 canonical 位置，不扫整个 grid",
+    "脚本兼容 Blender 3.6+ / 4.x / 5.x Python API"
+  ]
+}

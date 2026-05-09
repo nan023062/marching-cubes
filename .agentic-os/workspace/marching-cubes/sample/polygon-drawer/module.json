@@ -1,0 +1,17 @@
+{
+  "name": "polygon-drawer",
+  "workspaceType": "csharp-unity",
+  "summary": "MC 256 case Gizmos 可视化调试工具：在 Gizmos 中绘制单个或全部 256 种 case 的等值面形状，用于验证 CubeTable 正确性",
+  "workspace": ["Assets/MarchingCubes/Sample/PolygonDrawer"],
+  "dependencies": [
+    { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" }
+  ],
+  "boundary": "closed",
+  "publicApi": [
+    "PolygonTableDrawer — MonoBehaviour：Mode(DrawOneCube/Draw256Cube) + V0~V7 勾选框，OnDrawGizmos 渲染等值面"
+  ],
+  "constraints": [
+    "DrawOneCube 模式：V0~V7 布尔值构成 cubeIndex，绘制单个 case",
+    "Draw256Cube 模式：以 1.2 间距排列所有 256 个 case（X 轴正方向）"
+  ]
+}

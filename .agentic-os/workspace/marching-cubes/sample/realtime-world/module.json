@@ -1,0 +1,23 @@
+{
+  "name": "realtime-world",
+  "workspaceType": "csharp-unity",
+  "summary": "3D 实时雕刻演示：球体笔刷修改全局 iso 场（float[,,]），动态 5×5×5 chunk 流式加载，CubeMeshSmooth 平滑 mesh，RealtimeTool 鼠标交互",
+  "workspace": ["Assets/MarchingCubes/Sample/ReattimeWorld"],
+  "dependencies": [
+    { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" }
+  ],
+  "boundary": "closed",
+  "publicApi": [
+    "RealtimeWorld — MonoBehaviour（Singleton）：管理全局 iso 场 + 3D chunk 视域（5×5×5）；SetBlock(position,radius) 球体笔刷",
+    "RealtimeWorldChunk — MonoBehaviour（IMarchingCubeReceiver）：持有 CubeMeshSmooth + ChunkMaxCellNum 含 CellOffset 边界；SetBlock / RebuildTerrain",
+    "RealtimeTool — MonoBehaviour：鼠标左键触发 RealtimeWorld.SetBlock"
+  ],
+  "constraints": [
+    "ChunkCellNum=32, CellOffset=1, ChunkMaxCellNum=34（含边界各扩 1 格）, Size=0.25f, Offset=2（ViewSize=5×5×5）",
+    "iso 场全局存储于 float[,,]（_isoValues），初始化为 float.MaxValue（不可见），SetBlock 写入球体内距离值",
+    "isoLevel = radius；IsoPass = iso >= radius（球体外为实心）",
+    "chunk 不 Destroy 而是 SetActive(false)（对象池复用），避免频繁 GC",
+    "ChunkId 使用 StructLayout(Explicit) 将 (short x, short y, short z) 映射为 long",
+    "CellOffset：chunk 边界各扩 1 格以消除相邻 chunk 接缝，SetBlock 时 coord 需偏移"
+  ]
+}

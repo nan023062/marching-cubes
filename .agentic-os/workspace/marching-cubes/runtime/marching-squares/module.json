@@ -1,0 +1,19 @@
+{
+  "name": "marching-squares",
+  "workspaceType": "csharp-unity",
+  "summary": "2.5D Marching Squares 算法基础层：16-case 查表（MqTable）、核心类型定义（Tile.cs）、程序化连续 tile mesh 生成器（TileTerrain）、prefab 调试组件（MqTilePrefab）",
+  "workspace": ["Assets/MarchingCubes/Runtime/MarchingSquares"],
+  "dependencies": [],
+  "boundary": "semi-open",
+  "publicApi": [
+    "MqTable — 全局静态映射表：GetMeshCase() / GetTextureCase() / GetTerrainLayers()",
+    "TileTerrain — 程序化连续 mesh 生成器（快速原型用）：Rebuild() / RebuildHeightOnly()",
+    "MqTilePrefab — tile prefab 调试组件：caseIndex / baseHeight / Gizmos",
+    "Tile.cs 中的公开类型 — TileVertex / TileVertexMask / TileEdge / TilePoint / TileVertex2D / TileTriangle / ISquareTerrainReceiver"
+  ],
+  "constraints": [
+    "MqTable.GetMeshCase() 以四角高度最小值为 base，超过 base 的角点 bit=1，共 16 种 case",
+    "TerrainTypeCount = 5（泥/草/岩/雪/腐），与 art-mq-texture 生成的贴图数组长度对应",
+    "本模块只含算法基础层，不含 MonoBehaviour；MqTerrainBuilder / MqTerrain / MqMeshConfig 在 sample/build-system/terrain 中"
+  ]
+}

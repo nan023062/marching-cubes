@@ -1,0 +1,16 @@
+{
+  "name": "smooth-cube-mesh",
+  "workspaceType": "csharp-unity",
+  "summary": "MC 平滑 mesh 球形演示：用 CubeMeshSmooth 生成平滑球体等值面，与 generate-sphere（CubeMesh）形成直接对比",
+  "workspace": ["Assets/MarchingCubes/Sample/SmoothCubeMesh"],
+  "dependencies": [
+    { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" }
+  ],
+  "boundary": "closed",
+  "publicApi": [
+    "SmoothSphereSample — MonoBehaviour（IMarchingCubeReceiver）：x/y/z 格数 + radius 参数，OnValidate 驱动实时重建"
+  ],
+  "constraints": [
+    "iso 场定义与 generate-sphere 完全相同，唯一区别是使用 CubeMeshSmooth 而非 CubeMesh"
+  ]
+}

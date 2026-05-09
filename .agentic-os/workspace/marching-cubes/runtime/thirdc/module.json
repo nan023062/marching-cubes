@@ -1,0 +1,18 @@
+{
+  "name": "thirdc",
+  "workspaceType": "csharp-unity",
+  "summary": "第三人称场景通用控制器：飞行/俯视相机（CameraController）、TPS 角色控制（Character + CharacterController）、TPS 相机（TPSCamera），供 Sample 场景复用",
+  "workspace": ["Assets/MarchingCubes/Runtime/Thirdc"],
+  "dependencies": [],
+  "boundary": "closed",
+  "publicApi": [
+    "CameraController — 俯视/飞行相机（MonoBehaviour）：WASD 平移 + RMB 旋转 + 滚轮缩放，wheelMul 控制移动速度",
+    "Character — TPS 角色控制器（MonoBehaviour，RequireComponent CharacterController）：WASD + Jump + 朝向插值，依赖 TPSCamera.Yaw",
+    "TPSCamera — 第三人称相机（MonoBehaviour）：LMB 旋转 yaw/pitch + 滚轮缩放相机距离，Yaw 属性供 Character 读取"
+  ],
+  "constraints": [
+    "Thirdc 与 MC/MQ 算法完全无关，可独立供任何 Unity 场景使用",
+    "Character 通过 [SerializeField] TPSCamera 引用，与相机耦合（非接口解耦）",
+    "CameraController 命名空间为 MarchingSquares（历史原因），与其他 Thirdc 类的 MarchingCubes.Sample 不一致"
+  ]
+}

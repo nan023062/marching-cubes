@@ -1,0 +1,24 @@
+{
+  "name": "build-system",
+  "workspaceType": "csharp-unity",
+  "summary": "地形改造 + 3D 建造综合演示：BuildingManager 状态机协调 TerrainState（地形刷）与 BuildState（方块建造），BuildingConst 保证双子模块 unit 对齐",
+  "workspace": ["Assets/MarchingCubes/Sample/BuildSystem"],
+  "dependencies": [
+    { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" },
+    { "target": "marching-cubes/runtime/marching-squares", "type": "Association" }
+  ],
+  "submodules": ["terrain", "structure"],
+  "boundary": "semi-open",
+  "publicApi": [
+    "BuildingManager — 建造系统总管（MonoBehaviour + 状态机，Singleton）：SwitchTo(BuildMode) / CurrentMode / Awake 统一注入尺寸",
+    "BuildingConst — 共享常量：Unit(uint=4) / TerrainMaxHeightDiff(int=3)，两子模块 unit 对齐的唯一真相源",
+    "IBuildState — 状态机接口：OnEnter / OnExit / OnUpdate / OnGUI",
+    "BuildMode — 状态枚举：Terrain / Build"
+  ],
+  "constraints": [
+    "BuildingConst.Unit 是 terrain 和 structure 子模块 unit 对齐的唯一真相源：MqTerrainBuilder.unit = 1f / Unit，McStructure.unit = Unit",
+    "子模块之间无直接代码依赖——协同通过 BuildingManager 状态机 + 场景坐标系编排",
+    "MqTerrainBuilder.MaxHeightDiff 由 BuildingConst.TerrainMaxHeightDiff * BuildingConst.Unit 初始化",
+    "TerrainState 与 BuildState 均实现 IBuildState，IBuildState 定义在此父模块根目录"
+  ]
+}

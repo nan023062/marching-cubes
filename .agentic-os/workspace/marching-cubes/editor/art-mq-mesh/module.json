@@ -1,0 +1,18 @@
+{
+  "name": "art-mq-mesh",
+  "workspaceType": "csharp-unity",
+  "summary": "MQ case prefab 编辑器工具：MQMeshConfigEditor 从 16 个独立 FBX 批量生成 16 个地形 tile prefab",
+  "workspace": ["Assets/MarchingCubes/Editor/ArtMqMesh"],
+  "dependencies": [
+    { "target": "marching-cubes/runtime/marching-squares", "type": "Association" }
+  ],
+  "boundary": "closed",
+  "publicApi": [
+    "MQMeshConfigEditor — [CustomEditor(MqMeshConfig)] Inspector：从 16 个独立 FBX（mq_case_N.fbx）生成 16 个 tile prefab，case 15（全高）复用 case 0 的 FBX"
+  ],
+  "constraints": [
+    "MQ 不做 D4 对称归约：Mesh 几何 + 纹理 UV 双重组合要求 16 个独立 FBX，D4 旋转导致 UV 方向错误",
+    "case 15（全高平 quad）复用 case 0 的 FBX（fbxCase=(ci==15)?0:ci），直接实例化不做旋转",
+    "MQFbxPostprocessor.cs 已废弃合并入 art-mc-mesh/ArtMeshFbxPostprocessor.cs"
+  ]
+}

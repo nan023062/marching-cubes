@@ -1,0 +1,14 @@
+{
+  "name": "runtime",
+  "workspaceType": "csharp-unity",
+  "summary": "Marching Cubes/Squares 运行时算法库及第三人称控制器，提供纯 C# 核心算法和通用场景组件",
+  "workspace": ["Assets/MarchingCubes/Runtime"],
+  "dependencies": [],
+  "submodules": ["marching-cubes", "marching-squares", "thirdc"],
+  "boundary": "semi-open",
+  "publicApi": [],
+  "constraints": [
+    "Runtime 核心（marching-cubes / marching-squares）必须保持纯 C# 类，无 MonoBehaviour 依赖，可脱离 Unity 场景独立测试",
+    "子模块间无直接代码依赖：marching-cubes 与 marching-squares 完全独立，thirdc 不依赖二者"
+  ]
+}

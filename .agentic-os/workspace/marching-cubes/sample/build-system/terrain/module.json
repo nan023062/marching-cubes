@@ -1,0 +1,26 @@
+{
+  "name": "terrain",
+  "workspaceType": "csharp-unity",
+  "summary": "MQ 地形层：MqTerrain MonoBehaviour 薄壳 + MqTerrainBuilder 纯 C# 核心（格点+碰撞 mesh+tile 管理）+ MqMeshConfig prefab 配置 + Brush 笔刷 + TerrainState 刷绘交互",
+  "workspace": ["Assets/MarchingCubes/Sample/BuildSystem/Terrain"],
+  "dependencies": [
+    { "target": "marching-cubes/runtime/marching-squares", "type": "Association" }
+  ],
+  "boundary": "semi-open",
+  "publicApi": [
+    "MqTerrain — MonoBehaviour 薄壳：Init(renderWidth,renderDepth,heightRange,config) / BrushMapHigh(delta) / PaintTerrainType(type) / SetBrushVisible(visible) / TextureLayer / Builder / Brush",
+    "MqTerrainBuilder — 纯 C# 核心：持有 Point[,] + colliderMesh + Tile[,]，管理笔刷和 tile 生命周期；BrushMapHigh / PaintTerrainType / RefreshAllTiles / GetPointHeight / localToWorld / worldToLocal / MaxHeightDiff",
+    "MqMeshConfig — 16 槽直接映射 ScriptableObject：GetPrefab(0-15) / SetPrefab",
+    "Brush — 笔刷 MonoBehaviour：Size 属性 / colorBrush 标志",
+    "TerrainState — IBuildState 实现：封装刷绘 UI（高度/涂色切换 + 地形类型选择）+ 鼠标交互逻辑"
+  ],
+  "constraints": [
+    "MqTerrainBuilder 是纯 C# 类，无 MonoBehaviour 依赖，可脱离 Unity 场景独立测试",
+    "Point.high 运行时 clamp 到 -64~64（SetPointHeightDelta 硬约束，sbyte 声明范围更大）",
+    "MqMeshConfig 不做 D4 归约：16 个独立 prefab，旋转导致 UV 方向错误",
+    "MqTable.GetMeshCase() 以四角高度最小值为 base，超过 base 的角点 bit=1",
+    "ApplyTileTerrainColors 通过 MaterialPropertyBlock 注入 _T0~_T3（四角 terrainType），不烘焙到 prefab",
+    "colliderMesh 顶点格式：(x + length*z)*6，每格 6 顶点不共享，高度更新只修改 Y 分量",
+    "TerrainState 在 OnUpdate 中去重：仅在 firstPress 或 mouseMoved 时刷绘，避免每帧重复触发"
+  ]
+}

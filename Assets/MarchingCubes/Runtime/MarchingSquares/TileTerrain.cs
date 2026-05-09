@@ -20,9 +20,9 @@ namespace MarchingSquares
 
         public Mesh mesh;
 
-        private ISquareTerrainReceiver _receiver;
+        private ITileTerrainReceiver _receiver;
 
-        public TileTerrain(int width, int length, ISquareTerrainReceiver receiver = null)
+        public TileTerrain(int width, int length, ITileTerrainReceiver receiver = null)
         {
             Width    = width;
             Length   = length;

@@ -1,0 +1,17 @@
+{
+  "name": "generate-sphere",
+  "workspaceType": "csharp-unity",
+  "summary": "MC 球形演示：用平面 mesh CubeMesh 在编辑时/运行时生成球体等值面，实现 IMarchingCubeReceiver 接口，OnValidate 驱动实时预览",
+  "workspace": ["Assets/MarchingCubes/Sample/GenerateSphere"],
+  "dependencies": [
+    { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" }
+  ],
+  "boundary": "closed",
+  "publicApi": [
+    "GenerationSphereSample — MonoBehaviour（IMarchingCubeReceiver）：x/y/z 格数 + radius 参数，OnValidate 驱动实时重建"
+  ],
+  "constraints": [
+    "iso = maxDis - distance(center, point)；isoLevel = maxDis - radius；IsoPass = iso > isoLevel",
+    "使用 CubeMesh（平面 mesh），与 smooth-cube-mesh（CubeMeshSmooth）形成对比"
+  ]
+}

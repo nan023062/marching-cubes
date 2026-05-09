@@ -91,9 +91,9 @@ namespace MarchingSquares
     // ── 接收器接口 ───────────────────────────────────────────────────────────
 
     /// <summary>
-    /// SquareTerrain mesh 生成完成通知接口（类比 IMarchingCubeReceiver）。
+    /// TileTerrain mesh 生成完成通知接口（类比 IMarchingCubeReceiver）。
     /// </summary>
-    public interface ISquareTerrainReceiver
+    public interface ITileTerrainReceiver
     {
         /// <summary>Rebuild() 完成后回调，用于同步 MeshFilter / MeshCollider。</summary>
         void OnRebuildCompleted(Mesh mesh);

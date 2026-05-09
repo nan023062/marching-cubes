@@ -1,0 +1,17 @@
+{
+  "name": "editor",
+  "workspaceType": "csharp-unity",
+  "summary": "MC/MQ 编辑器扩展工具集：Unity Editor Inspector/Window + Blender DCC Add-on，为运行时模块提供 prefab 构建、贴图生成和 DCC 工作流",
+  "workspace": ["Assets/MarchingCubes/Editor"],
+  "dependencies": [
+    { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" },
+    { "target": "marching-cubes/runtime/marching-squares", "type": "Association" }
+  ],
+  "submodules": ["art-mc-mesh", "art-mq-mesh", "art-mq-texture", "blender"],
+  "boundary": "closed",
+  "publicApi": [],
+  "constraints": [
+    "Editor 代码必须用 #if UNITY_EDITOR 或放在 Editor/ 目录下，不污染运行时构建",
+    "Blender Add-on 产出 FBX，Unity Editor 工具消费 FBX 生成 prefab，单向数据流"
+  ]
+}

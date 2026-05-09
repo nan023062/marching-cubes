@@ -1,0 +1,27 @@
+{
+  "name": "structure",
+  "workspaceType": "csharp-unity",
+  "summary": "MC 3D 建造层：McStructure MonoBehaviour 薄壳 + McStructureBuilder 格点建造核心 + BuildState 交互逻辑 + PointElement 系列交互点组件 + CasePrefabConfig 抽象 prefab 配置",
+  "workspace": ["Assets/MarchingCubes/Sample/BuildSystem/Structure"],
+  "dependencies": [
+    { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" }
+  ],
+  "boundary": "semi-open",
+  "publicApi": [
+    "McStructure — MonoBehaviour 薄壳（参数配置 + 委托桥）：Init / GetMesh(cubeIndex) / SetBuildHandlers / OnClicked / SwitchConfig / RenderWidth / BuildHeight / RenderDepth / pointCubePrefab / pointQuadPrefab",
+    "McStructureBuilder — 纯 C# 格点建造核心：SetPointStatus(x,y,z,bool) / RefreshAllMeshes / X / Y / Z",
+    "BuildState — IBuildState 实现：方块建造/拆除交互 + GUI Config 选择 + SyncWithTerrain(MqTerrainBuilder)",
+    "CasePrefabConfig — prefab 配置抽象基类（ScriptableObject）：GetPrefab(int caseIndex)",
+    "D4FbxCaseConfig — 53 canonical FBX + D4 对称归约生成 255 prefab",
+    "IosMeshCaseConfig — 256 mesh 直接 1:1 生成 256 prefab",
+    "PointElement / PointCube / PointQuad — 交互点组件（MonoBehaviour）"
+  ],
+  "constraints": [
+    "McStructureBuilder 是纯 C# 类，无 MonoBehaviour 依赖，可脱离 Unity 场景独立测试",
+    "Point.iso 阈值为 0.5f：iso > 0.5f 视为实心顶点",
+    "case 0（全空）和 case 255（全实）GetPrefab 返回 null，不生成网格",
+    "McStructure.unit 是 uint（整数边长），统一由 BuildingConst.Unit 决定",
+    "McStructure 不声明 IMeshStore 接口，功能等价：GetMesh(cubeIndex) 内联实现，由 McStructureBuilder 持有 McStructure 引用直接调用",
+    "交互逻辑（SetPointStatus / 点击处理）已从 McStructure 迁移到 BuildState，McStructure 只提供 Init + Config + 委托桥（SetBuildHandlers）"
+  ]
+}

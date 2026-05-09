@@ -1,0 +1,17 @@
+{
+  "name": "art-mq-texture",
+  "workspaceType": "csharp-unity",
+  "summary": "MQ 地形贴图生成器：为 5 种地形类型程序化生成 Texture2DArray（base + overlay）、悬崖贴图/网格、Splatmap 材质和 CliffWall 材质",
+  "workspace": ["Assets/MarchingCubes/Editor/ArtMqTexture"],
+  "dependencies": [],
+  "boundary": "closed",
+  "publicApi": [
+    "MSQTextureGenerator.GenerateSplatmapTextures() — 菜单命令（Assets/Create/MarchingSquares/Gen Splatmap Textures）：生成 terrain_base.asset / terrain_overlay.asset / SplatmapTerrain.mat / CliffWall.mat / cliff_level1.asset / cliff_level2.asset"
+  ],
+  "constraints": [
+    "5 种地形类型固定顺序：0=泥(dirt) 1=草(grass) 2=岩(rock) 3=雪(snow) 4=腐(corrupted)，与 MqTerrainBuilder.TerrainTypeCount=5 对应",
+    "输出目录硬编码为 Assets/MarchingSquares/Sample/Resources/（注意与主目录 MarchingCubes 不同）",
+    "贴图生成使用可平铺 Perlin Noise（TileableNoise），保证无缝衔接",
+    "overlay Texture2DArray 为 16 个 tile 的 atlas（4×4 grid，每 tile 64×64），对应 MQ 16 种 case"
+  ]
+}

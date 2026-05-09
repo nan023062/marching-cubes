@@ -2,13 +2,13 @@
   "type": "code",
   "name": "marching-cubes-repo",
   "workspaceType": "unity-project",
-  "summary": "Unity 体素/等值面算法示例仓库，包含 Marching Cubes、Marching Squares、Mine Oasis（DOTS/ECS）和 Dual Contouring 四个独立算法系统",
+  "summary": "Unity 体素/等值面算法示例仓库，包含 Marching Cubes（含 MQ 地形 + 建造系统）、Mine Oasis（DOTS/ECS）和 Dual Contouring 三个顶层系统",
   "workspace": ["."],
   "dependencies": [],
   "boundary": "semi-open",
   "publicApi": [],
   "constraints": [
-    "四个子系统各自独立，命名空间互不交叉",
+    "三个顶层系统各自独立，命名空间互不交叉",
     "MineOasis 依赖 Unity Entities 1.x（DOTS）包",
     "项目处于 Unity 版本迁移中，C# 语法需兼容旧版编译器（禁用 C# 10+ 目标类型推断 new()、HashCode.Combine 等）"
   ]

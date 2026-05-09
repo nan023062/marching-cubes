@@ -1,0 +1,21 @@
+{
+  "name": "art-mc-mesh",
+  "workspaceType": "csharp-unity",
+  "summary": "MC case prefab 编辑器工具集：D4 FBX 归约构建（255 prefab）、IOS mesh 直接映射构建（256 prefab）、程序化 case mesh 生成（算法插槽可替换）、FBX 导入后处理",
+  "workspace": ["Assets/MarchingCubes/Editor/ArtMcMesh"],
+  "dependencies": [
+    { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" }
+  ],
+  "boundary": "closed",
+  "publicApi": [
+    "D4FbxCaseConfigEditor — [CustomEditor(D4FbxCaseConfig)] Inspector：批量构建 255 prefab（53 canonical FBX + D4 变换）、case 网格 Gizmos 可视化、Validate 检查",
+    "IosMeshCaseConfigEditor — [CustomEditor(IosMeshCaseConfig)] Inspector：256 mesh asset → 256 prefab 直接映射、Validate 检查",
+    "CaseMeshProceduralGenerator — EditorWindow（菜单：MarchingCubes/Procedural Case Mesh Generator）：算法插槽 CaseMeshBuilderAsset 驱动程序化生成 254 case prefab",
+    "ArtMeshFbxPostprocessor — AssetPostprocessor：对 Assets/MarchingCubes/Sample/Resources 下所有 FBX 统一开启 bakeAxisConversion=true，覆盖 MC 和 MQ 两类 FBX"
+  ],
+  "constraints": [
+    "D4 变换存储方向为 ci→canonical，构建 prefab 时需取逆（non-flip: Inverse(d4)；flip: 变换自逆直接用 d4）",
+    "D4 flip 对应 X 轴镜像：localScale=(-1,1,1)，pivot=(-0.5,0.5,0.5)；non-flip pivot=S_CENTER=(0.5,0.5,0.5)",
+    "ArtMeshFbxPostprocessor 监听路径 Assets/MarchingCubes/Sample/Resources，MC 和 MQ FBX 均在此路径下，无需两个 postprocessor"
+  ]
+}
