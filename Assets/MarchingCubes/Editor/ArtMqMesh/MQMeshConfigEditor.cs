@@ -185,8 +185,9 @@ namespace MarchingCubes.Editor
                 if (fbx == null) { skip++; continue; }
 
                 var root  = new GameObject($"mq_cliff_{ci}");
-                var dbg   = root.AddComponent<MarchingSquares.MqCliffPrefab>();
-                dbg.cliffCase = ci;
+                var dbg   = root.AddComponent<MarchingSquares.MqTilePrefab>();
+                dbg.tileType  = MarchingSquares.TileType.Cliff;
+                dbg.caseIndex = ci;
 
                 var child = (GameObject)PrefabUtility.InstantiatePrefab(fbx, root.transform);
                 child.transform.localPosition = Vector3.zero;

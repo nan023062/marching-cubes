@@ -190,7 +190,7 @@ namespace MarchingSquares
 
             // Debug 组件：记录 case index 和 base 高度，Editor Gizmos 可视化
             var dbg = tile.GetComponent<MqTilePrefab>();
-            if (dbg != null) { dbg.caseIndex = caseIndex; dbg.baseHeight = baseH; }
+            if (dbg != null) { dbg.tileType = TileType.Terrain; dbg.caseIndex = caseIndex; dbg.baseHeight = baseH; }
 
             _tiles[x, z] = tile;
         }
@@ -285,8 +285,8 @@ namespace MarchingSquares
             tile.transform.localRotation = Quaternion.identity;
             tile.transform.localScale    = Vector3.one;
 
-            var dbg = tile.GetComponent<MqCliffPrefab>();
-            if (dbg != null) { dbg.cliffCase = cliffCase; dbg.baseHeight = baseH - 1; }
+            var dbg = tile.GetComponent<MqTilePrefab>();
+            if (dbg != null) { dbg.tileType = TileType.Cliff; dbg.caseIndex = cliffCase; dbg.baseHeight = baseH - 1; }
 
             _cliffTiles[cx, cz] = tile;
         }
