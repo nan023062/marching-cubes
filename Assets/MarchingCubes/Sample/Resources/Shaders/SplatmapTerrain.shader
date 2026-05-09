@@ -2,7 +2,7 @@ Shader "MarchingSquares/SplatmapTerrain"
 {
     Properties
     {
-        _BaseArray    ("Base Textures",   2DArray) = "" {}
+        _BaseTex      ("Base Texture",    2D)      = "white" {}
         _OverlayArray ("Overlay Atlases", 2DArray) = "" {}
         _Tiling       ("Base Tiling",     Float)   = 1
 
@@ -30,7 +30,7 @@ Shader "MarchingSquares/SplatmapTerrain"
             #include "UnityCG.cginc"
             #include "Lighting.cginc"
 
-            UNITY_DECLARE_TEX2DARRAY(_BaseArray);
+            sampler2D _BaseTex;
             UNITY_DECLARE_TEX2DARRAY(_OverlayArray);
 
             sampler2D _TerrainPointTex;
@@ -99,8 +99,8 @@ Shader "MarchingSquares/SplatmapTerrain"
                 float t0, t1, t2, t3;
                 SampleCornerTypes(_TerrainPointTexST.xy, t0, t1, t2, t3);
 
-                // ── 2. 基础层固定 type 0，无需 min 比较 ─────────────────────────
-                fixed4 col = UNITY_SAMPLE_TEX2DARRAY(_BaseArray, float3(i.baseUV, 0));
+                // ── 2. 基础层：单张固定纹理，不动态切换 ─────────────────────────
+                fixed4 col = tex2D(_BaseTex, i.baseUV);
 
                 // ── 3. 叠加层 type 1~4（共 4 层，覆盖全部 5 种地形类型）────────
                 float2 lUV = i.localUV;
