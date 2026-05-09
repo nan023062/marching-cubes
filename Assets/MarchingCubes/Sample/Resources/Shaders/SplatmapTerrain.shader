@@ -77,8 +77,8 @@ Shader "MarchingSquares/SplatmapTerrain"
                 float2 aUV = float2((b0 + b1 * 2 + lUV.x) * 0.25,
                                     (b2 + b3 * 2 + lUV.y) * 0.25);
 
-                // min 防越界；b 全 0 时采样 case 0（Atlas 设计保证 alpha=0），lerp 自然不变色
-                fixed4 ov = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(aUV, min(ot, 4.0)));
+                // b 全 0 时采样 case 0（Atlas alpha=0），lerp 自然不变色；ot 调用方保证 1-4
+                fixed4 ov = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(aUV, ot));
                 col.rgb = lerp(col.rgb, ov.rgb, ov.a);
                 return col;
             }
@@ -99,15 +99,15 @@ Shader "MarchingSquares/SplatmapTerrain"
                 float t0, t1, t2, t3;
                 SampleCornerTypes(_TerrainPointTexST.xy, t0, t1, t2, t3);
 
-                // ── 2. 基础层 = 四角最小类型 ────────────────────────────────────
-                float baseType = min(min(t0, t1), min(t2, t3));
-                fixed4 col = UNITY_SAMPLE_TEX2DARRAY(_BaseArray, float3(i.baseUV, baseType));
+                // ── 2. 基础层固定 type 0，无需 min 比较 ─────────────────────────
+                fixed4 col = UNITY_SAMPLE_TEX2DARRAY(_BaseArray, float3(i.baseUV, 0));
 
-                // ── 3. 叠加层（最多 3 层）───────────────────────────────────────
+                // ── 3. 叠加层 type 1~4（共 4 层，覆盖全部 5 种地形类型）────────
                 float2 lUV = i.localUV;
-                col = ApplyOverlay(col, baseType + 1, t0, t1, t2, t3, lUV);
-                col = ApplyOverlay(col, baseType + 2, t0, t1, t2, t3, lUV);
-                col = ApplyOverlay(col, baseType + 3, t0, t1, t2, t3, lUV);
+                col = ApplyOverlay(col, 1, t0, t1, t2, t3, lUV);
+                col = ApplyOverlay(col, 2, t0, t1, t2, t3, lUV);
+                col = ApplyOverlay(col, 3, t0, t1, t2, t3, lUV);
+                col = ApplyOverlay(col, 4, t0, t1, t2, t3, lUV);
 
                 // ── 4. Lambert 光照 ──────────────────────────────────────────────
                 float ndl = max(0.2, dot(i.worldNormal, _WorldSpaceLightPos0.xyz));
