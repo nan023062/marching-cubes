@@ -54,7 +54,7 @@ namespace MarchingCubes.Editor
                 "③ 地形材质", _material, typeof(Material), false);
 
             EditorGUILayout.Space(2);
-            if (GUILayout.Button("Build All 16 Case Prefabs", GUILayout.Height(30)))
+            if (GUILayout.Button("Build All 15 Case Prefabs", GUILayout.Height(30)))
                 DoBuild(cfg);
 
             if (!string.IsNullOrEmpty(_log))
