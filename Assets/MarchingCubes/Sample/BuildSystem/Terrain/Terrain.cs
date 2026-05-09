@@ -14,8 +14,6 @@ namespace MarchingSquares
     {
         [SerializeField] private Brush           _brush;
         [SerializeField] private TileCaseConfig  _meshConfig;
-        [SerializeField] private Material        _terrainMaterial;
-        [SerializeField] private Material        _cliffMaterial;
         [SerializeField, Header("涂刷类型 0=泥 1=草 2=岩 3=雪 4=腐"), Range(0, 4)]
         private int _textureLayer = 1;
 
@@ -37,8 +35,7 @@ namespace MarchingSquares
             float unit = 1f / BuildingConst.Unit;
             Builder = new TerrainBuilder(
                 renderWidth, renderDepth, heightRange,
-                unit, transform.position, _meshConfig, transform,
-                _terrainMaterial, _cliffMaterial);
+                unit, transform.position, _meshConfig, transform);
             Builder.MaxHeightDiff = BuildingConst.TerrainMaxHeightDiff * BuildingConst.Unit;
 
             transform.localScale     = Vector3.one * unit;
