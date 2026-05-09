@@ -532,6 +532,11 @@ class MQProperties(bpy.types.PropertyGroup):
         subtype = 'DIR_PATH',
         default = "//mq_cases/",
     )
+    cliff_export_dir: bpy.props.StringProperty(
+        name    = "悬崖导出目录",
+        subtype = 'DIR_PATH',
+        default = "//mq_cliffs/",
+    )
 
 
 # ── Panel ─────────────────────────────────────────────────────────────────────
@@ -583,7 +588,17 @@ class MQ_PT_Panel(bpy.types.Panel):
         box3.prop(props, "arc_strength")
         box3.prop(props, "flat_margin")
         box3.operator("mq.export_all_cases", icon='EXPORT')
-        box3.label(text="导出 mq_case_0..15.fbx（含 UVMap）", icon='INFO')
+        box3.label(text="导出 mq_case_0..18.fbx（含 UVMap）", icon='INFO')
+
+        layout.separator()
+
+        # 5. 悬崖 FBX（D4 旋转，只需 5 个规范 case）
+        box_cliff = layout.box()
+        box_cliff.label(text="5. 悬崖 Case FBX（D4 旋转）", icon='MESH_CUBE')
+        box_cliff.operator("mq.setup_cliff_cases", icon='SCENE_DATA')
+        box_cliff.prop(props, "cliff_export_dir", text="目录")
+        box_cliff.operator("mq.export_cliff_cases", icon='EXPORT')
+        box_cliff.label(text="导出 mq_cliff_1/3/5/7/15.fbx（规范 case，Mesh 中心为原点）", icon='INFO')
 
         layout.separator()
 
@@ -609,6 +624,158 @@ class MQ_PT_Panel(bpy.types.Panel):
             row.label(text=f"{done} [{bits}] Case {c}：{desc}")
 
 
+# ── Cliff operators ───────────────────────────────────────────────────────────
+#
+# 悬崖 case bit mask（与地形 tile 边约定一致）：
+#   bit 0 = E0 南边（Blender Y=-0.5，Unity -Z）
+#   bit 1 = E1 东边（Blender X=+0.5，Unity +X）
+#   bit 2 = E2 北边（Blender Y=+0.5，Unity +Z）
+#   bit 3 = E3 西边（Blender X=-0.5，Unity -X）
+#
+# Mesh 以格子中心为原点（XY∈[-0.5,0.5]，Z∈[0,1]），
+# 导出后 Unity 旋转 Euler(0, 90*rotCount, 0) 派生所有 16 个 case。
+#
+# 规范 case（只需导出这 5 个 FBX）：1 3 5 7 15
+
+CLIFF_CANONICAL = [1, 3, 5, 7, 15]
+
+CLIFF_CASE_NAMES = {
+    0: "无悬崖",
+    1: "南墙",      2: "东墙",      4: "北墙",      8: "西墙",
+    3: "南+东角",   6: "东+北角",  12: "北+西角",   9: "西+南角",
+    5: "南北对穿", 10: "东西对穿",
+    7: "南+东+北", 11: "南+东+西", 13: "南+北+西", 14: "东+北+西",
+    15: "四面（孤岛）",
+}
+
+# 各边的两端顶点在以格子中心为原点的坐标系中（Blender XY，Z=高度）
+# 顶点顺序保证法线向外（面对低侧）
+_CLIFF_WALLS = [
+    ((-0.5, -0.5), (0.5, -0.5)),   # E0 南，法线 -Y
+    ((0.5,  -0.5), (0.5,  0.5)),   # E1 东，法线 +X
+    ((0.5,   0.5), (-0.5, 0.5)),   # E2 北，法线 +Y
+    ((-0.5,  0.5), (-0.5,-0.5)),   # E3 西，法线 -X
+]
+
+CLIFF_COL_NAME = "MQ_ArtMesh_Cliff"
+
+
+def _build_cliff_bm(ci):
+    """生成 cliff case 的 bmesh（垂直墙面，Z 高度 0-1，XY 中心在原点）"""
+    bm = bmesh.new()
+    uv_layer = bm.loops.layers.uv.new("UVMap")
+    for bit, ((x0, y0), (x1, y1)) in enumerate(_CLIFF_WALLS):
+        if not (ci & (1 << bit)):
+            continue
+        v00 = bm.verts.new((x0, y0, 0.0))
+        v10 = bm.verts.new((x1, y1, 0.0))
+        v11 = bm.verts.new((x1, y1, 1.0))
+        v01 = bm.verts.new((x0, y0, 1.0))
+        face = bm.faces.new([v00, v10, v11, v01])
+        for loop, uv in zip(face.loops, [(0, 0), (1, 0), (1, 1), (0, 1)]):
+            loop[uv_layer].uv = uv
+    bm.normal_update()
+    return bm
+
+
+class MQ_OT_SetupCliffCases(bpy.types.Operator):
+    """生成 5 个规范悬崖 case 的参考 mesh（垂直墙面，中心为原点）"""
+    bl_idname = "mq.setup_cliff_cases"
+    bl_label  = "初始化悬崖参考场景"
+
+    def execute(self, context):
+        if CLIFF_COL_NAME in bpy.data.collections:
+            bpy.data.collections.remove(bpy.data.collections[CLIFF_COL_NAME], do_unlink=True)
+
+        root_col = _ensure_col(CLIFF_COL_NAME)
+        MAT_CLIFF = _ensure_mat("mq_cliff_wall", (0.55, 0.25, 0.05), strength=0.9)
+
+        for n, ci in enumerate(CLIFF_CANONICAL):
+            ox = (n % 4) * 2.0
+            oy = (n // 4) * 2.0
+
+            case_col = bpy.data.collections.new(f"cliff_{ci}")
+            root_col.children.link(case_col)
+            if case_col.name in context.scene.collection.children:
+                context.scene.collection.children.unlink(case_col)
+
+            # 标签
+            lbl = bpy.data.curves.new(f"_lbl_cliff_{ci}", type='FONT')
+            lbl.body = f"cliff ci={ci}  {CLIFF_CASE_NAMES.get(ci,'')}"
+            lbl.size = 0.18
+            lbl_obj = bpy.data.objects.new(f"_lbl_cliff_{ci}", lbl)
+            lbl_obj.location = Vector((ox - 0.5, oy - 0.6, 1.2))
+            lbl_obj.hide_select = True
+            lbl_obj.lock_location = lbl_obj.lock_rotation = lbl_obj.lock_scale = (True, True, True)
+            case_col.objects.link(lbl_obj)
+            if lbl_obj.name in context.scene.collection.objects:
+                context.scene.collection.objects.unlink(lbl_obj)
+
+            # Cliff mesh（以原点为中心，偏移到网格位置）
+            bm = _build_cliff_bm(ci)
+            for v in bm.verts:
+                v.co.x += ox + 0.5
+                v.co.y += oy + 0.5
+            mesh = bpy.data.meshes.new(f"cliff_ref_{ci}")
+            bm.to_mesh(mesh); bm.free()
+            mesh.materials.append(MAT_CLIFF)
+            obj = bpy.data.objects.new(f"cliff_ref_{ci}", mesh)
+            case_col.objects.link(obj)
+            if obj.name in context.scene.collection.objects:
+                context.scene.collection.objects.unlink(obj)
+
+        self.report({'INFO'}, f"悬崖参考场景已生成：{len(CLIFF_CANONICAL)} 个规范 case")
+        return {'FINISHED'}
+
+
+class MQ_OT_ExportCliffCases(bpy.types.Operator):
+    """导出 5 个规范悬崖 case FBX（mq_cliff_1/3/5/7/15.fbx，Mesh 中心为格子原点）"""
+    bl_idname = "mq.export_cliff_cases"
+    bl_label  = "批量导出悬崖 FBX"
+
+    def execute(self, context):
+        import os
+        props   = context.scene.mq_props
+        out_dir = bpy.path.abspath(props.cliff_export_dir)
+        if not out_dir:
+            self.report({'ERROR'}, "请先设置悬崖导出目录。")
+            return {'CANCELLED'}
+        os.makedirs(out_dir, exist_ok=True)
+
+        exported = []
+        for ci in CLIFF_CANONICAL:
+            bm = _build_cliff_bm(ci)
+            mesh = bpy.data.meshes.new(f"_exp_cliff_{ci}")
+            bm.to_mesh(mesh); bm.free()
+            mesh.update()
+
+            exp_obj = bpy.data.objects.new(f"mq_cliff_{ci}", mesh)
+            context.scene.collection.objects.link(exp_obj)
+            bpy.ops.object.select_all(action='DESELECT')
+            exp_obj.select_set(True)
+            context.view_layer.objects.active = exp_obj
+
+            filepath = os.path.join(out_dir, f"mq_cliff_{ci}.fbx")
+            bpy.ops.export_scene.fbx(
+                filepath            = filepath,
+                use_selection       = True,
+                axis_forward        = 'Y',
+                axis_up             = 'Z',
+                apply_scale_options = 'FBX_SCALE_ALL',
+                use_mesh_modifiers  = True,
+                mesh_smooth_type    = 'FACE',
+                add_leaf_bones      = False,
+            )
+            context.scene.collection.objects.unlink(exp_obj)
+            bpy.data.objects.remove(exp_obj)
+            bpy.data.meshes.remove(mesh)
+            exported.append(ci)
+
+        bpy.ops.object.select_all(action='DESELECT')
+        self.report({'INFO'}, f"已导出 {len(exported)} 个规范悬崖 case → {out_dir}")
+        return {'FINISHED'}
+
+
 # ── Registration ──────────────────────────────────────────────────────────────
 
 _MQ_CLASSES = [
@@ -617,5 +784,7 @@ _MQ_CLASSES = [
     MQ_OT_GenerateTerrain,
     MQ_OT_ValidateMesh,
     MQ_OT_ExportAllCases,
+    MQ_OT_SetupCliffCases,
+    MQ_OT_ExportCliffCases,
     MQ_PT_Panel,
 ]

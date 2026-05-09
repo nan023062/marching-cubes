@@ -26,10 +26,11 @@ namespace MarchingSquares
         public readonly Mesh   colliderMesh;
         private readonly Vector3[] _vertices;
 
-        // ── 视觉 Tile（case prefab 实例）────────────────────────────────────
+        // ── 视觉 Tile（地形 + 悬崖 prefab 实例）────────────────────────────────
         private readonly MqMeshConfig  _config;
         private readonly Transform     _parent;
-        private readonly GameObject[,] _tiles; // [length, width]
+        private readonly GameObject[,] _tiles;      // [length, width]
+        private readonly GameObject[,] _cliffTiles; // [length, width]
 
         // 4 方向：只约束上下左右相邻点，对角点高差最大为 2，由 case 15-18 专门处理
         private static readonly (int dx, int dz)[] _neighbors4 =
@@ -47,10 +48,11 @@ namespace MarchingSquares
             localToWorld = Matrix4x4.TRS(worldPosition, Quaternion.identity, Vector3.one * unit);
             worldToLocal = localToWorld.inverse;
 
-            _config = config;
-            _parent = parent;
-            _points = new Point[length + 1, width + 1];
-            _tiles  = new GameObject[length, width];
+            _config     = config;
+            _parent     = parent;
+            _points     = new Point[length + 1, width + 1];
+            _tiles      = new GameObject[length, width];
+            _cliffTiles = new GameObject[length, width];
 
             // 碰撞 Mesh：只存顶点位置，不含 UV / 颜色
             int totalVertex = length * width * 2 * 3;
@@ -138,17 +140,29 @@ namespace MarchingSquares
         {
             for (int x = 0; x < length; x++)
             for (int z = 0; z < width; z++)
+            {
                 RefreshTile(x, z);
+                RefreshCliffTile(x, z);
+            }
         }
 
         public void RefreshAffectedTiles(int px, int pz)
         {
+            // 地形 tile：2×2 cells 范围
             for (int dx = -1; dx <= 0; dx++)
             for (int dz = -1; dz <= 0; dz++)
             {
                 int cx = px + dx, cz = pz + dz;
                 if (cx >= 0 && cx < length && cz >= 0 && cz < width)
                     RefreshTile(cx, cz);
+            }
+            // 悬崖 tile：4×4 cells 范围（cliff case 依赖相邻格 base，需要更大范围）
+            for (int dx = -2; dx <= 1; dx++)
+            for (int dz = -2; dz <= 1; dz++)
+            {
+                int cx = px + dx, cz = pz + dz;
+                if (cx >= 0 && cx < length && cz >= 0 && cz < width)
+                    RefreshCliffTile(cx, cz);
             }
         }
 
@@ -225,6 +239,52 @@ namespace MarchingSquares
             x = Mathf.Clamp(x, 0, length);
             z = Mathf.Clamp(z, 0, width);
             return _points[x, z].terrainType;
+        }
+
+        // ── 悬崖 Tile ─────────────────────────────────────────────────────────
+
+        private int GetCellBaseHeight(int cx, int cz)
+        {
+            int h = _points[cx, cz].high;
+            if (_points[cx + 1, cz    ].high < h) h = _points[cx + 1, cz    ].high;
+            if (_points[cx + 1, cz + 1].high < h) h = _points[cx + 1, cz + 1].high;
+            if (_points[cx,     cz + 1].high < h) h = _points[cx,     cz + 1].high;
+            return h;
+        }
+
+        private int GetCliffCase(int cx, int cz, out int baseH)
+        {
+            baseH = GetCellBaseHeight(cx, cz);
+            int ci = 0;
+            if (cz > 0       && baseH > GetCellBaseHeight(cx,     cz - 1)) ci |= 1; // E0 南
+            if (cx < length-1 && baseH > GetCellBaseHeight(cx + 1, cz    )) ci |= 2; // E1 东
+            if (cz < width-1  && baseH > GetCellBaseHeight(cx,     cz + 1)) ci |= 4; // E2 北
+            if (cx > 0        && baseH > GetCellBaseHeight(cx - 1, cz    )) ci |= 8; // E3 西
+            return ci;
+        }
+
+        private void RefreshCliffTile(int cx, int cz)
+        {
+            if (_cliffTiles[cx, cz] != null)
+            {
+                Object.Destroy(_cliffTiles[cx, cz]);
+                _cliffTiles[cx, cz] = null;
+            }
+            if (_config == null) return;
+
+            int cliffCase = GetCliffCase(cx, cz, out int baseH);
+            if (cliffCase == 0) return;
+
+            var prefab = _config.GetCliffPrefab(cliffCase) ?? _config.GetCliffPrefab(0);
+            if (prefab == null) return;
+
+            var tile = Object.Instantiate(prefab);
+            tile.transform.SetParent(_parent);
+            // 悬崖 Mesh 以格子 XZ 中心为原点，放在格子 baseH-1 高度（低侧地面）
+            tile.transform.localPosition = new Vector3(cx + 0.5f, baseH - 1, cz + 0.5f);
+            tile.transform.localRotation = Quaternion.identity;
+            tile.transform.localScale    = Vector3.one;
+            _cliffTiles[cx, cz] = tile;
         }
 
         // ── Gizmos ────────────────────────────────────────────────────────────
