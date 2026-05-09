@@ -171,6 +171,11 @@ namespace MarchingSquares
             tile.transform.localScale    = Vector3.one;
 
             ApplyTileTerrainColors(tile, x, z);
+
+            // Debug 组件：记录 case index 和 base 高度，Editor Gizmos 可视化
+            var dbg = tile.GetComponent<MqTilePrefab>();
+            if (dbg != null) { dbg.caseIndex = caseIndex; dbg.baseHeight = baseH; }
+
             _tiles[x, z] = tile;
         }
 
