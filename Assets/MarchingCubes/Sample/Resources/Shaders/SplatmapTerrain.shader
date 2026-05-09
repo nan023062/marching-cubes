@@ -63,18 +63,22 @@ Shader "MarchingSquares/SplatmapTerrain"
                 t3 = round(c.a * 4.0);  // TL
             }
 
-            // 计算一层 overlay 并叠加到 col
+            // 计算一层 overlay 并叠加到 col（全无分支）
             fixed4 ApplyOverlay(fixed4 col, float ot,
                                 float t0, float t1, float t2, float t3,
                                 float2 lUV)
             {
-                if (ot > 4 || (t0 < ot && t1 < ot && t2 < ot && t3 < ot))
-                    return col;
-                int mask = (t0 >= ot ? 1 : 0) | (t1 >= ot ? 2 : 0)
-                         | (t2 >= ot ? 4 : 0) | (t3 >= ot ? 8 : 0);
-                float2 aUV = float2((mask % 4 + lUV.x) * 0.25,
-                                    (mask / 4 + lUV.y) * 0.25);
-                fixed4 ov = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(aUV, ot));
+                // step(a,b)=1 when b>=a，替代所有 >=? 1:0 分支
+                float b0 = step(ot, t0), b1 = step(ot, t1);
+                float b2 = step(ot, t2), b3 = step(ot, t3);
+
+                // mask%4 = b0 + b1*2（Atlas 列），mask/4 = b2 + b3*2（Atlas 行）
+                // 直接用浮点加法算 Atlas UV，省去 int/% / 运算
+                float2 aUV = float2((b0 + b1 * 2 + lUV.x) * 0.25,
+                                    (b2 + b3 * 2 + lUV.y) * 0.25);
+
+                // min 防越界；b 全 0 时采样 case 0（Atlas 设计保证 alpha=0），lerp 自然不变色
+                fixed4 ov = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(aUV, min(ot, 4.0)));
                 col.rgb = lerp(col.rgb, ov.rgb, ov.a);
                 return col;
             }
