@@ -54,6 +54,7 @@ namespace MarchingCubes.Sample
         public void OnUpdate()
         {
             var brush = _sample.Brush;
+            if (brush == null || Camera.main == null) return;
             Transform t = brush.transform;
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
 
@@ -84,20 +85,23 @@ namespace MarchingCubes.Sample
                 return;
             }
             var mousePos    = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
-            bool firstPress = !_mouseWasDown;           // release 后首次按下
-            bool mouseMoved = mousePos != _lastMousePos; // 屏幕坐标有变化
-            if (!firstPress && !mouseMoved) return;
+            bool firstPress = !_mouseWasDown;
+            bool mouseMoved = mousePos != _lastMousePos;
             _mouseWasDown = true;
             _lastMousePos = mousePos;
 
             bool dirty;
             if (brush.colorBrush)
             {
+                // 纹理刷：支持长按连续刷，鼠标不动则跳过
+                if (!firstPress && !mouseMoved) return;
                 int type = Input.GetMouseButton(0) ? _sample.TextureLayer : 0;
                 dirty = _sample.PaintTerrainType(type);
             }
             else
             {
+                // 高度刷：仅单点触发，不支持长按
+                if (!firstPress) return;
                 int delta = Input.GetMouseButton(0) ? 1 : -1;
                 dirty = _sample.BrushMapHigh(delta);
             }
