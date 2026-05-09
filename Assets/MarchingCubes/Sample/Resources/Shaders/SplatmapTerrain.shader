@@ -2,8 +2,8 @@ Shader "MarchingSquares/SplatmapTerrain"
 {
     Properties
     {
+        _BaseTex      ("Base Texture",    2D)      = "white" {}
         _OverlayArray ("Overlay Atlases", 2DArray) = "" {}
-        // index 0 = base 纹理（全图平铺），index 1-4 = 叠加层 Atlas（4×4 16-case）
         _Tiling       ("Base Tiling",     Float)   = 1
 
         // ── Per-tile，由 MaterialPropertyBlock 注入（不在 Inspector 显示）──────
@@ -30,6 +30,7 @@ Shader "MarchingSquares/SplatmapTerrain"
             #include "UnityCG.cginc"
             #include "Lighting.cginc"
 
+            sampler2D _BaseTex;
             UNITY_DECLARE_TEX2DARRAY(_OverlayArray);
 
             sampler2D _TerrainPointTex;
@@ -98,8 +99,8 @@ Shader "MarchingSquares/SplatmapTerrain"
                 float t0, t1, t2, t3;
                 SampleCornerTypes(_TerrainPointTexST.xy, t0, t1, t2, t3);
 
-                // ── 2. 基础层：OverlayArray[0] 全图平铺，无需独立属性 ────────────
-                fixed4 col = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(i.baseUV, 0));
+                // ── 2. 基础层：全图平铺底色，保证无缝，overlay alpha 覆盖在上 ────
+                fixed4 col = tex2D(_BaseTex, i.baseUV);
 
                 // ── 3. 叠加层 type 1~4（共 4 层，覆盖全部 5 种地形类型）────────
                 float2 lUV = i.localUV;
