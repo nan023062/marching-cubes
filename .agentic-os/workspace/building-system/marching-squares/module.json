@@ -1,29 +1,35 @@
 {
   "name": "marching-squares",
   "workspaceType": "csharp-unity",
-  "summary": "2.5D Marching Squares 地形系统，支持高度场笔刷雕刻、地形类型混合（splatmap）和悬崖壁面独立网格生成",
+  "summary": "2.5D Marching Squares 地形系统：算法基础层（Runtime/mq）+ prefab tile 管理器（MqTerrainBuilder）+ MonoBehaviour 薄壳（MqTerrain）",
   "workspace": [
-    "Assets/MarchingCubes/Runtime/mq",
-    "Assets/MarchingCubes/Sample/McStructure/MarchingQuad25Sample.cs"
+    "Assets/MarchingCubes/Runtime/MarchingSquares",
+    "Assets/MarchingCubes/Sample/BuildSystem/Terrain"
   ],
   "dependencies": [],
   "boundary": "semi-open",
   "publicApi": [
-    "MSQTerrain — 地形主类（partial：MSQTerrain.cs + Chunk.cs）",
-    "MSQTerrain.Point — 数据点（high:sbyte + terrainType:byte）",
-    "MSQTerrain.BrushMapHigh(Brush, int) — 高度刷绘，返回 dirty",
-    "MSQTerrain.PaintTerrainType(Brush, int) — 地形类型刷绘，返回 dirty",
-    "MSQTerrain.RebuildCliffMesh() — 强制重建悬崖网格",
-    "MSQTerrain.mesh — 地形 Mesh（预分配顶点，只更新 UV/Color）",
-    "MSQTerrain.cliffMesh — 悬崖壁面 Mesh（动态 List 构建）",
-    "MSQTerrain.localToWorld / worldToLocal — 坐标变换矩阵",
+    "MqTerrain — MonoBehaviour 薄壳（类比 McStructure）：Init/BrushMapHigh/PaintTerrainType/SetBrushVisible",
+    "MqTerrainBuilder — 纯C# 核心（类比 McStructureBuilder）：持有 Point[,] + colliderMesh + Tile[,]，管理笔刷和 tile 生命周期",
+    "MqTerrainBuilder.BrushMapHigh(Brush, int) — 高度刷绘，返回 dirty",
+    "MqTerrainBuilder.PaintTerrainType(Brush, int) — 地形类型刷绘（只更新 MaterialPropertyBlock），返回 dirty",
+    "MqTerrainBuilder.RefreshAllTiles() — 全量重建 tile 实例",
+    "MqTerrainBuilder.colliderMesh — 碰撞 Mesh（预分配顶点，高度刷绘后更新）",
+    "MqTerrainBuilder.localToWorld / worldToLocal — 坐标变换矩阵",
+    "MqMeshConfig — 16槽直接映射 ScriptableObject：GetPrefab(0-15) / SetPrefab",
+    "MqTable — 全局静态映射表：GetMeshCase() / GetTextureCase() / GetTerrainLayers()",
+    "TileTerrain — 程序化连续 mesh 生成器（快速原型用，类比 CubeMesh）：Rebuild() / RebuildHeightOnly()",
+    "Tile.cs 中的公开类型 — TileVertex/TileVertexMask/TileEdge/TilePoint/TileVertex2D/TileTriangle/ISquareTerrainReceiver",
+    "MqTilePrefab — tile prefab 调试组件：caseIndex / baseHeight / Gizmos",
     "Brush — 笔刷 MonoBehaviour（Size 属性 + colorBrush 标志）"
   ],
   "constraints": [
-    "MSQTerrain 是 partial class，必须同时编译 MSQTerrain.cs 和 Chunk.cs",
-    "Point.high 运行时 clamp 到 -64~64（DetectChunkUpdated 硬约束，声明类型 sbyte 范围更大）",
-    "纹理系统已从 tile-atlas 迁移为 splatmap（uv0 格坐标；uv1~uv3 MS case index；Color32 地形类型编码）",
-    "TerrainTypeCount = 5（泥/草/岩/雪/腐），EncodeType(t) = t * 51（byte 0/51/102/153/204）",
-    "悬崖网格（cliffMesh）必须挂载到独立子 GameObject 的 MeshRenderer，不可与地形 mesh 共用"
+    "MqTerrainBuilder 是纯 C# 类，无 MonoBehaviour 依赖，可脱离 Unity 场景独立测试",
+    "Point.high 运行时 clamp 到 -64~64（SetPointHeightDelta 硬约束，sbyte 声明范围更大）",
+    "TerrainTypeCount = 5（泥/草/岩/雪/腐）",
+    "MqMeshConfig 不使用 D4 对称归约：Mesh 几何 + 纹理 UV 双重组合要求 16 个独立 prefab，D4 旋转导致 UV 方向错误",
+    "MqTable.GetMeshCase() 以四角高度最小值为 base，超过 base 的角点 bit=1，共 16 种 case",
+    "ApplyTileTerrainColors 通过 MaterialPropertyBlock 注入 _T0~_T3（四角 terrainType），不烘焙到 prefab 本身",
+    "colliderMesh 顶点格式：(x + length*z)*6，每格 6 顶点不共享，高度更新只修改 Y 分量"
   ]
 }

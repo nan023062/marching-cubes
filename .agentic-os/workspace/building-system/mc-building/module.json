@@ -3,25 +3,27 @@
   "workspaceType": "csharp-unity",
   "summary": "基于 Marching Cubes 的离散格点 3D 建造系统，通过 prefab case 拼合实现实时建造与拆除",
   "workspace": [
-    "Assets/MarchingCubes/Sample/McStructure/mc"
+    "Assets/MarchingCubes/Sample/BuildSystem/Structure"
   ],
   "dependencies": [
     { "target": "marching-cubes", "type": "Association" }
   ],
   "boundary": "semi-open",
   "publicApi": [
-    "McStructure — 3D 建造主控（MonoBehaviour + IMeshStore）",
+    "McStructure — 3D 建造 MonoBehaviour 薄壳（参数配置 + 委托桥，不再实现 IMeshStore 接口，内联实现 GetMesh）",
     "CasePrefabConfig — prefab 配置抽象基类（GetPrefab(int)）",
     "D4FbxCaseConfig — 53 canonical FBX + D4 对称归约生成 255 prefab",
     "IosMeshCaseConfig — 256 mesh 直接 1:1 生成 256 prefab",
-    "McStructureBuilder — 格点建造算法核心（纯 C#，无 MonoBehaviour）",
-    "IMeshStore — 网格供给接口（GetMesh(int) → Instantiated GameObject，定义于 BlockMesh.cs）"
+    "McStructureBuilder — 格点建造算法核心（纯 C#，无 MonoBehaviour，依赖 McStructure.GetMesh）",
+    "PointElement / PointCube / PointQuad — 交互点组件"
   ],
   "constraints": [
     "McStructureBuilder 是纯 C# 类，可脱离 Unity 场景独立测试",
     "Point.iso 阈值为 0.5f：iso > 0.5f 视为实心顶点",
     "case 0（全空）和 case 255（全实）GetPrefab 返回 null，不生成网格",
-    "McStructure.unit 是 uint（整数边长），MSQTerrain.unit 是 float；对齐时 MSQTerrain.unit 必须为正整数值",
-    "prefab 由 IMeshStore.GetMesh 实例化后直接使用，坐标由 McStructureBuilder 设置，不做额外旋转"
+    "McStructure.unit 是 uint（整数边长），与 MqTerrainBuilder.unit（= 1f / BuildingConst.Unit）对齐，统一由 BuildingConst.Unit 决定",
+    "McStructure 不再声明 IMeshStore 接口，但功能等价：GetMesh(cubeIndex) 内联实现，由 McStructureBuilder 持有 McStructure 引用直接调用",
+    "交互逻辑（SetPointStatus / 点击处理）已从 McStructure 自身迁移到 BuildState，McStructure 只提供 Init + Config + 委托桥",
+    "prefab 由 McStructure.GetMesh 实例化后直接使用，坐标由 McStructureBuilder 设置，不做额外旋转"
   ]
 }

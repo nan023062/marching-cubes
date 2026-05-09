@@ -3,8 +3,8 @@
   "workspaceType": "csharp-unity",
   "summary": "地形改造 + 3D 建造的统一建造系统，整合 MQ 地形与 MC 建造两套 Marching 算法",
   "workspace": [
-    "Assets/MarchingCubes/Runtime/mq",
-    "Assets/MarchingCubes/Sample/McStructure"
+    "Assets/MarchingCubes/Runtime/MarchingSquares",
+    "Assets/MarchingCubes/Sample/BuildSystem"
   ],
   "dependencies": [
     { "target": "marching-cubes", "type": "Association" }
@@ -15,11 +15,14 @@
   ],
   "boundary": "semi-open",
   "publicApi": [
-    "MarchingQuad25Sample — 地形改造入口（MonoBehaviour）",
-    "McStructure — 3D 建造入口（MonoBehaviour）"
+    "BuildingManager — 建造系统总管（MonoBehaviour + 状态机，持有 MqTerrain 和 McStructure）",
+    "MqTerrain — MQ 地形 MonoBehaviour 薄壳",
+    "McStructure — MC 3D 建造 MonoBehaviour 薄壳",
+    "BuildingConst — 共享常量（Unit / TerrainMaxHeightDiff）"
   ],
   "constraints": [
-    "两子模块 unit 必须对齐：MSQTerrain.unit(float) 与 McStructure.unit(uint) 数值相同，MSQTerrain.unit 必须为正整数值",
-    "子模块之间无直接代码依赖——协同通过宿主场景坐标系对齐实现"
+    "BuildingConst.Unit 是两子模块 unit 对齐的唯一真相源：MqTerrainBuilder.unit = 1f / Unit，McStructure.unit = Unit",
+    "子模块之间无直接代码依赖——协同通过 BuildingManager 状态机 + 场景坐标系编排",
+    "MqTerrainBuilder.MaxHeightDiff 由 BuildingConst.TerrainMaxHeightDiff * BuildingConst.Unit 初始化"
   ]
 }
