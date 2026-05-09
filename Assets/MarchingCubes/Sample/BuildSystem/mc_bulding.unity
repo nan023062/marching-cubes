@@ -160,8 +160,8 @@ MonoBehaviour:
   _areaWidth: 10
   _areaDepth: 10
   _buildHeight: 5
-  _terrain: {fileID: 518160456}
-  _building: {fileID: 999007710}
+  terrain: {fileID: 518160456}
+  structure: {fileID: 999007710}
   _switchKey: 9
   _initialMode: 1
 --- !u!4 &122453181
@@ -440,7 +440,7 @@ GameObject:
   - component: {fileID: 518160459}
   - component: {fileID: 518160458}
   m_Layer: 3
-  m_Name: MCTerrain
+  m_Name: MqTerrain
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -458,8 +458,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f5c2f9e3a7e04e3295b1ff5ebe2f2ceb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  textureLayer: 0
-  bush: {fileID: 1092352291}
+  _brush: {fileID: 1092352291}
+  _meshConfig: {fileID: 11400000, guid: 295a349e8c284bd47b57497c4094ac90, type: 2}
+  _textureLayer: 1
 --- !u!4 &518160457
 Transform:
   m_ObjectHideFlags: 0
@@ -551,7 +552,7 @@ GameObject:
   - component: {fileID: 999007712}
   - component: {fileID: 999007711}
   m_Layer: 6
-  m_Name: MCBuilding
+  m_Name: McStructure
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

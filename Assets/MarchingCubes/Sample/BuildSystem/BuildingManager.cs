@@ -1,6 +1,5 @@
 using UnityEngine;
 using MarchingSquares;
-using UnityEngine.Serialization;
 
 namespace MarchingCubes.Sample
 {
@@ -18,10 +17,10 @@ namespace MarchingCubes.Sample
         [SerializeField] private int _areaWidth   = 10;
         [SerializeField] private int _areaDepth   = 10;
         [SerializeField] private int _buildHeight  = 5;
-
+        
         [Header("组件引用")]
-        [SerializeField] private MqTerrain   _terrain;
-        [FormerlySerializedAs("_building")] [SerializeField] private McStructure  structure;
+        [SerializeField] private MqTerrain   terrain;
+        [SerializeField] private McStructure  structure;
         [SerializeField] private KeyCode              _switchKey   = KeyCode.Tab;
         [SerializeField] private BuildMode            _initialMode = BuildMode.Build;
 
@@ -36,13 +35,13 @@ namespace MarchingCubes.Sample
             Instance = this;
 
             // 统一注入尺寸，确保地形与建造区域一致
-            _terrain.Init(_areaWidth, _areaDepth, _buildHeight);
+            terrain.Init(_areaWidth, _areaDepth, _buildHeight);
             structure.Init(_areaWidth, _buildHeight, _areaDepth);
 
             var buildState = new BuildState(structure);
             _states = new IBuildState[]
             {
-                new TerrainState(_terrain, () => buildState.SyncWithTerrain(_terrain.Builder)),
+                new TerrainState(terrain, () => buildState.SyncWithTerrain(terrain.Builder)),
                 buildState,
             };
         }
