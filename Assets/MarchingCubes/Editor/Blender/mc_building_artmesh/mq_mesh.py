@@ -78,10 +78,12 @@ def apply_arc(t, arc_s, flat):
     return t2 * (1.0 - arc_s) + t_smooth * arc_s
 
 
-def apply_arc_scaled(hz_lin, max_h, arc_s, flat):
-    """归一化到 [0,1] 后应用 apply_arc，再还原到实际高度范围。"""
-    if max_h <= 0: return 0.0
-    return apply_arc(hz_lin / max_h, arc_s, flat) * max_h
+def bilinear_arc(u, v, h, arc_s, flat):
+    """先对 UV 坐标做 arc，再做双线性插值。
+    使每个高角点产生 flat×flat 正方形平台，而非双曲线三角形。"""
+    ua = apply_arc(u, arc_s, flat)
+    va = apply_arc(v, arc_s, flat)
+    return (1-ua)*(1-va)*h[0] + ua*(1-va)*h[1] + ua*va*h[2] + (1-ua)*va*h[3]
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -252,26 +254,24 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
         mesh_root = _ensure_col(REF_MESH_COL, parent=ref_root)
         MAT_REF   = _ensure_mat("mq_ref_mesh", (0.05, 0.35, 1.00), strength=0.7, alpha=0.7)
         sub       = 8
-        flat      = context.scene.mq_props.flat_margin
+        flat      = 0.25  # 固定平台边距
 
         for n, ci in enumerate(ALL_CASES):
             col_n = n % GRID_COLS
             row_n = n // GRID_COLS
             ox    = col_n * 2.0
             oy    = row_n * 2.0
-            h     = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
-            max_h = max(h) or 1.0
+            h = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
 
             bm2 = bmesh.new()
             gv  = []
             for row in range(sub + 1):
                 r = []
                 for col in range(sub + 1):
-                    u      = col / sub
-                    v      = row / sub
-                    hz_lin = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
-                    # 参考 mesh：arc_s=0（线性过渡，硬边缘），展示最终几何形状
-                    hz = apply_arc_scaled(hz_lin, max_h, arc_s=0.0, flat=flat)
+                    u  = col / sub
+                    v  = row / sub
+                    # 参考 mesh：arc_s=0（硬边缘），先 arc UV 再插值 → 正方形平台
+                    hz = bilinear_arc(u, v, h, 0.0, flat)
                     r.append(bm2.verts.new(Vector((ox+u, oy+v, hz))))
                 gv.append(r)
             for row in range(sub):
@@ -316,9 +316,9 @@ class MQ_OT_GenerateTerrain(bpy.types.Operator):
         terrain_root = _ensure_col(TERRAIN_COL_NAME)
 
         sub        = props.subdivisions
-        wall_depth = props.wall_depth
         arc_s      = props.arc_strength
-        flat       = props.flat_margin
+        flat       = 0.25   # 固定平台边距
+        wall_depth = 0.02   # 固定厚度
 
         MAT_TOP  = _ensure_mat("mq_terrain_top",  (0.55, 0.35, 0.10), strength=0.85)
         MAT_WALL = _ensure_mat("mq_terrain_wall",  (0.22, 0.18, 0.08), strength=0.6)
@@ -328,21 +328,18 @@ class MQ_OT_GenerateTerrain(bpy.types.Operator):
             row_n = n // GRID_COLS
             ox = col_n * 2.0
             oy = row_n * 2.0
-            h     = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
-            max_h = max(h) or 1.0   # 标准 case=1.0，对角高差=2 case=2.0
+            h = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
 
             bm = bmesh.new()
 
-            # ── 地面（双线性插值）────────────────────────────────────────────
+            # ── 地面：先 arc UV 再插值 → 正方形平台 ──────────────────────────
             gv = []
             for row in range(sub + 1):
                 r = []
                 for col in range(sub + 1):
                     u  = col / sub
                     v  = row / sub
-                    hz_lin = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
-                    # 测试 mesh：在参考 mesh 基础上加 smooth-step 圆滑
-                    hz = apply_arc_scaled(hz_lin, max_h, arc_s, flat)
+                    hz = bilinear_arc(u, v, h, arc_s, flat)
                     r.append(bm.verts.new(Vector((ox+u, oy+v, hz))))
                 gv.append(r)
             for row in range(sub):
@@ -429,8 +426,8 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
         props   = context.scene.mq_props
         out_dir = bpy.path.abspath(props.export_dir)
         sub     = props.subdivisions
-        arc_s   = props.arc_strength
-        flat    = props.flat_margin
+        arc_s = props.arc_strength
+        flat  = 0.25  # 固定平台边距
 
         if not out_dir:
             self.report({'ERROR'}, "请先设置导出目录。")
@@ -440,8 +437,7 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
 
         exported = []
         for ci in ALL_CASES:
-            h     = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
-            max_h = max(h) or 1.0   # 标准 case=1.0，对角高差=2 case=2.0
+            h = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
 
             # 重新生成 mesh，V0(BL) 固定在原点 (0,0,0)
             bm = bmesh.new()
@@ -449,10 +445,9 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
             for row in range(sub + 1):
                 r = []
                 for col in range(sub + 1):
-                    u      = col / sub
-                    v      = row / sub
-                    hz_lin = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
-                    hz = apply_arc_scaled(hz_lin, max_h, arc_s, flat)
+                    u  = col / sub
+                    v  = row / sub
+                    hz = bilinear_arc(u, v, h, arc_s, flat)
                     r.append(bm.verts.new(Vector((u, v, hz))))
                 gv.append(r)
             for row in range(sub):
@@ -515,27 +510,15 @@ class MQProperties(bpy.types.PropertyGroup):
         name="细分数", default=8, min=1, max=32,
         description="地形 mesh 每方向细分段数，越高越平滑"
     )
-    wall_depth: bpy.props.FloatProperty(
-        name="侧壁深度", default=0.5, min=0.0, max=2.0, step=5,
-        description="侧壁向下延伸的深度（0 = 无侧壁）"
-    )
     arc_strength: bpy.props.FloatProperty(
         name="圆弧强度", default=0.8, min=0.0, max=1.0, step=5,
         description="坡面圆弧程度：0 = 线性斜面，1 = 完整 smooth-step 圆弧"
     )
-    flat_margin: bpy.props.FloatProperty(
-        name="平台边距", default=0.25, min=0.0, max=0.49, step=1,
-        description="顶部和底部各保留平面的范围（0=无平台，0.25=各端25%保持平面）"
-    )
     export_dir: bpy.props.StringProperty(
         name    = "导出目录",
         subtype = 'DIR_PATH',
-        default = "//mq_cases/",
-    )
-    cliff_export_dir: bpy.props.StringProperty(
-        name    = "悬崖导出目录",
-        subtype = 'DIR_PATH',
-        default = "//mq_cliffs/",
+        default = "//mq_export/",
+        description="地形和悬崖 FBX 统一输出目录"
     )
 
 
@@ -551,88 +534,41 @@ class MQ_PT_Panel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         props  = context.scene.mq_props
-        ci     = int(props.case_index)
 
-        # 0. 一键全导出（地形 + 悬崖）
-        box0 = layout.box()
-        box0.label(text="一键导出全部 FBX（地形 19 + 悬崖 5）", icon='EXPORT')
-        box0.prop(props, "export_dir",       text="地形目录")
-        box0.prop(props, "cliff_export_dir", text="悬崖目录")
-        box0.prop(props, "arc_strength")
-        box0.prop(props, "flat_margin")
-        box0.operator("mq.export_all", icon='EXPORT')
+        # ── 导出目录 + 圆弧强度（全局参数）─────────────────────────────────
+        layout.prop(props, "export_dir",  text="导出目录")
+        layout.prop(props, "arc_strength")
+        layout.separator()
+
+        # 1. 初始化场景（地形参考 + 悬崖参考）
+        box1 = layout.box()
+        box1.label(text="1. 初始化参考场景", icon='SCENE_DATA')
+        row1 = box1.row(align=True)
+        row1.operator("mq.setup_all_cases",   text="地形",   icon='MESH_GRID')
+        row1.operator("mq.setup_cliff_cases",  text="悬崖",  icon='MESH_CUBE')
 
         layout.separator()
 
-        # 1. 参考场景（线框 + 角点 + 标签 + 参考 Mesh 一键生成）
-        box = layout.box()
-        box.label(text="1. 参考场景", icon='MESH_GRID')
-        box.operator("mq.setup_all_cases", icon='SCENE_DATA')
-        box.label(text="MQ_ArtMesh_Ref / MQ_Ctrl + MQ_Meshes", icon='INFO')
-
-        layout.separator()
-
-        # 2. 测试地形（对标 MC 生成圆角 Cube）
+        # 2. 测试地形（圆滑预览）
         box2 = layout.box()
-        box2.label(text="2. 测试地形", icon='MESH_PLANE')
+        box2.label(text="2. 生成测试地形", icon='MESH_PLANE')
         box2.prop(props, "subdivisions")
-        box2.prop(props, "wall_depth")
-        box2.prop(props, "arc_strength")
-        box2.prop(props, "flat_margin")
         box2.operator("mq.generate_terrain", icon='MESH_UVSPHERE')
-        box2.label(text="MQ_ArtMesh_Terrain — 地面 + 侧壁", icon='INFO')
 
         layout.separator()
 
         # 3. 验证
-        box2 = layout.box()
-        box2.label(text="3. 验证网格", icon='VIEWZOOM')
-        box2.operator("mq.validate_mesh", icon='CHECKMARK')
-        box2.label(text="选中建模完成的 mesh 后验证", icon='INFO')
-
-        layout.separator()
-
-        # 4. 批量导出
         box3 = layout.box()
-        box3.label(text="4. 批量导出 FBX", icon='EXPORT')
-        box3.prop(props, "export_dir", text="目录")
-        box3.prop(props, "arc_strength")
-        box3.prop(props, "flat_margin")
-        box3.operator("mq.export_all_cases", icon='EXPORT')
-        box3.label(text="导出 mq_case_0..18.fbx（含 UVMap）", icon='INFO')
+        box3.label(text="3. 验证网格", icon='VIEWZOOM')
+        box3.operator("mq.validate_mesh", icon='CHECKMARK')
 
         layout.separator()
 
-        # 5. 悬崖 FBX（D4 旋转，只需 5 个规范 case）
-        box_cliff = layout.box()
-        box_cliff.label(text="5. 悬崖 Case FBX（D4 旋转）", icon='MESH_CUBE')
-        box_cliff.operator("mq.setup_cliff_cases", icon='SCENE_DATA')
-        box_cliff.prop(props, "cliff_export_dir", text="目录")
-        box_cliff.operator("mq.export_cliff_cases", icon='EXPORT')
-        box_cliff.label(text="导出 mq_cliff_1/3/5/7/15.fbx（规范 case，Mesh 中心为原点）", icon='INFO')
-
-        layout.separator()
-
-        # 4. 建模规范
+        # 4. 一键导出全部（地形 19 + 悬崖 5）
         box4 = layout.box()
-        box4.label(text="建模规范", icon='INFO')
-        box4.label(text="• 单位 quad：X=[0,1]  Z=[0,1]")
-        box4.label(text="• 低角点 Y = 0  高角点 Y = 1")
-        box4.label(text="• 原点 (0,0,0) = V0/BL")
-        box4.label(text="• 接缝顶点必须精确对齐")
-
-        layout.separator()
-
-        # 5. Case 一览
-        box5 = layout.box()
-        box5.label(text="16 个 Case 一览", icon='LINENUMBERS_ON')
-        for c in ALL_CASES:
-            row = box5.row()
-            bits = "".join(('H' if (c & (1 << i)) else 'L') for i in range(4))
-            done = "✓" if any(obj.name == f"mq_case_{c}"
-                               for obj in bpy.data.objects) else "·"
-            desc = CASE_NAMES.get(c, "").split("–")[-1].strip()
-            row.label(text=f"{done} [{bits}] Case {c}：{desc}")
+        box4.label(text="4. 导出全部 FBX", icon='EXPORT')
+        box4.operator("mq.export_all", icon='EXPORT')
+        box4.label(text="mq_case_0..18.fbx + mq_cliff_1/3/5/7/15.fbx", icon='INFO')
 
 
 # ── Cliff operators ───────────────────────────────────────────────────────────
@@ -760,7 +696,7 @@ class MQ_OT_ExportCliffCases(bpy.types.Operator):
     def execute(self, context):
         import os
         props   = context.scene.mq_props
-        out_dir = bpy.path.abspath(props.cliff_export_dir)
+        out_dir = bpy.path.abspath(props.export_dir)
         if not out_dir:
             self.report({'ERROR'}, "请先设置悬崖导出目录。")
             return {'CANCELLED'}

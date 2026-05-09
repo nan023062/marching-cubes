@@ -52,17 +52,6 @@ Shader "MarchingSquares/SplatmapTerrain"
                 float3 worldNormal : TEXCOORD2;
             };
 
-            // 一次采样拿到格子 4 角的 terrainType（RGBA = BL BR TR TL）
-            void SampleCornerTypes(float2 cellUV,
-                out float t0, out float t1, out float t2, out float t3)
-            {
-                fixed4 c = tex2D(_TerrainPointTex, cellUV);
-                t0 = round(c.r * 4.0);  // BL
-                t1 = round(c.g * 4.0);  // BR
-                t2 = round(c.b * 4.0);  // TR
-                t3 = round(c.a * 4.0);  // TL
-            }
-
             // 计算一层 overlay 并叠加到 col（全无分支）
             fixed4 ApplyOverlay(fixed4 col, float ot,
                                 float t0, float t1, float t2, float t3,
@@ -96,8 +85,11 @@ Shader "MarchingSquares/SplatmapTerrain"
             fixed4 frag(v2f i) : SV_Target
             {
                 // ── 1. 一次采样取 4 角 terrainType（RGBA = BL BR TR TL）────────
-                float t0, t1, t2, t3;
-                SampleCornerTypes(_TerrainPointTexST.xy, t0, t1, t2, t3);
+                fixed4 c = tex2D(_TerrainPointTex, _TerrainPointTexST.xy);
+                float t0 = round(c.r * 4.0);  // BL
+                float t1 = round(c.g * 4.0);  // BR
+                float t2 = round(c.b * 4.0);  // TR
+                float t3 = round(c.a * 4.0);  // TL
 
                 // ── 2. 基础层：全图平铺底色，保证无缝，overlay alpha 覆盖在上 ────
                 fixed4 col = tex2D(_BaseTex, i.baseUV);
