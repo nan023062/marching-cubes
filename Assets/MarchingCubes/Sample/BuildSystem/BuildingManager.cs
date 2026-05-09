@@ -21,7 +21,7 @@ namespace MarchingCubes.Sample
 
         [Header("组件引用")]
         [SerializeField] private MqTerrain  _terrain;
-        [SerializeField] private MQMeshConfig _terrainConfig;
+        [SerializeField] private MqMeshConfig _terrainConfig;
         [FormerlySerializedAs("_building")] [SerializeField] private McStructure  structure;
         [SerializeField] private KeyCode              _switchKey   = KeyCode.Tab;
         [SerializeField] private BuildMode            _initialMode = BuildMode.Build;

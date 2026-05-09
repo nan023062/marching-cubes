@@ -109,3 +109,13 @@ C# parse time         : 108ms
 candidates check time : 23ms
 console write time    : 0ms
 
+[api-updater (non-obsolete-error-filter)] 2026/5/9 10:56:39 : Starting C:/XDTWorkspace/linan1_Unity.XDT.R_001/WindowsEditor/Data/Tools/ScriptUpdater/APIUpdater.NonObsoleteApiUpdaterDetector.exe
+[api-updater (non-obsolete-error-filter)] 
+----------------------------------
+jit/startup time      : 774.8308ms
+moved types parse time: 28ms
+candidates parse time : 0ms
+C# parse time         : 194ms
+candidates check time : 22ms
+console write time    : 0ms
+

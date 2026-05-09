@@ -25,7 +25,7 @@ namespace MarchingSquares
 
         // ── 由 BuildingManager 驱动初始化 ────────────────────────────────────
 
-        public void Init(int renderWidth, int renderDepth, int heightRange, MQMeshConfig config)
+        public void Init(int renderWidth, int renderDepth, int heightRange, MqMeshConfig config)
         {
             _meshFilter   = GetComponent<MeshFilter>();
             _meshCollider = GetComponent<MeshCollider>();
