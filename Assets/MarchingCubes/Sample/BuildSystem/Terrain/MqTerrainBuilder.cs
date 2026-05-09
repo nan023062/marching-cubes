@@ -31,8 +31,12 @@ namespace MarchingSquares
         private readonly Transform     _parent;
         private readonly GameObject[,] _tiles; // [length, width]
 
-        private static readonly (int dx, int dz)[] _neighbors4 =
-            { (-1, 0), (1, 0), (0, -1), (0, 1) };
+        // 8 方向：对角邻居同样纳入高差约束，防止同格对角点高差 == 2 导致 mesh 出现空洞
+        private static readonly (int dx, int dz)[] _neighbors8 =
+        {
+            (-1, 0), (1, 0), (0, -1), (0, 1),
+            (-1,-1), (-1, 1), (1,-1), (1, 1),
+        };
 
         // ── 构造 ─────────────────────────────────────────────────────────────
 
@@ -277,7 +281,7 @@ namespace MarchingSquares
             {
                 var (px, pz) = queue.Dequeue();
                 int h = _points[px, pz].high;
-                foreach (var (dx, dz) in _neighbors4)
+                foreach (var (dx, dz) in _neighbors8)
                 {
                     int nx = px + dx, nz = pz + dz;
                     if (nx < 0 || nx > length || nz < 0 || nz > width) continue;
