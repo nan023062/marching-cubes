@@ -1,11 +1,12 @@
 using UnityEngine;
 using MarchingSquares;
+using Terrain = MarchingSquares.Terrain;
 
 namespace MarchingCubes.Sample
 {
     public class TerrainState : IBuildState
     {
-        readonly MqTerrain _sample;
+        readonly Terrain _sample;
         readonly int                  _terrainMask;
         readonly System.Action        _onTerrainChanged;
 
@@ -14,7 +15,7 @@ namespace MarchingCubes.Sample
         Vector2 _lastMousePos  = Vector2.negativeInfinity;
         bool    _mouseWasDown;
 
-        public TerrainState(MqTerrain sample, System.Action onTerrainChanged)
+        public TerrainState(Terrain sample, System.Action onTerrainChanged)
         {
             _sample           = sample;
             _terrainMask      = 1 << LayerMask.NameToLayer("MarchingQuads");

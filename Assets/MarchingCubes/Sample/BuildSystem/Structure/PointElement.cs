@@ -9,7 +9,7 @@ namespace MarchingCubes.Sample
     public abstract class PointElement : MonoBehaviour, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler
     {
         private MeshRenderer _renderer;
-        [FormerlySerializedAs("marchingCubes")] public McStructure mcs;
+        [FormerlySerializedAs("marchingCubes")] public Structure mcs;
 
         private void Awake()
         {

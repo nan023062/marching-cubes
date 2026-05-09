@@ -9,7 +9,7 @@ using UnityEngine;
 
 namespace MarchingCubes.Sample
 {
-    public class McStructureBuilder
+    public class StructureBuilder
     {
         public readonly int X, Y, Z;
         private readonly Point[,,] _points;
@@ -26,7 +26,7 @@ namespace MarchingCubes.Sample
         struct Cube
         {
             public readonly sbyte x, y, z;
-            private readonly McStructureBuilder building;
+            private readonly StructureBuilder building;
             public GameObject mesh;
 
             public ref readonly Point this[int index]
@@ -38,7 +38,7 @@ namespace MarchingCubes.Sample
                 }
             }
 
-            public Cube(McStructureBuilder building, int x, int y, int z)
+            public Cube(StructureBuilder building, int x, int y, int z)
             {
                 this.building = building;
                 this.x = (sbyte)x;
@@ -63,7 +63,7 @@ namespace MarchingCubes.Sample
             Gizmos.matrix = Matrix4x4.identity;
         }
 
-        public McStructureBuilder(int x, int y, int z, Matrix4x4 localToWorld, Structure meshStore)
+        public StructureBuilder(int x, int y, int z, Matrix4x4 localToWorld, Structure meshStore)
         {
             this.X = x;
             this.Y = y;

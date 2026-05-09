@@ -1,5 +1,6 @@
 using UnityEngine;
 using MarchingSquares;
+using Terrain = MarchingSquares.Terrain;
 
 namespace MarchingCubes.Sample
 {
@@ -19,8 +20,8 @@ namespace MarchingCubes.Sample
         [SerializeField] private int _buildHeight  = 5;
         
         [Header("组件引用")]
-        [SerializeField] private MqTerrain   terrain;
-        [SerializeField] private McStructure  structure;
+        [SerializeField] private Terrain   terrain;
+        [SerializeField] private Structure  structure;
         [SerializeField] private KeyCode              _switchKey   = KeyCode.Tab;
         [SerializeField] private BuildMode            _initialMode = BuildMode.Build;
 

@@ -6,13 +6,13 @@ namespace MarchingCubes.Sample
 {
     public class BuildState : IBuildState
     {
-        readonly McStructure _structure;
+        readonly Structure _structure;
 
-        McStructureBuilder    _blockBuilding;
+        StructureBuilder    _blockBuilding;
         PointCube[,,]    _pointCubes;
         List<GameObject> _pointQuads;
 
-        public BuildState(McStructure structure)
+        public BuildState(Structure structure)
         {
             _structure = structure;
             InitBuilding();
@@ -28,7 +28,7 @@ namespace MarchingCubes.Sample
 
             var matrix = Matrix4x4.TRS(_structure.transform.position,
                 Quaternion.identity, Vector3.one / BuildingConst.Unit);
-            _blockBuilding = new McStructureBuilder(x, y, z, matrix, _structure);
+            _blockBuilding = new StructureBuilder(x, y, z, matrix, _structure);
 
             _pointCubes = new PointCube[x + 1, y + 1, z + 1];
             _pointQuads = new List<GameObject>((x - 1) * (z - 1));
@@ -121,7 +121,7 @@ namespace MarchingCubes.Sample
 
         // ── 地形同步 ──────────────────────────────────────────────────────────
 
-        public void SyncWithTerrain(MarchingSquares.MqTerrainBuilder terrain)
+        public void SyncWithTerrain(MarchingSquares.TerrainBuilder terrain)
         {
             int idx = 0;
             int x = _structure.RenderWidth;

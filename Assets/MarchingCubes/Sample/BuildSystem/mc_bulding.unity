@@ -440,7 +440,7 @@ GameObject:
   - component: {fileID: 518160459}
   - component: {fileID: 518160458}
   m_Layer: 3
-  m_Name: MqTerrain
+  m_Name: Terrain
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -459,7 +459,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _brush: {fileID: 1092352291}
-  _meshConfig: {fileID: 11400000, guid: 295a349e8c284bd47b57497c4094ac90, type: 2}
+  _meshConfig: {fileID: 0}
   _textureLayer: 1
 --- !u!4 &518160457
 Transform:
@@ -552,7 +552,7 @@ GameObject:
   - component: {fileID: 999007712}
   - component: {fileID: 999007711}
   m_Layer: 6
-  m_Name: McStructure
+  m_Name: Structure
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
