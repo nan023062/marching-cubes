@@ -28,9 +28,11 @@ namespace MarchingSquares
 
         // ── 视觉 Tile（地形 + 悬崖 prefab 实例）────────────────────────────────
         private readonly TileCaseConfig  _config;
-        private readonly Transform     _parent;
-        private readonly GameObject[,] _tiles;      // [length, width]
-        private readonly GameObject[,] _cliffTiles; // [length, width]
+        private readonly Transform       _parent;
+        private readonly Material        _terrainMat;
+        private readonly Material        _cliffMat;
+        private readonly GameObject[,]   _tiles;      // [length, width]
+        private readonly GameObject[,]   _cliffTiles; // [length, width]
 
         // 4 方向：只约束上下左右相邻点，对角点高差最大为 2，由 case 15-18 专门处理
         private static readonly (int dx, int dz)[] _neighbors4 =
@@ -39,7 +41,8 @@ namespace MarchingSquares
         // ── 构造 ─────────────────────────────────────────────────────────────
 
         public TerrainBuilder(int width, int length, int height, float unit,
-                                 Vector3 worldPosition, TileCaseConfig config, Transform parent)
+                                 Vector3 worldPosition, TileCaseConfig config, Transform parent,
+                                 Material terrainMat = null, Material cliffMat = null)
         {
             this.width  = width;
             this.length = length;
@@ -50,6 +53,8 @@ namespace MarchingSquares
 
             _config     = config;
             _parent     = parent;
+            _terrainMat = terrainMat;
+            _cliffMat   = cliffMat;
             _points     = new Point[length + 1, width + 1];
             _tiles      = new GameObject[length, width];
             _cliffTiles = new GameObject[length, width];
@@ -186,6 +191,10 @@ namespace MarchingSquares
             tile.transform.localRotation = Quaternion.identity;
             tile.transform.localScale    = Vector3.one;
 
+            if (_terrainMat != null)
+                foreach (var mr in tile.GetComponentsInChildren<MeshRenderer>())
+                    mr.sharedMaterial = _terrainMat;
+
             ApplyTileTerrainColors(tile, x, z);
 
             // Debug 组件：记录 case index 和 base 高度，Editor Gizmos 可视化
@@ -287,6 +296,10 @@ namespace MarchingSquares
             if (cliffH <= 0) return;
 
             var tile = Object.Instantiate(prefab);
+            if (_cliffMat != null)
+                foreach (var mr in tile.GetComponentsInChildren<MeshRenderer>())
+                    mr.sharedMaterial = _cliffMat;
+
             tile.transform.SetParent(_parent);
             // 悬崖 Mesh 1 unit 高，Y 轴按实际高差缩放；底部放在低侧地面（baseH - cliffH）
             tile.transform.localPosition = new Vector3(cx + 0.5f, baseH - cliffH, cz + 0.5f);
