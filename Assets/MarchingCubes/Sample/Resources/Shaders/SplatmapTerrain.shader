@@ -52,10 +52,25 @@ Shader "MarchingSquares/SplatmapTerrain"
                 float3 worldNormal : TEXCOORD2;
             };
 
-            // 从点阵纹理采样整数地形类型（0-4）
             float SampleType(float2 uv)
             {
                 return round(tex2D(_TerrainPointTex, uv).r * 4.0);
+            }
+
+            // 计算一层 overlay 并叠加到 col
+            fixed4 ApplyOverlay(fixed4 col, float ot,
+                                float t0, float t1, float t2, float t3,
+                                float2 lUV)
+            {
+                if (ot > 4 || (t0 < ot && t1 < ot && t2 < ot && t3 < ot))
+                    return col;
+                int mask = (t0 >= ot ? 1 : 0) | (t1 >= ot ? 2 : 0)
+                         | (t2 >= ot ? 4 : 0) | (t3 >= ot ? 8 : 0);
+                float2 aUV = float2((mask % 4 + lUV.x) * 0.25,
+                                    (mask / 4 + lUV.y) * 0.25);
+                fixed4 ov = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(aUV, ot));
+                col.rgb = lerp(col.rgb, ov.rgb, ov.a);
+                return col;
             }
 
             v2f vert(appdata v)
@@ -83,53 +98,11 @@ Shader "MarchingSquares/SplatmapTerrain"
                 float baseType = min(min(t0, t1), min(t2, t3));
                 fixed4 col = UNITY_SAMPLE_TEX2DARRAY(_BaseArray, float3(i.baseUV, baseType));
 
-                // ── 3. 叠加层（最多 3 层，手动展开避免 GPU 动态分支开销）───────
-                // Overlay Atlas：4×4 grid，case N 占第 (N%4, N/4) 格，格内 UV = localUV
-                // atlasUV = ((N%4 + localUV.x) * 0.25, (N/4 + localUV.y) * 0.25)
-
+                // ── 3. 叠加层（最多 3 层）───────────────────────────────────────
                 float2 lUV = i.localUV;
-
-                // 叠加层 1
-                {
-                    float ot = baseType + 1;
-                    if (ot <= 4 && (t0 >= ot || t1 >= ot || t2 >= ot || t3 >= ot))
-                    {
-                        int mask = (t0 >= ot ? 1 : 0) | (t1 >= ot ? 2 : 0)
-                                 | (t2 >= ot ? 4 : 0) | (t3 >= ot ? 8 : 0);
-                        float2 aUV = float2((mask % 4 + lUV.x) * 0.25,
-                                            (mask / 4 + lUV.y) * 0.25);
-                        fixed4 ov = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(aUV, ot));
-                        col.rgb = lerp(col.rgb, ov.rgb, ov.a);
-                    }
-                }
-
-                // 叠加层 2
-                {
-                    float ot = baseType + 2;
-                    if (ot <= 4 && (t0 >= ot || t1 >= ot || t2 >= ot || t3 >= ot))
-                    {
-                        int mask = (t0 >= ot ? 1 : 0) | (t1 >= ot ? 2 : 0)
-                                 | (t2 >= ot ? 4 : 0) | (t3 >= ot ? 8 : 0);
-                        float2 aUV = float2((mask % 4 + lUV.x) * 0.25,
-                                            (mask / 4 + lUV.y) * 0.25);
-                        fixed4 ov = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(aUV, ot));
-                        col.rgb = lerp(col.rgb, ov.rgb, ov.a);
-                    }
-                }
-
-                // 叠加层 3
-                {
-                    float ot = baseType + 3;
-                    if (ot <= 4 && (t0 >= ot || t1 >= ot || t2 >= ot || t3 >= ot))
-                    {
-                        int mask = (t0 >= ot ? 1 : 0) | (t1 >= ot ? 2 : 0)
-                                 | (t2 >= ot ? 4 : 0) | (t3 >= ot ? 8 : 0);
-                        float2 aUV = float2((mask % 4 + lUV.x) * 0.25,
-                                            (mask / 4 + lUV.y) * 0.25);
-                        fixed4 ov = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(aUV, ot));
-                        col.rgb = lerp(col.rgb, ov.rgb, ov.a);
-                    }
-                }
+                col = ApplyOverlay(col, baseType + 1, t0, t1, t2, t3, lUV);
+                col = ApplyOverlay(col, baseType + 2, t0, t1, t2, t3, lUV);
+                col = ApplyOverlay(col, baseType + 3, t0, t1, t2, t3, lUV);
 
                 // ── 4. Lambert 光照 ──────────────────────────────────────────────
                 float ndl = max(0.2, dot(i.worldNormal, _WorldSpaceLightPos0.xyz));
