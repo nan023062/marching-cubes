@@ -275,7 +275,7 @@ namespace MarchingSquares
             int cliffCase = GetCliffCase(cx, cz, out int baseH);
             if (cliffCase == 0) return;
 
-            var prefab = _config.GetCliffPrefab(cliffCase) ?? _config.GetCliffPrefab(0);
+            var prefab = _config.GetCliffPrefab(cliffCase); // case 0 = 无悬崖，不作为 fallback
             if (prefab == null) return;
 
             var tile = Object.Instantiate(prefab);
