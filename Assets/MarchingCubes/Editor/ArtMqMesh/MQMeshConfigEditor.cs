@@ -7,9 +7,10 @@ namespace MarchingCubes.Editor
     [CustomEditor(typeof(MarchingSquares.MQMeshConfig))]
     public sealed class MQMeshConfigEditor : UnityEditor.Editor
     {
-        private string  _fbxFolder    = "Assets/MarchingCubes/Sample/Resources/mq";
-        private string  _prefabFolder = "Assets/MarchingCubes/Sample/Resources/mq/prefabs";
-        private string  _log          = "";
+        private string   _fbxFolder    = "Assets/MarchingCubes/Sample/Resources/mq";
+        private string   _prefabFolder = "Assets/MarchingCubes/Sample/Resources/mq/prefabs";
+        private Material _material;
+        private string   _log          = "";
         private int     _selected     = -1;
         private Vector2 _gridScroll;
         private bool    _canonicalOnly;
@@ -56,6 +57,8 @@ namespace MarchingCubes.Editor
 
             DrawFolderField("① Canonical FBX folder (mq_case_N.fbx)", ref _fbxFolder);
             DrawFolderField("② Output prefab folder", ref _prefabFolder);
+            _material = (Material)EditorGUILayout.ObjectField(
+                "③ SplatmapTerrain Material", _material, typeof(Material), false);
 
             EditorGUILayout.Space(2);
             if (GUILayout.Button("Build All 16 Case Prefabs", GUILayout.Height(30)))
@@ -115,6 +118,13 @@ namespace MarchingCubes.Editor
                 child.transform.localRotation = d4apply;
                 child.transform.localPosition = S_CENTER - d4apply * pivot;
                 child.transform.localScale    = isFlipped ? new Vector3(-1f, 1f, 1f) : Vector3.one;
+
+                // 赋 SplatmapTerrain 材质
+                if (_material != null)
+                {
+                    foreach (var mr in root.GetComponentsInChildren<MeshRenderer>())
+                        mr.sharedMaterial = _material;
+                }
 
                 string prefabPath = $"{relOut}/mq_case_{ci}.prefab";
                 var saved = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
