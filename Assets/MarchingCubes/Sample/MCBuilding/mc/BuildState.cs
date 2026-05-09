@@ -121,7 +121,7 @@ namespace MarchingCubes.Sample
 
         // ── 地形同步 ──────────────────────────────────────────────────────────
 
-        public void SyncWithTerrain(MSQTerrain terrain)
+        public void SyncWithTerrain(MarchingSquares.MQTerrainBuilder terrain)
         {
             int idx = 0;
             int x = _building.RenderWidth;

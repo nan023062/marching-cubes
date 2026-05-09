@@ -5,7 +5,7 @@ namespace MarchingCubes.Sample
 {
     public class TerrainState : IBuildState
     {
-        readonly MCTerrain _sample;
+        readonly MQTerrain _sample;
         readonly int                  _terrainMask;
         readonly System.Action        _onTerrainChanged;
 
@@ -14,7 +14,7 @@ namespace MarchingCubes.Sample
         Vector2 _lastMousePos  = Vector2.negativeInfinity;
         bool    _mouseWasDown;
 
-        public TerrainState(MCTerrain sample, System.Action onTerrainChanged)
+        public TerrainState(MQTerrain sample, System.Action onTerrainChanged)
         {
             _sample           = sample;
             _terrainMask      = 1 << LayerMask.NameToLayer("MarchingQuads");
@@ -94,18 +94,14 @@ namespace MarchingCubes.Sample
             if (brush.colorBrush)
             {
                 int type = Input.GetMouseButton(0) ? _sample.TextureLayer : 0;
-                dirty = _sample.Terrain.PaintTerrainType(brush, type);
+                dirty = _sample.PaintTerrainType(type);
             }
             else
             {
                 int delta = Input.GetMouseButton(0) ? 1 : -1;
-                dirty = _sample.Terrain.BrushMapHigh(brush, delta);
+                dirty = _sample.BrushMapHigh(delta);
             }
-            if (dirty)
-            {
-                _sample.RefreshMeshes();
-                _onTerrainChanged?.Invoke();
-            }
+            if (dirty) _onTerrainChanged?.Invoke();
         }
     }
 }
