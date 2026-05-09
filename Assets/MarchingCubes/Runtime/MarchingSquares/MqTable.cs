@@ -35,6 +35,12 @@ namespace MarchingSquares
         /// h0=V0(BL), h1=V1(BR), h2=V2(TR), h3=V3(TL)。
         /// base = 四角最小高度，bit_i=1 表示该角点高于 base。
         /// </summary>
+        /// <summary>
+        /// 返回值 0-14：标准 case（同格四角高差 ≤ 1）。
+        /// 返回值 15-18：对角高差 == 2 的特殊 case，需要独立 mesh：
+        ///   15 = V0 最高(+2)，V2 为 base；16 = V1 最高，V3 为 base；
+        ///   17 = V2 最高，V0 为 base；  18 = V3 最高，V1 为 base。
+        /// </summary>
         public static int GetMeshCase(int h0, int h1, int h2, int h3, out int baseH)
         {
             baseH = h0;
@@ -42,12 +48,15 @@ namespace MarchingSquares
             if (h2 < baseH) baseH = h2;
             if (h3 < baseH) baseH = h3;
 
-            int ci = 0;
-            if (h0 > baseH) ci |= 1;
-            if (h1 > baseH) ci |= 2;
-            if (h2 > baseH) ci |= 4;
-            if (h3 > baseH) ci |= 8;
-            return ci;
+            int r0 = h0 - baseH, r1 = h1 - baseH, r2 = h2 - baseH, r3 = h3 - baseH;
+
+            // 对角点高差 == 2：4 方向约束允许此情况，需要专用 mesh
+            if (r0 == 2) return 15;
+            if (r1 == 2) return 16;
+            if (r2 == 2) return 17;
+            if (r3 == 2) return 18;
+
+            return (r0 > 0 ? 1 : 0) | (r1 > 0 ? 2 : 0) | (r2 > 0 ? 4 : 0) | (r3 > 0 ? 8 : 0);
         }
 
         // ── 纹理组合映射 ──────────────────────────────────────────────────────

@@ -44,8 +44,9 @@ namespace MarchingCubes.Editor
         {
             EditorGUILayout.LabelField("Build MQ Case Prefabs (mq_case_*.fbx)", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "需要 15 个独立 FBX（mq_case_0.fbx … mq_case_14.fbx）。\n" +
-                "Case 15（全高）= GetMeshCase() 不可能返回，跳过不生成。",
+                "共 19 个 case：\n" +
+                "• 0-14：标准 case（四角高差 ≤ 1）\n" +
+                "• 15-18：对角高差 == 2 的特殊 case（需独立 mesh）",
                 MessageType.Info);
 
             DrawFolderField("① FBX 文件夹 (mq_case_N.fbx)", ref _fbxFolder);
@@ -54,7 +55,7 @@ namespace MarchingCubes.Editor
                 "③ 地形材质", _material, typeof(Material), false);
 
             EditorGUILayout.Space(2);
-            if (GUILayout.Button("Build All 15 Case Prefabs", GUILayout.Height(30)))
+            if (GUILayout.Button("Build All 19 Case Prefabs", GUILayout.Height(30)))
                 DoBuild(cfg);
 
             if (!string.IsNullOrEmpty(_log))
@@ -86,8 +87,7 @@ namespace MarchingCubes.Editor
 
             int ok = 0, skip = 0;
 
-            // case 15（全高）= GetMeshCase() 永不返回，不生成 prefab
-            for (int ci = 0; ci < 15; ci++)
+            for (int ci = 0; ci < MarchingSquares.MqMeshConfig.CaseCount; ci++)
             {
                 string fbxPath = $"{_fbxFolder.TrimEnd('/', '\\')}/mq_case_{ci}.fbx";
                 var fbx = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
@@ -115,7 +115,7 @@ namespace MarchingCubes.Editor
                 ok++;
 
                 if (ci % 4 == 0)
-                    EditorUtility.DisplayProgressBar("Building MQ Prefabs", $"mq_case_{ci}", ci / 14f);
+                    EditorUtility.DisplayProgressBar("Building MQ Prefabs", $"mq_case_{ci}", ci / 18f);
             }
 
             EditorUtility.ClearProgressBar();
@@ -140,12 +140,13 @@ namespace MarchingCubes.Editor
             EditorGUI.DrawRect(GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none,
                 GUILayout.ExpandWidth(true), GUILayout.Height(1)), new Color(0, 0, 0, 0.3f));
 
-            float h = Mathf.Ceil(16f / Cols) * CellSz;
+            int total = MarchingSquares.MqMeshConfig.CaseCount;
+            float h = Mathf.Ceil((float)total / Cols) * CellSz;
             _gridScroll = EditorGUILayout.BeginScrollView(_gridScroll, GUILayout.Height(h + 4));
             Rect outer = GUILayoutUtility.GetRect(Cols * CellSz, h);
             EditorGUI.DrawRect(outer, ColBg);
 
-            for (int ci = 0; ci < 16; ci++)
+            for (int ci = 0; ci < total; ci++)
             {
                 int col = ci % Cols, row = ci / Cols;
                 DrawCell(cfg, ci, new Rect(outer.x + col * CellSz, outer.y + row * CellSz, CellSz - 1, CellSz - 1));
@@ -204,10 +205,11 @@ namespace MarchingCubes.Editor
 
         void DoValidate(MarchingSquares.MqMeshConfig cfg)
         {
+            int total = MarchingSquares.MqMeshConfig.CaseCount;
             int filled = 0;
-            for (int ci = 0; ci < 16; ci++) if (cfg.GetPrefab(ci) != null) filled++;
+            for (int ci = 0; ci < total; ci++) if (cfg.GetPrefab(ci) != null) filled++;
             EditorUtility.DisplayDialog("Validate",
-                $"Cases 0–15: 16\n有 Prefab: {filled}\n缺失: {16 - filled}", "OK");
+                $"Cases 0–{total - 1}: {total}\n有 Prefab: {filled}\n缺失: {total - filled}", "OK");
         }
 
         // ── Detail ────────────────────────────────────────────────────────────

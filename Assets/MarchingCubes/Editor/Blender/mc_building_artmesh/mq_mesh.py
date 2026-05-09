@@ -24,7 +24,17 @@ QUAD_EDGES = [(0, 1), (1, 2), (2, 3), (3, 0)]
 
 # 每格 mesh 以四角最低点为基准，绝对高度由 terrain 数据决定
 # case 15（全高）几何同 case 0（全平），GetMeshCase() 永远不返回 15，但仍生成保持数组完整
-ALL_CASES = list(range(15))   # case 15（全高）等同 case 0 偏移 y+1，GetMeshCase() 不会返回
+# case 0-14：标准 case（四角高差 ≤ 1）
+# case 15-18：对角高差 == 2 的特殊 case（4 方向约束允许，需独立 mesh）
+ALL_CASES = list(range(19))
+
+# 对角高差=2 case 的高度数组（V0,V1,V2,V3 相对 base 的高度）
+DIAGONAL2_HEIGHTS = {
+    15: [2.0, 1.0, 0.0, 1.0],  # V0=+2, V2=base
+    16: [1.0, 2.0, 1.0, 0.0],  # V1=+2, V3=base
+    17: [0.0, 1.0, 2.0, 1.0],  # V2=+2, V0=base
+    18: [1.0, 0.0, 1.0, 2.0],  # V3=+2, V1=base
+}
 
 CASE_NAMES = {
     0:  "0000 – 全平（base，case 15 复用）",
@@ -42,7 +52,11 @@ CASE_NAMES = {
     12: "1100 – V2+V3（顶边）高",
     13: "1101 – V0+V2+V3 高",
     14: "1110 – V1+V2+V3 高",
-    # case 15（全高）不生成：GetMeshCase() base=最低点，不可能4角全高于base
+    # ── 对角高差=2 特殊 case ───────────────────────────────────────────────────
+    15: "V0=+2/V2=base – 对角双高（V0 最高）",
+    16: "V1=+2/V3=base – 对角双高（V1 最高）",
+    17: "V2=+2/V0=base – 对角双高（V2 最高）",
+    18: "V3=+2/V1=base – 对角双高（V3 最高）",
 }
 
 REF_COL_NAME     = "MQ_ArtMesh_Ref"
@@ -149,10 +163,9 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
         for n, ci in enumerate(ALL_CASES):
             col_n = n % GRID_COLS
             row_n = n // GRID_COLS
-            # Blender Z-up：水平面 = XY，高度 = Z
-            # ox/oy 控制网格排列偏移，高度 h 映射到 Blender Z
-            ox = col_n * 2.0   # Blender X 偏移（列）
-            oy = row_n * 2.0   # Blender Y 偏移（行）
+            ox = col_n * 2.0
+            oy = row_n * 2.0
+            h = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
 
             case_col = bpy.data.collections.new(f"case_{ci}")
             ctrl_root.children.link(case_col)
@@ -226,7 +239,7 @@ class MQ_OT_SetupAllCases(bpy.types.Operator):
             row_n = n // GRID_COLS
             ox = col_n * 2.0
             oy = row_n * 2.0
-            h  = [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)]
+            h  = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
 
             bm2 = bmesh.new()
             gv  = []
@@ -297,7 +310,7 @@ class MQ_OT_GenerateTerrain(bpy.types.Operator):
             row_n = n // GRID_COLS
             ox = col_n * 2.0
             oy = row_n * 2.0
-            h  = [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)]
+            h  = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
 
             bm = bmesh.new()
 
@@ -410,7 +423,9 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
 
         exported = []
         for ci in ALL_CASES:
-            h = [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)]
+            h = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
+            # 对角高差=2 case 高度超出 [0,1]，arc 函数无效，改用线性插值
+            use_arc = ci not in DIAGONAL2_HEIGHTS
 
             # 重新生成 mesh，V0(BL) 固定在原点 (0,0,0)
             bm = bmesh.new()
@@ -421,7 +436,8 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
                     u      = col / sub
                     v      = row / sub
                     hz_lin = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
-                    r.append(bm.verts.new(Vector((u, v, arc(hz_lin)))))
+                    hz = arc(hz_lin) if use_arc else hz_lin  # 对角高差=2 case 使用线性插值
+                    r.append(bm.verts.new(Vector((u, v, hz))))
                 gv.append(r)
             for row in range(sub):
                 for col in range(sub):
