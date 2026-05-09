@@ -41,6 +41,14 @@ namespace MarchingCubes.Editor
             var cfg = (MarchingSquares.MqMeshConfig)target;
             serializedObject.Update();
 
+            // ── 一键全 Build ───────────────────────────────────────────────────
+            if (GUILayout.Button("Build All  19 Terrain + 16 Cliff  Cases", GUILayout.Height(34)))
+            {
+                DoTerrainBuild(cfg);
+                DoCliffBuild(cfg);
+            }
+            EditorGUILayout.Space(6);
+
             // ── 地形 ──────────────────────────────────────────────────────────
             EditorGUILayout.LabelField("── 地形 Tile（mq_case_*.fbx）──", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
