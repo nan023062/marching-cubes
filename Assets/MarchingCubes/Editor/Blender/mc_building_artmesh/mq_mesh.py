@@ -314,7 +314,8 @@ class MQ_OT_GenerateTerrain(bpy.types.Operator):
             row_n = n // GRID_COLS
             ox = col_n * 2.0
             oy = row_n * 2.0
-            h  = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
+            h     = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
+            max_h = max(h) or 1.0   # 标准 case=1.0，对角高差=2 case=2.0
 
             bm = bmesh.new()
 
@@ -326,7 +327,7 @@ class MQ_OT_GenerateTerrain(bpy.types.Operator):
                     u  = col / sub
                     v  = row / sub
                     hz_lin = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
-                    hz = arc(hz_lin)
+                    hz = arc(hz_lin / max_h) * max_h  # 归一化后应用 arc，再还原到实际高度
                     r.append(bm.verts.new(Vector((ox+u, oy+v, hz))))
                 gv.append(r)
             for row in range(sub):
@@ -431,9 +432,8 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
 
         exported = []
         for ci in ALL_CASES:
-            h = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
-            # 对角高差=2 case 高度超出 [0,1]，arc 函数无效，改用线性插值
-            use_arc = ci not in DIAGONAL2_HEIGHTS
+            h     = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
+            max_h = max(h) or 1.0   # 标准 case=1.0，对角高差=2 case=2.0
 
             # 重新生成 mesh，V0(BL) 固定在原点 (0,0,0)
             bm = bmesh.new()
@@ -444,7 +444,7 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
                     u      = col / sub
                     v      = row / sub
                     hz_lin = (1-u)*(1-v)*h[0] + u*(1-v)*h[1] + u*v*h[2] + (1-u)*v*h[3]
-                    hz = arc(hz_lin) if use_arc else hz_lin  # 对角高差=2 case 使用线性插值
+                    hz = arc(hz_lin / max_h) * max_h  # 归一化后应用 arc（含平台），再还原
                     r.append(bm.verts.new(Vector((u, v, hz))))
                 gv.append(r)
             for row in range(sub):
