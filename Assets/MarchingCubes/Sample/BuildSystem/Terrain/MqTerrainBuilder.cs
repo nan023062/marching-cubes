@@ -189,7 +189,7 @@ namespace MarchingSquares
             ApplyTileTerrainColors(tile, x, z);
 
             // Debug 组件：记录 case index 和 base 高度，Editor Gizmos 可视化
-            var dbg = tile.GetComponent<MqTilePrefab>();
+            var dbg = tile.GetComponent<TilePrefab>();
             if (dbg != null) { dbg.tileType = TileType.Terrain; dbg.caseIndex = caseIndex; dbg.baseHeight = baseH; }
 
             _tiles[x, z] = tile;
@@ -218,7 +218,7 @@ namespace MarchingSquares
         }
 
         private int GetCaseIndex(int x, int z, out int baseH)
-            => MqTable.GetMeshCase(
+            => TileTable.GetMeshCase(
                 _points[x,     z    ].high,
                 _points[x + 1, z    ].high,
                 _points[x + 1, z + 1].high,
@@ -285,7 +285,7 @@ namespace MarchingSquares
             tile.transform.localRotation = Quaternion.identity;
             tile.transform.localScale    = Vector3.one;
 
-            var dbg = tile.GetComponent<MqTilePrefab>();
+            var dbg = tile.GetComponent<TilePrefab>();
             if (dbg != null) { dbg.tileType = TileType.Cliff; dbg.caseIndex = cliffCase; dbg.baseHeight = baseH - 1; }
 
             _cliffTiles[cx, cz] = tile;

@@ -14,7 +14,7 @@ namespace MarchingSquares
     /// </summary>
     [ExecuteAlways]
     [ExecuteInEditMode]
-    public class MqTilePrefab : MonoBehaviour
+    public class TilePrefab : MonoBehaviour
     {
         [Header("Tile")]
         public TileType tileType  = TileType.Terrain;
@@ -87,7 +87,7 @@ namespace MarchingSquares
             var corners = new Vector3[4];
             for (int i = 0; i < 4; i++)
             {
-                var (x, z) = MqTable.Corners[i];
+                var (x, z) = TileTable.Corners[i];
                 float y    = ((caseIndex & (1 << i)) != 0) ? 1f : 0f;
                 corners[i] = new Vector3(x, y, z);
             }

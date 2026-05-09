@@ -20,7 +20,7 @@ namespace MarchingSquares
 
     // ── Tile 类型 ─────────────────────────────────────────────────────────────
 
-    /// <summary>MQ tile 的两种类型，决定 MqTilePrefab Gizmos 的可视化方式。</summary>
+    /// <summary>MQ tile 的两种类型，决定 TilePrefab Gizmos 的可视化方式。</summary>
     public enum TileType
     {
         Terrain = 0,  // 地形坡面 tile：caseIndex = 角点高差 bit mask（0-18）

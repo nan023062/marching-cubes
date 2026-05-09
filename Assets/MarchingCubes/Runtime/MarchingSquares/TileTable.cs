@@ -12,7 +12,7 @@ namespace MarchingSquares
     ///     │               │                         或 Vi 属于 overlay 类型（纹理）
     ///   V0(BL) ─── V1(BR)
     /// </summary>
-    public static class MqTable
+    public static class TileTable
     {
         public const int CornerCount = 4;
         public const int CaseCount   = 16;
