@@ -16,10 +16,10 @@ building-system/
 
 ## 诞生背景
 
-MarchingSquares 地形（MQ）与 MCBuilding 建造（MC）原各自以独立 Sample 存在，分别解决不同维度的地形问题。建造系统将两者整合为统一的游戏玩法层：玩家先用笔刷改造地形地貌，再在地形上用 MC 建造结构物。
+MarchingSquares 地形（MQ）与 McStructure 建造（MC）原各自以独立 Sample 存在，分别解决不同维度的地形问题。建造系统将两者整合为统一的游戏玩法层：玩家先用笔刷改造地形地貌，再在地形上用 MC 建造结构物。
 
 ## 涌现性洞察
 
-- **unit 对齐是隐含耦合**：地形格点间距（`MSQTerrain.unit`）必须与建造块边长（`MCBuilding.unit`）保持一致，否则建造物与地形接缝错位。两份代码独立，但这是跨模块的设计契约。
-- **坐标系不共享**：`MSQTerrain` 持有自己的 `localToWorld` 矩阵，`BlockBuilding` 也有独立矩阵，场景层须负责两者世界原点对齐。
+- **unit 对齐是隐含耦合**：地形格点间距（`MSQTerrain.unit`）必须与建造块边长（`McStructure.unit`）保持一致，否则建造物与地形接缝错位。两份代码独立，但这是跨模块的设计契约。
+- **坐标系不共享**：`MSQTerrain` 持有自己的 `localToWorld` 矩阵，`McStructureBuilder` 也有独立矩阵，场景层须负责两者世界原点对齐。
 - **无运行时通信**：当前两子模块不感知彼此，协同完全由宿主 MonoBehaviour 在场景层编排。

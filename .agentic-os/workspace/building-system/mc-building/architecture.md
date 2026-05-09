@@ -7,9 +7,9 @@
 ## 内部结构
 
 ```
-Assets/MarchingCubes/Sample/MCBuilding/mc/
-├── MCBuilding.cs        入口 MonoBehaviour：格点管理 + IMeshStore + Config UI + PointCube/Quad 交互
-├── BlockBuilding.cs     建造算法核心：Point[,,] + Cube[,,]，SetPointStatus / RefreshAllMeshes
+Assets/MarchingCubes/Sample/McStructure/mc/
+├── McStructure.cs        入口 MonoBehaviour：格点管理 + IMeshStore + Config UI + PointCube/Quad 交互
+├── McStructureBuilder.cs     建造算法核心：Point[,,] + Cube[,,]，SetPointStatus / RefreshAllMeshes
 ├── BlockMesh.cs         IMeshStore 接口定义 + 空壳 BlockMesh 类（同文件）
 ├── IMeshStore           接口，定义于 BlockMesh.cs（不独立成文件）
 ├── CasePrefabConfig.cs  抽象基类（ScriptableObject）：GetPrefab(int) → GameObject
@@ -20,7 +20,7 @@ Assets/MarchingCubes/Sample/MCBuilding/mc/
 └── PointQuad.cs         底面 2D 格点：点击从地面开始建造
 ```
 
-## BlockBuilding 算法（Facts）
+## McStructureBuilder 算法（Facts）
 
 ```
 Point[X+1, Y+1, Z+1]   格点数组（角点，含边界）
@@ -42,10 +42,10 @@ CasePrefabConfig (abstract ScriptableObject)
 └── IosMeshCaseConfig — 256 mesh 直接映射；Editor 逐个加载 cm_{ci}.asset 生成 prefab
 ```
 
-`MCBuilding._configs: CasePrefabConfig[]` 支持多套 config 切换（运行时 OnGUI 按钮）。
+`McStructure._configs: CasePrefabConfig[]` 支持多套 config 切换（运行时 OnGUI 按钮）。
 
 ## 交互点系统
 
 - `PointQuad`：铺在 y=0 平面，点击触发 `CreateCube(x, 1, z)`（从第一层开始）
 - `PointCube`：放置在格点，点击法线方向 `CreateCube`；右键 `DestroyCube`
-- 两者均通过 `MCBuilding.OnClicked` 回调驱动
+- 两者均通过 `McStructure.OnClicked` 回调驱动

@@ -12,7 +12,7 @@ Assets/MarchingCubes/Runtime/mq/
 ├── Chunk.cs        MSQTerrain partial：Point 结构（high + terrainType）
 └── Brush.cs        笔刷 MonoBehaviour：可视化圆盘 + Size/colorBrush
 
-Assets/MarchingCubes/Sample/MCBuilding/
+Assets/MarchingCubes/Sample/McStructure/
 └── MarchingQuad25Sample.cs   交互入口：射线检测 + 笔刷定位 + CliffWalls 子物体
 ```
 

@@ -4,7 +4,7 @@
   "summary": "2.5D Marching Squares 地形系统，支持高度场笔刷雕刻、地形类型混合（splatmap）和悬崖壁面独立网格生成",
   "workspace": [
     "Assets/MarchingCubes/Runtime/mq",
-    "Assets/MarchingCubes/Sample/MCBuilding/MarchingQuad25Sample.cs"
+    "Assets/MarchingCubes/Sample/McStructure/MarchingQuad25Sample.cs"
   ],
   "dependencies": [],
   "boundary": "semi-open",

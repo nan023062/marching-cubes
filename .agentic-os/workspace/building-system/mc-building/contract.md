@@ -10,15 +10,15 @@ public interface IMeshStore
 }
 ```
 
-### BlockBuilding
+### McStructureBuilder
 ```csharp
-public class BlockBuilding
+public class McStructureBuilder
 {
     public readonly int X, Y, Z;
     public readonly IMeshStore MeshStore;
     public Matrix4x4 localToWorld { get; set; }
 
-    public BlockBuilding(int x, int y, int z, Matrix4x4 localToWorld, IMeshStore meshStore);
+    public McStructureBuilder(int x, int y, int z, Matrix4x4 localToWorld, IMeshStore meshStore);
 
     public void SetPointStatus(int x, int y, int z, bool active);  // 更新格点，增量重建受影响 cube
     public void RefreshAllMeshes();                                  // 全量重建（config 切换时用）
@@ -59,9 +59,9 @@ public sealed class IosMeshCaseConfig : CasePrefabConfig
 }
 ```
 
-### MCBuilding
+### McStructure
 ```csharp
-public class MCBuilding : MonoBehaviour, IMeshStore
+public class McStructure : MonoBehaviour, IMeshStore
 {
     public int x, y, z;    // 格点维度
     public uint unit;       // 建造单元边长（uint，必须与 MSQTerrain.unit 的实际值对齐）
@@ -85,4 +85,4 @@ public class MCBuilding : MonoBehaviour, IMeshStore
 
 ## 使用方
 
-- `MarchingCubes.Sample.MCBuilding` — 主交互入口
+- `MarchingCubes.Sample.McStructure` — 主交互入口
