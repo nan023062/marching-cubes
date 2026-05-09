@@ -202,7 +202,7 @@ namespace MarchingSquares
             tile.transform.localRotation = Quaternion.identity;
             tile.transform.localScale    = Vector3.one;
 
-            ApplyTileTerrainColors(tile, x, z);
+            ApplyTileMPB(tile, x, z);
 
             // Debug 组件：记录 case index 和 base 高度，Editor Gizmos 可视化
             var dbg = tile.GetComponent<TilePrefab>();
@@ -211,26 +211,26 @@ namespace MarchingSquares
             _tiles[x, z] = tile;
         }
 
-        private void ApplyTileTerrainColors(GameObject tile, int x, int z)
+        /// <summary>
+        /// 为 tile 设置 MPB：点阵纹理引用 + 该 tile 在纹理中的 UV 偏移/缩放。
+        /// 纹理内容变化时（Apply()）所有 tile 自动生效，无需重推 MPB。
+        /// </summary>
+        private void ApplyTileMPB(GameObject tile, int x, int z)
         {
             var mpb = new MaterialPropertyBlock();
-            mpb.SetFloat("_T0", _points[x,     z    ].terrainType); // BL
-            mpb.SetFloat("_T1", _points[x + 1, z    ].terrainType); // BR
-            mpb.SetFloat("_T2", _points[x + 1, z + 1].terrainType); // TR
-            mpb.SetFloat("_T3", _points[x,     z + 1].terrainType); // TL
+            mpb.SetTexture("_TerrainPointTex", pointTex);
+            // ST.xy = UV 偏移（tile 左下角），ST.zw = UV 缩放（单格尺寸）
+            mpb.SetVector("_TerrainPointTexST", new Vector4(
+                (float)x / length, (float)z / width,
+                1f / length,       1f / width));
             foreach (var mr in tile.GetComponentsInChildren<MeshRenderer>())
                 mr.SetPropertyBlock(mpb);
         }
 
         private void UpdateAffectedTileColors(int px, int pz)
         {
-            for (int dx = -1; dx <= 0; dx++)
-            for (int dz = -1; dz <= 0; dz++)
-            {
-                int cx = px + dx, cz = pz + dz;
-                if (cx >= 0 && cx < length && cz >= 0 && cz < width && _tiles[cx, cz] != null)
-                    ApplyTileTerrainColors(_tiles[cx, cz], cx, cz);
-            }
+            // 纹理像素已在 PaintTerrainType 里更新，MPB 引用同一 Texture2D 对象，
+            // Apply() 后自动生效，此处无需再推 MPB。
         }
 
         private int GetCaseIndex(int x, int z, out int baseH)

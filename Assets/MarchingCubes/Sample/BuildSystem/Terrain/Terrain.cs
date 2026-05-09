@@ -43,11 +43,6 @@ namespace MarchingSquares
             _meshCollider.sharedMesh = Builder.colliderMesh;
 
             Builder.RefreshAllTiles();
-
-            // 点阵纹理 + 烘焙世界矩阵 → 全局 Shader 属性（所有地形 tile 共享）
-            // Shader 用世界坐标 × _TerrainPointTexMatrix → UV → 采样 _TerrainPointTex
-            Shader.SetGlobalTexture("_TerrainPointTex",    Builder.pointTex);
-            Shader.SetGlobalMatrix ("_TerrainPointTexMatrix", Builder.worldToLocal);
         }
 
         // ── TerrainState 调用的接口 ───────────────────────────────────────────
@@ -64,11 +59,7 @@ namespace MarchingSquares
         }
 
         public bool PaintTerrainType(int type)
-        {
-            bool dirty = Builder.PaintTerrainType(_brush, type);
-            if (dirty) Shader.SetGlobalTexture("_TerrainPointTex", Builder.pointTex);
-            return dirty;
-        }
+            => Builder.PaintTerrainType(_brush, type);
 
         public void SetBrushVisible(bool visible)
         {
