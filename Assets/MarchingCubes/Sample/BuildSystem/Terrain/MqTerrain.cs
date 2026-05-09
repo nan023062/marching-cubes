@@ -12,7 +12,8 @@ namespace MarchingSquares
     [RequireComponent(typeof(MeshFilter))]
     public class MqTerrain : MonoBehaviour
     {
-        [SerializeField] private Brush _brush;
+        [SerializeField] private Brush        _brush;
+        [SerializeField] private MqMeshConfig _meshConfig;
         [SerializeField, Header("涂刷类型 0=泥 1=草 2=岩 3=雪 4=腐"), Range(0, 4)]
         private int _textureLayer = 1;
 
@@ -25,7 +26,7 @@ namespace MarchingSquares
 
         // ── 由 BuildingManager 驱动初始化 ────────────────────────────────────
 
-        public void Init(int renderWidth, int renderDepth, int heightRange, MqMeshConfig config)
+        public void Init(int renderWidth, int renderDepth, int heightRange)
         {
             _meshFilter   = GetComponent<MeshFilter>();
             _meshCollider = GetComponent<MeshCollider>();
@@ -34,7 +35,7 @@ namespace MarchingSquares
             float unit = 1f / BuildingConst.Unit;
             Builder = new MqTerrainBuilder(
                 renderWidth, renderDepth, heightRange,
-                unit, transform.position, config, transform);
+                unit, transform.position, _meshConfig, transform);
             Builder.MaxHeightDiff = BuildingConst.TerrainMaxHeightDiff * BuildingConst.Unit;
 
             transform.localScale     = Vector3.one * unit;
