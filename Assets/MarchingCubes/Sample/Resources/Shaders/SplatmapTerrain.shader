@@ -52,9 +52,15 @@ Shader "MarchingSquares/SplatmapTerrain"
                 float3 worldNormal : TEXCOORD2;
             };
 
-            float SampleType(float2 uv)
+            // 一次采样拿到格子 4 角的 terrainType（RGBA = BL BR TR TL）
+            void SampleCornerTypes(float2 cellUV,
+                out float t0, out float t1, out float t2, out float t3)
             {
-                return round(tex2D(_TerrainPointTex, uv).r * 4.0);
+                fixed4 c = tex2D(_TerrainPointTex, cellUV);
+                t0 = round(c.r * 4.0);  // BL
+                t1 = round(c.g * 4.0);  // BR
+                t2 = round(c.b * 4.0);  // TR
+                t3 = round(c.a * 4.0);  // TL
             }
 
             // 计算一层 overlay 并叠加到 col
@@ -85,14 +91,9 @@ Shader "MarchingSquares/SplatmapTerrain"
 
             fixed4 frag(v2f i) : SV_Target
             {
-                // ── 1. 采样 4 个角点的 terrainType ──────────────────────────────
-                float2 c = _TerrainPointTexST.xy;   // BL 像素中心 UV
-                float2 d = _TerrainPointTexST.zw;   // 一格步长
-
-                float t0 = SampleType(c);                    // V0 BL
-                float t1 = SampleType(c + float2(d.x, 0));  // V1 BR
-                float t2 = SampleType(c + d);                // V2 TR
-                float t3 = SampleType(c + float2(0, d.y));  // V3 TL
+                // ── 1. 一次采样取 4 角 terrainType（RGBA = BL BR TR TL）────────
+                float t0, t1, t2, t3;
+                SampleCornerTypes(_TerrainPointTexST.xy, t0, t1, t2, t3);
 
                 // ── 2. 基础层 = 四角最小类型 ────────────────────────────────────
                 float baseType = min(min(t0, t1), min(t2, t3));
