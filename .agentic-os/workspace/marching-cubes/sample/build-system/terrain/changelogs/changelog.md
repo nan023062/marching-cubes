@@ -1,5 +1,26 @@
 # Terrain Changelog
 
+## [2026-05-09 19:00:00]
+type: decision
+title: 纹理方案改为 per-vertex R 通道 + Shader 4 次采样；刷绘改为 click-only；TerrainMaxHeightDiff 收紧为 1
+
+**纹理方案重构（TerrainBuilder + SplatmapTerrain.shader）**：
+- pointTex 从 `length×width` RGBA32（每像素=一个格子，RGBA=四角 terrainType）改为 `(length+1)×(width+1)` RGBA32（每像素=一个格点，R=terrainType/4）
+- SetCellTexPixel / UpdateAffectedTileColors 废弃；新增 SetPointTexPixel(px,pz)
+- ApplyTileMPB 只传 BL 角点 UV（_TerrainPointTexST.xy），步长由 Shader 用 `_TerrainPointTex_TexelSize.xy` 自取（不再依赖 MPB 的 zw）
+- Shader frag 由"一次采样 RGBA 解包四角"改为"分 4 次独立采样各角格点 R 通道"
+- 修复 bug：原方案 _TerrainPointTexST.zw 未能可靠传递，导致步长为 (0,0)，只有 BL 角点生效，出现 4 个不连续的草块
+
+**刷绘交互改为 click-only（TerrainState）**：
+- 移除 _mouseWasDown / _lastMousePos；改为 _pressTime + _pressButton + ClickMaxDuration=0.3f
+- 按下计时，抬起时判断是否为短按（<0.3s）才触发；长按按下和抬起均不触发
+- OnExit() 重置 press 状态，避免模式切换后状态残留
+
+**TerrainMaxHeightDiff 收紧为 1（BuildingConst）**：
+- 原值 3 会使同一 tile cell 内角点高差超过 2，而 19-case 坡面 tile 系统只正确覆盖高差 ≤ 2 的情形，产生视觉缝隙
+- 改为 1：相邻格点高差 ≤ 1，19-case 完整覆盖（cases 0-14 覆盖 ≤1，cases 15-18 覆盖对角差=2）
+- 后续 B 方案（悬崖补全高差 > 1 的坡面缺口）待设计
+
 ## [2026-05-09 00:00:00]
 type: decision
 title: 架构重构：从 monolithic MSQTerrain 拆分为三层 + Runtime/mq 算法基础层从无到有

@@ -34,7 +34,8 @@ Shader "MarchingSquares/SplatmapTerrain"
             UNITY_DECLARE_TEX2DARRAY(_OverlayArray);
 
             sampler2D _TerrainPointTex;
-            float4    _TerrainPointTexST;   // xy=BL像素中心UV, zw=单步间距
+            float4    _TerrainPointTexST;       // xy=BL角点像素中心UV
+            float4    _TerrainPointTex_TexelSize; // Unity自动提供：xy=(1/w,1/h)
             float     _Tiling;
 
             struct appdata
@@ -84,12 +85,13 @@ Shader "MarchingSquares/SplatmapTerrain"
 
             fixed4 frag(v2f i) : SV_Target
             {
-                // ── 1. 一次采样取 4 角 terrainType（RGBA = BL BR TR TL）────────
-                fixed4 c = tex2D(_TerrainPointTex, _TerrainPointTexST.xy);
-                float t0 = round(c.r * 4.0);  // BL
-                float t1 = round(c.g * 4.0);  // BR
-                float t2 = round(c.b * 4.0);  // TR
-                float t3 = round(c.a * 4.0);  // TL
+                // ── 1. 分 4 次采样各角格点像素，R 通道 = terrainType / 4 ──────
+                float2 uvBL = _TerrainPointTexST.xy;
+                float2 step = _TerrainPointTex_TexelSize.xy; // 1/texW, 1/texH（Unity自动）
+                float t0 = round(tex2D(_TerrainPointTex, uvBL                          ).r * 4.0); // BL
+                float t1 = round(tex2D(_TerrainPointTex, uvBL + float2(step.x, 0      )).r * 4.0); // BR
+                float t2 = round(tex2D(_TerrainPointTex, uvBL + float2(step.x, step.y )).r * 4.0); // TR
+                float t3 = round(tex2D(_TerrainPointTex, uvBL + float2(0,      step.y )).r * 4.0); // TL
 
                 // ── 2. 基础层：全图平铺底色，保证无缝，overlay alpha 覆盖在上 ────
                 fixed4 col = tex2D(_BaseTex, i.baseUV);

@@ -12,8 +12,9 @@ namespace MarchingCubes.Sample
 
         static readonly string[] LayerNames = { "泥", "草", "岩", "雪", "腐" };
 
-        Vector2 _lastMousePos  = Vector2.negativeInfinity;
-        bool    _mouseWasDown;
+        float _pressTime   = -1f;
+        int   _pressButton = -1;
+        const float ClickMaxDuration = 0.3f;
 
         public TerrainState(Terrain sample, System.Action onTerrainChanged)
         {
@@ -23,7 +24,12 @@ namespace MarchingCubes.Sample
         }
 
         public void OnEnter() => _sample.SetBrushVisible(true);
-        public void OnExit()  => _sample.SetBrushVisible(false);
+        public void OnExit()
+        {
+            _sample.SetBrushVisible(false);
+            _pressTime   = -1f;
+            _pressButton = -1;
+        }
 
         public void OnGUI()
         {
@@ -80,30 +86,38 @@ namespace MarchingCubes.Sample
             p.z = Mathf.RoundToInt(p.z / unit) * unit;
             t.position = p;
 
-            if (!Input.GetMouseButton(0) && !Input.GetMouseButton(1))
+            // 记录最近一次按下的按键和时刻
+            for (int btn = 0; btn <= 1; btn++)
+                if (Input.GetMouseButtonDown(btn))
+                {
+                    _pressTime   = Time.time;
+                    _pressButton = btn;
+                }
+
+            // 抬起时判断是否为短按（点击）；长按抬起不触发
+            int clickBtn = -1;
+            for (int btn = 0; btn <= 1; btn++)
             {
-                _mouseWasDown = false;
-                return;
+                if (Input.GetMouseButtonUp(btn) && _pressButton == btn
+                    && _pressTime >= 0 && Time.time - _pressTime < ClickMaxDuration)
+                {
+                    clickBtn     = btn;
+                    _pressTime   = -1f;
+                    _pressButton = -1;
+                    break;
+                }
             }
-            var mousePos    = new Vector2(Input.mousePosition.x, Input.mousePosition.y);
-            bool firstPress = !_mouseWasDown;
-            bool mouseMoved = mousePos != _lastMousePos;
-            _mouseWasDown = true;
-            _lastMousePos = mousePos;
+            if (clickBtn < 0) return;
 
             bool dirty;
             if (brush.colorBrush)
             {
-                // 纹理刷：支持长按连续刷，鼠标不动则跳过
-                if (!firstPress && !mouseMoved) return;
-                int type = Input.GetMouseButton(0) ? _sample.TextureLayer : 0;
+                int type = clickBtn == 0 ? _sample.TextureLayer : 0;
                 dirty = _sample.PaintTerrainType(type);
             }
             else
             {
-                // 高度刷：仅单点触发，不支持长按
-                if (!firstPress) return;
-                int delta = Input.GetMouseButton(0) ? 1 : -1;
+                int delta = clickBtn == 0 ? 1 : -1;
                 dirty = _sample.BrushMapHigh(delta);
             }
             if (dirty) _onTerrainChanged?.Invoke();

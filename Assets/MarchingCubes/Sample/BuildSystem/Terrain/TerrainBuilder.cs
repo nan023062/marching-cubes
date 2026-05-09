@@ -80,9 +80,8 @@ namespace MarchingSquares
             colliderMesh.triangles = triangles;
             colliderMesh.RecalculateNormals();
 
-            // 点阵纹理：length × width（每像素 = 一个格子），RGBA32
-            // R=t0(BL) G=t1(BR) B=t2(TR) A=t3(TL)，每通道 = terrainType * 255/4
-            pointTex = new Texture2D(length, width, TextureFormat.RGBA32, false)
+            // 点阵纹理：(length+1) × (width+1)，每像素 = 一个格点，R 通道 = terrainType / 4
+            pointTex = new Texture2D(length + 1, width + 1, TextureFormat.RGBA32, false)
             {
                 filterMode = FilterMode.Point,
                 wrapMode   = TextureWrapMode.Clamp,
@@ -126,7 +125,7 @@ namespace MarchingSquares
             return dirty;
         }
 
-        /// <summary>地形类型刷绘。只更新 MaterialPropertyBlock，不重建 Tile。</summary>
+        /// <summary>地形类型刷绘（格点粒度）。只更新点阵纹理，不重建 Tile。</summary>
         public bool PaintTerrainType(Brush brush, int type)
         {
             type = Mathf.Clamp(type, 0, TerrainTypeCount - 1);
@@ -141,7 +140,7 @@ namespace MarchingSquares
                 if (d.sqrMagnitude <= radiusSqr && _points[x, z].terrainType != (byte)type)
                 {
                     _points[x, z].terrainType = (byte)type;
-                    UpdateAffectedTileColors(x, z);
+                    SetPointTexPixel(x, z);
                     dirty = true;
                 }
             }
@@ -188,18 +187,15 @@ namespace MarchingSquares
                 Object.Destroy(_tiles[x, z]);
                 _tiles[x, z] = null;
             }
-            if (_config == null) return;
-
             int caseIndex = GetCaseIndex(x, z, out int baseH);
             // 当前 case 未配置时回退到 case 0（平地默认块），确保初始地形可见
-            var prefab = _config.GetPrefab(caseIndex) ?? _config.GetPrefab(0);
-            if (prefab == null) return;
-
+            var prefab = _config.GetPrefab(caseIndex);
             var tile = Object.Instantiate(prefab);
-            tile.transform.SetParent(_parent);
-            tile.transform.localPosition = new Vector3(x, baseH, z);
-            tile.transform.localRotation = Quaternion.identity;
-            tile.transform.localScale    = Vector3.one;
+            Transform t = tile.transform;
+            t.SetParent(_parent);
+            t.localPosition = new Vector3(x, baseH, z);
+            t.localRotation = Quaternion.identity;
+            t.localScale    = Vector3.one;
 
             ApplyTileMPB(tile, x, z);
 
@@ -218,23 +214,12 @@ namespace MarchingSquares
         {
             var mpb = new MaterialPropertyBlock();
             mpb.SetTexture("_TerrainPointTex", pointTex);
-            // 每格一个像素，ST.xy = 格子中心 UV（一次采样拿到 RGBA = 4 角类型）
+            // ST.xy = BL 角点像素中心 UV（步长由 Shader 用 _TexelSize 自取）
+            float texW = length + 1, texH = width + 1;
             mpb.SetVector("_TerrainPointTexST", new Vector4(
-                (x + 0.5f) / length, (z + 0.5f) / width, 0, 0));
+                (x + 0.5f) / texW, (z + 0.5f) / texH, 0, 0));
             foreach (var mr in tile.GetComponentsInChildren<MeshRenderer>())
                 mr.SetPropertyBlock(mpb);
-        }
-
-        private void UpdateAffectedTileColors(int px, int pz)
-        {
-            // 点 (px,pz) 是最多 4 个格子的角点，全部更新对应格子的像素
-            for (int dx = -1; dx <= 0; dx++)
-            for (int dz = -1; dz <= 0; dz++)
-            {
-                int cx = px + dx, cz = pz + dz;
-                if (cx >= 0 && cx < length && cz >= 0 && cz < width)
-                    SetCellTexPixel(cx, cz);
-            }
         }
 
         private int GetCaseIndex(int x, int z, out int baseH)
@@ -290,8 +275,6 @@ namespace MarchingSquares
                 Object.Destroy(_cliffTiles[cx, cz]);
                 _cliffTiles[cx, cz] = null;
             }
-            if (_config == null) return;
-
             int cliffCase = GetCliffCase(cx, cz, out int baseH);
             if (cliffCase == 0) return;
 
@@ -324,24 +307,17 @@ namespace MarchingSquares
         /// <summary>全量刷新点阵纹理并上传 GPU。</summary>
         public void RefreshPointTexAll()
         {
-            for (int x = 0; x < length; x++)
-            for (int z = 0; z < width; z++)
-                SetCellTexPixel(x, z);
+            for (int x = 0; x <= length; x++)
+            for (int z = 0; z <= width; z++)
+                SetPointTexPixel(x, z);
             pointTex.Apply();
         }
 
-        private void SetCellTexPixel(int cx, int cz)
+        private void SetPointTexPixel(int px, int pz)
         {
-            // 每格一像素，RGBA = (t0 BL, t1 BR, t2 TR, t3 TL)，值 = terrainType * 255/4
-            pointTex.SetPixel(cx, cz, new Color32(
-                Encode(_points[cx,     cz    ].terrainType),  // R = BL
-                Encode(_points[cx + 1, cz    ].terrainType),  // G = BR
-                Encode(_points[cx + 1, cz + 1].terrainType),  // B = TR
-                Encode(_points[cx,     cz + 1].terrainType)   // A = TL
-            ));
+            float encoded = _points[px, pz].terrainType / (float)(TerrainTypeCount - 1);
+            pointTex.SetPixel(px, pz, new Color(encoded, 0f, 0f, 1f));
         }
-
-        private static byte Encode(byte t) => (byte)(t * 255 / (TerrainTypeCount - 1));
 
         // ── Gizmos ────────────────────────────────────────────────────────────
 
