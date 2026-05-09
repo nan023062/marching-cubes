@@ -284,6 +284,10 @@ namespace MarchingSquares
             tile.transform.localPosition = new Vector3(cx + 0.5f, baseH - 1, cz + 0.5f);
             tile.transform.localRotation = Quaternion.identity;
             tile.transform.localScale    = Vector3.one;
+
+            var dbg = tile.GetComponent<MqCliffPrefab>();
+            if (dbg != null) { dbg.cliffCase = cliffCase; dbg.baseHeight = baseH - 1; }
+
             _cliffTiles[cx, cz] = tile;
         }
 

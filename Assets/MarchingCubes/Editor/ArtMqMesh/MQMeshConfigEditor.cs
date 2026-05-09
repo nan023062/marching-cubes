@@ -179,12 +179,15 @@ namespace MarchingCubes.Editor
 
             for (int ci = 1; ci < MarchingSquares.MqMeshConfig.CliffCaseCount; ci++)
             {
-                var (canonical, rotCount) = MarchingSquares.MqMeshConfig.CliffD4Map[ci];
+                var (canonical, rotCount) = MarchingSquares.MqTable.CliffD4Map[ci];
                 string fbxPath = $"{_cliffFbxFolder.TrimEnd('/', '\\')}/mq_cliff_{canonical}.fbx";
                 var fbx = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
                 if (fbx == null) { skip++; continue; }
 
                 var root  = new GameObject($"mq_cliff_{ci}");
+                var dbg   = root.AddComponent<MarchingSquares.MqCliffPrefab>();
+                dbg.cliffCase = ci;
+
                 var child = (GameObject)PrefabUtility.InstantiatePrefab(fbx, root.transform);
                 child.transform.localPosition = Vector3.zero;
                 child.transform.localRotation = Quaternion.Euler(0, 90f * rotCount, 0);
@@ -314,7 +317,7 @@ namespace MarchingCubes.Editor
             if (ci == 0) return;
             EditorGUI.DrawRect(GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.ExpandWidth(true), GUILayout.Height(1)), new Color(0,0,0,0.3f));
             EditorGUILayout.Space(4);
-            var (canon, rot) = MarchingSquares.MqMeshConfig.CliffD4Map[ci];
+            var (canon, rot) = MarchingSquares.MqTable.CliffD4Map[ci];
             EditorGUILayout.LabelField($"Cliff Case {ci}  ({System.Convert.ToString(ci, 2).PadLeft(4, '0')})  ← mq_cliff_{canon}.fbx × {rot}×90°", EditorStyles.boldLabel);
             EditorGUI.BeginChangeCheck();
             var cur = cfg.GetCliffPrefab(ci);

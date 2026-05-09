@@ -24,30 +24,6 @@ namespace MarchingSquares
         public const int TerrainCaseCount = 19;
         public const int CliffCaseCount   = 16;
 
-        // D4 规范 case（只需导出这 5 个 FBX，其余由旋转派生）
-        public static readonly int[] CliffCanonicalCases = { 1, 3, 5, 7, 15 };
-
-        // (规范 case, 旋转次数) for cliff case 0-15，旋转 = Euler(0, 90*n, 0)
-        public static readonly (int canonical, int rotCount)[] CliffD4Map =
-        {
-            (0,  0),  // 0:  无悬崖
-            (1,  0),  // 1:  南墙
-            (1,  1),  // 2:  东墙
-            (3,  0),  // 3:  南+东
-            (1,  2),  // 4:  北墙
-            (5,  0),  // 5:  南+北（对穿）
-            (3,  1),  // 6:  东+北
-            (7,  0),  // 7:  南+东+北
-            (1,  3),  // 8:  西墙
-            (3,  3),  // 9:  南+西
-            (5,  1),  // 10: 东+西
-            (7,  3),  // 11: 南+东+西
-            (3,  2),  // 12: 北+西
-            (7,  2),  // 13: 南+北+西
-            (7,  1),  // 14: 东+北+西
-            (15, 0),  // 15: 四面（孤岛）
-        };
-
         [Header("地形 Tile（case 0-18）")]
         [SerializeField] private GameObject[] _prefabs = new GameObject[TerrainCaseCount];
 

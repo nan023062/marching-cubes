@@ -17,6 +17,39 @@ namespace MarchingSquares
         public const int CornerCount = 4;
         public const int CaseCount   = 16;
 
+        // ── 悬崖查表 ─────────────────────────────────────────────────────────
+
+        public const int CliffCaseCount = 16;
+
+        /// <summary>
+        /// D4 旋转映射：每个悬崖 case → (规范 case, 旋转次数)。
+        /// 旋转单位 = 90° CW（Unity Euler(0, 90*n, 0)）。
+        /// 规范 case 集合：{1, 3, 5, 7, 15}，只需这 5 个 FBX。
+        /// Mesh 以格子 XZ 中心为原点，旋转后自动覆盖全部 16 种情形。
+        /// </summary>
+        public static readonly (int canonical, int rotCount)[] CliffD4Map =
+        {
+            (0,  0),  // 0:  无悬崖
+            (1,  0),  // 1:  南墙
+            (1,  1),  // 2:  东墙  = canonical 1 旋转 1 次
+            (3,  0),  // 3:  南+东
+            (1,  2),  // 4:  北墙  = canonical 1 旋转 2 次
+            (5,  0),  // 5:  南+北（对穿）
+            (3,  1),  // 6:  东+北 = canonical 3 旋转 1 次
+            (7,  0),  // 7:  南+东+北
+            (1,  3),  // 8:  西墙  = canonical 1 旋转 3 次
+            (3,  3),  // 9:  南+西 = canonical 3 旋转 3 次
+            (5,  1),  // 10: 东+西 = canonical 5 旋转 1 次
+            (7,  3),  // 11: 南+东+西 = canonical 7 旋转 3 次
+            (3,  2),  // 12: 北+西 = canonical 3 旋转 2 次
+            (7,  2),  // 13: 南+北+西 = canonical 7 旋转 2 次
+            (7,  1),  // 14: 东+北+西 = canonical 7 旋转 1 次
+            (15, 0),  // 15: 四面（孤岛）
+        };
+
+        /// <summary>5 个规范 case，对应 mq_cliff_1/3/5/7/15.fbx。</summary>
+        public static readonly int[] CliffCanonicalCases = { 1, 3, 5, 7, 15 };
+
         // ── 角点坐标 ─────────────────────────────────────────────────────────
 
         /// <summary>四个角点的 (x, z) 坐标（unit quad [0,1]×[0,1]）。</summary>
