@@ -7,24 +7,23 @@ Shader "MarchingSquares/SplatmapTerrain"
         _Tiling       ("Base Tiling",     Float)   = 1
 
         // ── Per-tile，由 MaterialPropertyBlock 注入（不在 Inspector 显示）──────
-        // _TerrainPointTex   : 点阵纹理（每像素 = 一个格点的 terrainMask byte，R8）
-        //   编码：R 通道 = mask byte（Color32 整数往返）；shader 端 round(*255) 反解
-        //   bit i = 1 表示 type i 存在；最多 8 type 同点叠加
-        // _TerrainPointTexST : xy = BL 角点像素中心 UV，zw = 单步间距（1/texW, 1/texH）
-        //   注意：必须用 zw 显式传步长，不能用 _TerrainPointTex_TexelSize.xy ——
-        //   MPB 注入的纹理不会同步更新 _TexelSize 内置变量（恒为默认 1×1 = (1,1)）
-        [HideInInspector] _TerrainPointTex ("Point Tex",   2D)     = "black" {}
-        [HideInInspector] _TerrainPointTexST ("Point ST",  Vector) = (0,0,0,0)
+        // _TileMsIdx : xyzw = layer 0/1/2/3 的 ms_idx (0~15)
+        // _TileMsIdx4: layer 4 的 ms_idx
+        // 直接 per-tile uniform，无纹理采样无解码 → 0 误差
+        [HideInInspector] _TileMsIdx  ("Layer ms_idx 0-3", Vector) = (0, 0, 0, 0)
+        [HideInInspector] _TileMsIdx4 ("Layer ms_idx 4",   Float)  = 0
 
         // _NormalMap : 切线空间法线贴图（Blender 端 tileable noise 烘焙；缺省 "bump" = 平面无扰动）
         _NormalMap ("Normal Map", 2D) = "bump" {}
     }
 
     // ── _OverlayArray 资产协议（重要变更，2026-05-10） ────────────────────────
-    // 旧协议：packed atlas 4 列 × N 行，由 ApplyOverlay 内部 b0+b1*2 / b2+b3*2 计算 UV 取子格
-    // 新协议：1 type / 层，array index = type i（0~7）；每张是完整的 tileable overlay
-    // 美术资产侧需重新烘焙/导入 8 张 type overlay，array layer 顺序 = type id
-    // 未配置的 type 在采样时返回 array 越界默认值（黑色或空），DecodeCorner 中遇 mask=0 fallback _BaseTex
+    // 5 层 2DArray，layer t = type t 的 marching squares atlas（0 ≤ t ≤ 4）
+    // 每层布局：4×4 atlas，存 16 个 MS case 的形状纹理（带 alpha）
+    //   col = ms_idx % 4，row = ms_idx / 4，UV 原点左下
+    //   ms_idx = bit_BL | bit_BR<<1 | bit_TR<<2 | bit_TL<<3（0~15，标准 MS 编码）
+    // R 通道 mask byte 低 5 bit = 5 个 type 是否存在（bit t = type t 存在）
+    // 渲染：遍历 type 0~4，高编号覆盖低；ms_idx=0 跳过；alpha 决定覆盖；底色 _BaseTex
 
     SubShader
     {
@@ -46,8 +45,9 @@ Shader "MarchingSquares/SplatmapTerrain"
             sampler2D _BaseTex;
             UNITY_DECLARE_TEX2DARRAY(_OverlayArray);
 
-            sampler2D _TerrainPointTex;
-            float4    _TerrainPointTexST;       // xy=BL角点像素中心UV，zw=步长(1/texW,1/texH)
+            // 5 layer ms_idx 直接 per-tile uniform，无纹理采样
+            float4 _TileMsIdx;   // x=layer0 idx, y=layer1, z=layer2, w=layer3
+            float  _TileMsIdx4;  // layer4 idx
             sampler2D _NormalMap;
             float     _Tiling;
 
@@ -69,27 +69,6 @@ Shader "MarchingSquares/SplatmapTerrain"
                 float3 worldBitangent : TEXCOORD4;
             };
 
-            // 单角解码：8-bit mask → 加权混合 8 张 overlay → 角颜色
-            // 权重：weight(i) = i + 1（线性，bit 位高的 type 视觉更强）
-            // mask = 0 时 totalW = 0 → fallback 到 _BaseTex 颜色（baseRGB 由调用方传入）
-            float3 DecodeCorner(int mask, float2 lUV, float3 baseRGB)
-            {
-                float3 acc = 0;
-                float  totalW = 0;
-                [unroll]
-                for (int t = 0; t < 8; t++)
-                {
-                    if ((mask >> t) & 1)
-                    {
-                        float w = (float)(t + 1);
-                        float3 ov = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(lUV, t)).rgb;
-                        acc    += w * ov;
-                        totalW += w;
-                    }
-                }
-                return totalW > 0 ? acc / totalW : baseRGB;
-            }
-
             v2f vert(appdata v)
             {
                 v2f o;
@@ -105,31 +84,33 @@ Shader "MarchingSquares/SplatmapTerrain"
 
             fixed4 frag(v2f i) : SV_Target
             {
-                // ── 1. 4 角各采样 1 次，反解 mask byte ────────────────────────
-                float2 uvBL = _TerrainPointTexST.xy;
-                float2 stp  = _TerrainPointTexST.zw; // 1/texW, 1/texH（C# 端显式传入）
-                int m0 = (int)round(tex2D(_TerrainPointTex, uvBL                          ).r * 255.0); // BL
-                int m1 = (int)round(tex2D(_TerrainPointTex, uvBL + float2(stp.x, 0      ) ).r * 255.0); // BR
-                int m2 = (int)round(tex2D(_TerrainPointTex, uvBL + float2(stp.x, stp.y) ).r * 255.0); // TR
-                int m3 = (int)round(tex2D(_TerrainPointTex, uvBL + float2(0,     stp.y) ).r * 255.0); // TL
+                // ── 1. 直接读 per-tile uniform 拿 5 layer ms_idx，无采样无解码 ──
+                int idx0 = (int)_TileMsIdx.x;
+                int idx1 = (int)_TileMsIdx.y;
+                int idx2 = (int)_TileMsIdx.z;
+                int idx3 = (int)_TileMsIdx.w;
+                int idx4 = (int)_TileMsIdx4;
 
-                // ── 2. 基础层颜色（mask=0 角的 fallback） ─────────────────────
-                fixed4 baseCol = tex2D(_BaseTex, i.baseUV);
-
-                // ── 3. 每角解码 + 加权混合（8 type，weight = bitIndex + 1） ───
+                // ── 2. 底色 _BaseTex（所有 layer ms_idx=0 时露底）─────────────
                 float2 lUV = i.localUV;
-                float3 c0 = DecodeCorner(m0, lUV, baseCol.rgb); // BL
-                float3 c1 = DecodeCorner(m1, lUV, baseCol.rgb); // BR
-                float3 c2 = DecodeCorner(m2, lUV, baseCol.rgb); // TR
-                float3 c3 = DecodeCorner(m3, lUV, baseCol.rgb); // TL
+                float3 col = tex2D(_BaseTex, i.baseUV).rgb;
 
-                // ── 4. 4 角颜色 quad 双线性插值 ──────────────────────────────
-                float2 f = lUV;
-                float3 cBottom = lerp(c0, c1, f.x); // BL→BR
-                float3 cTop    = lerp(c3, c2, f.x); // TL→TR
-                float3 col     = lerp(cBottom, cTop, f.y);
+                // ── 3. 5 个 layer 按高编号覆盖低编号顺序，alpha 决定覆盖 ───────
+                #define BLEND_LAYER(t, idx) \
+                    if (idx > 0) { \
+                        float2 atlasUV = float2(((idx & 3)  + lUV.x) * 0.25, \
+                                                ((idx >> 2) + lUV.y) * 0.25); \
+                        float4 ov = UNITY_SAMPLE_TEX2DARRAY(_OverlayArray, float3(atlasUV, t)); \
+                        col = lerp(col, ov.rgb, ov.a); \
+                    }
+                BLEND_LAYER(0, idx0)
+                BLEND_LAYER(1, idx1)
+                BLEND_LAYER(2, idx2)
+                BLEND_LAYER(3, idx3)
+                BLEND_LAYER(4, idx4)
+                #undef BLEND_LAYER
 
-                // ── 5. 切线空间法线扰动 + Lambert 光照 ───────────────────────
+                // ── 4. 切线空间法线扰动 + Lambert 光照 ───────────────────────
                 // 缺省 _NormalMap = "bump" → UnpackNormal 返回 (0,0,1)，nWorld ≡ i.worldNormal，无扰动
                 float3 nT     = UnpackNormal(tex2D(_NormalMap, lUV));
                 float3 nWorld = normalize(nT.x * i.worldTangent

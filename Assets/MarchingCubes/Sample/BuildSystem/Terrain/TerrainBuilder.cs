@@ -9,7 +9,7 @@ namespace MarchingSquares
     /// </summary>
     public class TerrainBuilder
     {
-        public const int TerrainTypeCount = 8;   // R 通道 8-bit bitmask 上限
+        public const int TerrainTypeCount = 5;   // R 通道 8-bit bitmask 上限
 
         // ── 尺寸 / 坐标系 ─────────────────────────────────────────────────────
         public readonly int   width, length, height;
@@ -27,11 +27,8 @@ namespace MarchingSquares
         public readonly Mesh   colliderMesh;
         private readonly Vector3[] _vertices;
 
-        // ── 点阵纹理（每像素=一个格点的 terrainMask，供 Shader 采样）────────
-        // 尺寸：(length+1) × (width+1)，R 通道 = terrainMask byte（Color32 整数往返，shader 端 round(*255) 反解）
-        public readonly Texture2D pointTex;
-        // CPU 镜像：与 pointTex 同布局（row-major，index = z * (length+1) + x），单像素更新只改缓存，操作末尾 SetPixels32 批量上传
-        private readonly Color32[] _pixelBuffer;
+        // ── 5 layer ms_idx 走 per-tile MPB uniform 推送（魔兽风格），无纹理采样 ─────
+        // 旧 cell 纹理 + sampler 方案因 bilinear 误差导致 byte 解码错位，弃用
 
         // ── 视觉 Tile（地形 + 悬崖 prefab 实例）────────────────────────────────
         private readonly TileCaseConfig  _config;
@@ -83,15 +80,6 @@ namespace MarchingSquares
             colliderMesh.triangles = triangles;
             colliderMesh.RecalculateNormals();
 
-            // 点阵纹理：(length+1) × (width+1)，每像素 = 一个格点，R 通道 = terrainMask byte（Color32 整数往返）
-            pointTex = new Texture2D(length + 1, width + 1, TextureFormat.RGBA32, false)
-            {
-                filterMode = FilterMode.Point,
-                wrapMode   = TextureWrapMode.Clamp,
-                name       = "TerrainPointTex",
-            };
-            _pixelBuffer = new Color32[(length + 1) * (width + 1)];
-            RefreshPointTexAll();
         }
 
         // ── 地形操作 ──────────────────────────────────────────────────────────
@@ -129,7 +117,7 @@ namespace MarchingSquares
             return dirty;
         }
 
-        /// <summary>地形类型刷绘（格点粒度，Add 语义：mask |= 1<<type）。只更新点阵纹理，不重建 Tile。</summary>
+        /// <summary>地形类型刷绘（格点粒度，Add 语义：mask |= 1<<type）。只更新 cell 纹理，不重建 Tile。</summary>
         public bool PaintTerrainType(Brush brush, int type)
         {
             type = Mathf.Clamp(type, 0, TerrainTypeCount - 1);
@@ -137,7 +125,7 @@ namespace MarchingSquares
             (Vector3 center, float radiusSqr) = CalculateArea(
                 brush, out int minX, out int minZ, out int maxX, out int maxZ);
 
-            bool dirty = false;
+            var dirtyPoints = new HashSet<(int, int)>();
             for (int x = minX; x <= maxX; x++)
             for (int z = minZ; z <= maxZ; z++)
             {
@@ -147,14 +135,13 @@ namespace MarchingSquares
                 byte newMask = (byte)(oldMask | bit);
                 if (newMask == oldMask) continue;
                 _points[x, z].terrainMask = newMask;
-                SetPointTexPixel(x, z);
-                dirty = true;
+                dirtyPoints.Add((x, z));
             }
-            if (dirty) FlushPointTex();
-            return dirty;
+            if (dirtyPoints.Count > 0) { RefreshAffectedTilesMPB(dirtyPoints); return true; }
+            return false;
         }
 
-        /// <summary>地形类型擦除（格点粒度，Erase 语义：mask &= ~(1<<type)）。只更新点阵纹理，不重建 Tile。</summary>
+        /// <summary>地形类型擦除（格点粒度，Erase 语义：mask &= ~(1<<type)）。只重推 MPB，不重建 Tile。</summary>
         public bool EraseTerrainType(Brush brush, int type)
         {
             type = Mathf.Clamp(type, 0, TerrainTypeCount - 1);
@@ -162,7 +149,7 @@ namespace MarchingSquares
             (Vector3 center, float radiusSqr) = CalculateArea(
                 brush, out int minX, out int minZ, out int maxX, out int maxZ);
 
-            bool dirty = false;
+            var dirtyPoints = new HashSet<(int, int)>();
             for (int x = minX; x <= maxX; x++)
             for (int z = minZ; z <= maxZ; z++)
             {
@@ -172,11 +159,10 @@ namespace MarchingSquares
                 byte newMask = (byte)(oldMask & clearBit);
                 if (newMask == oldMask) continue;
                 _points[x, z].terrainMask = newMask;
-                SetPointTexPixel(x, z);
-                dirty = true;
+                dirtyPoints.Add((x, z));
             }
-            if (dirty) FlushPointTex();
-            return dirty;
+            if (dirtyPoints.Count > 0) { RefreshAffectedTilesMPB(dirtyPoints); return true; }
+            return false;
         }
 
         /// <summary>笔刷范围内所有格点 mask = 0（一键清空：fallback 到 _BaseTex）。返回 dirty。</summary>
@@ -185,7 +171,7 @@ namespace MarchingSquares
             (Vector3 center, float radiusSqr) = CalculateArea(
                 brush, out int minX, out int minZ, out int maxX, out int maxZ);
 
-            bool dirty = false;
+            var dirtyPoints = new HashSet<(int, int)>();
             for (int x = minX; x <= maxX; x++)
             for (int z = minZ; z <= maxZ; z++)
             {
@@ -193,11 +179,26 @@ namespace MarchingSquares
                 if (d.sqrMagnitude > radiusSqr) continue;
                 if (_points[x, z].terrainMask == 0) continue;
                 _points[x, z].terrainMask = 0;
-                SetPointTexPixel(x, z);
-                dirty = true;
+                dirtyPoints.Add((x, z));
             }
-            if (dirty) FlushPointTex();
-            return dirty;
+            if (dirtyPoints.Count > 0) { RefreshAffectedTilesMPB(dirtyPoints); return true; }
+            return false;
+        }
+
+        // 一组格点变化 → 算受影响 cells（每点影响 4 邻 cell）→ 重推 MPB
+        private void RefreshAffectedTilesMPB(HashSet<(int x, int z)> dirtyPoints)
+        {
+            var dirtyCells = new HashSet<(int, int)>();
+            foreach (var (px, pz) in dirtyPoints)
+            for (int dx = -1; dx <= 0; dx++)
+            for (int dz = -1; dz <= 0; dz++)
+            {
+                int cx = px + dx, cz = pz + dz;
+                if (cx >= 0 && cx < length && cz >= 0 && cz < width)
+                    dirtyCells.Add((cx, cz));
+            }
+            foreach (var (cx, cz) in dirtyCells)
+                if (_tiles[cx, cz] != null) ApplyTileMPB(_tiles[cx, cz], cx, cz);
         }
 
         // ── 视觉 Tile ─────────────────────────────────────────────────────────
@@ -262,18 +263,31 @@ namespace MarchingSquares
         /// 为 tile 设置 MPB：点阵纹理引用 + 该 tile 在纹理中的 UV 偏移/缩放。
         /// 纹理内容变化时（Apply()）所有 tile 自动生效，无需重推 MPB。
         /// </summary>
-        private void ApplyTileMPB(GameObject tile, int x, int z)
+        // WC3 风格 per-tile uniform：5 layer 的 ms_idx 直接推 MPB，无纹理采样无误差
+        private void ApplyTileMPB(GameObject tile, int cx, int cz)
         {
             var mpb = new MaterialPropertyBlock();
-            mpb.SetTexture("_TerrainPointTex", pointTex);
-            // ST.xy = BL 角点像素中心 UV，ST.zw = 单步像素步长 (1/texW, 1/texH)
-            // 步长必须显式传：MPB 注入的纹理不会同步更新 _TerrainPointTex_TexelSize
-            float texW = length + 1, texH = width + 1;
-            mpb.SetVector("_TerrainPointTexST", new Vector4(
-                (x + 0.5f) / texW, (z + 0.5f) / texH, 1f / texW, 1f / texH));
+            byte mBL = _points[cx,     cz    ].terrainMask;
+            byte mBR = _points[cx + 1, cz    ].terrainMask;
+            byte mTR = _points[cx + 1, cz + 1].terrainMask;
+            byte mTL = _points[cx,     cz + 1].terrainMask;
+            int idx0 = MsIndex(mBL, mBR, mTR, mTL, 0);
+            int idx1 = MsIndex(mBL, mBR, mTR, mTL, 1);
+            int idx2 = MsIndex(mBL, mBR, mTR, mTL, 2);
+            int idx3 = MsIndex(mBL, mBR, mTR, mTL, 3);
+            int idx4 = MsIndex(mBL, mBR, mTR, mTL, 4);
+            mpb.SetVector("_TileMsIdx",  new Vector4(idx0, idx1, idx2, idx3));
+            mpb.SetFloat ("_TileMsIdx4", idx4);
             foreach (var mr in tile.GetComponentsInChildren<MeshRenderer>())
                 mr.SetPropertyBlock(mpb);
         }
+
+        // 4 角 mask + bit t → ms_idx (0~15)，标准编码 BL=bit0, BR=bit1, TR=bit2, TL=bit3
+        private static int MsIndex(byte mBL, byte mBR, byte mTR, byte mTL, int t)
+            =>  ((mBL >> t) & 1)
+            | (((mBR >> t) & 1) << 1)
+            | (((mTR >> t) & 1) << 2)
+            | (((mTL >> t) & 1) << 3);
 
         private int GetCaseIndex(int x, int z, out int baseH)
             => TileTable.GetMeshCase(
@@ -355,43 +369,53 @@ namespace MarchingSquares
             _cliffTiles[cx, cz] = tile;
         }
 
-        // ── 点阵纹理 ──────────────────────────────────────────────────────────
-
-        /// <summary>全量刷新点阵纹理并上传 GPU。</summary>
-        public void RefreshPointTexAll()
-        {
-            for (int x = 0; x <= length; x++)
-            for (int z = 0; z <= width; z++)
-                SetPointTexPixel(x, z);
-            FlushPointTex();
-        }
-
-        // 仅更新 CPU 镜像数组中的单格点；批量上传由 FlushPointTex 触发
-        // 索引布局与 SetPixels32 一致：行优先，左下原点，index = z * (length+1) + x
-        private void SetPointTexPixel(int px, int pz)
-        {
-            byte mask = _points[px, pz].terrainMask;
-            _pixelBuffer[pz * (length + 1) + px] = new Color32(mask, 0, 0, 255);
-        }
-
-        // 把 CPU 镜像批量上传到 GPU；绕开 SetPixel(Color) 的浮点中转
-        private void FlushPointTex()
-        {
-            pointTex.SetPixels32(_pixelBuffer);
-            pointTex.Apply();
-        }
 
         // ── Gizmos ────────────────────────────────────────────────────────────
 
         public void DrawGizmos()
         {
-            Gizmos.color = Color.red;
             for (int i = 0; i <= length; i++)
             for (int j = 0; j <= width; j++)
             {
                 int h = _points[i, j].high;
-                Gizmos.DrawSphere(new Vector3(i, h, j), 0.05f);
+                byte mask = _points[i, j].terrainMask;
+                Vector3 pos = new Vector3(i, h, j);
+                if (mask == 0)
+                {
+                    Gizmos.color = Color.gray;
+                    Gizmos.DrawSphere(pos, 0.05f);
+                }
+                else
+                {
+                    Gizmos.color = MaskGizmoColor(mask);
+                    Gizmos.DrawSphere(pos, 0.08f);
+#if UNITY_EDITOR
+                    UnityEditor.Handles.Label(pos + Vector3.up * 0.6f, MaskBitsString(mask));
+#endif
+                }
             }
+        }
+
+        // mask byte → Gizmo 颜色：取最高置位 bit 对应 layer 的实际 atlas 中央色
+        private static Color MaskGizmoColor(byte mask)
+        {
+            if ((mask & 0x10) != 0) return new Color(0.36f, 0.15f, 0.41f); // bit 4 紫 [92,37,105]
+            if ((mask & 0x08) != 0) return new Color(0.88f, 0.91f, 0.96f); // bit 3 雪 [225,231,246]
+            if ((mask & 0x04) != 0) return new Color(0.50f, 0.50f, 0.48f); // bit 2 岩 [127,127,122]
+            if ((mask & 0x02) != 0) return new Color(0.18f, 0.62f, 0.17f); // bit 1 草 [45,158,43]
+            if ((mask & 0x01) != 0) return new Color(0.60f, 0.47f, 0.20f); // bit 0 泥 [152,119,50]
+            return Color.gray;
+        }
+
+        // mask byte → 5 位 0/1 字符串（bit 4 → bit 0），如 mask=3 → "00011"
+        private static string MaskBitsString(byte mask)
+        {
+            char b4 = ((mask >> 4) & 1) == 1 ? '1' : '0';
+            char b3 = ((mask >> 3) & 1) == 1 ? '1' : '0';
+            char b2 = ((mask >> 2) & 1) == 1 ? '1' : '0';
+            char b1 = ((mask >> 1) & 1) == 1 ? '1' : '0';
+            char b0 = ( mask       & 1) == 1 ? '1' : '0';
+            return $"{b4}{b3}{b2}{b1}{b0}";
         }
 
         // ── 内部辅助 ─────────────────────────────────────────────────────────

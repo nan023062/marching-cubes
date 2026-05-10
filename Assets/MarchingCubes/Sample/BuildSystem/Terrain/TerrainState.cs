@@ -10,8 +10,8 @@ namespace MarchingCubes.Sample
         readonly int                  _terrainMask;
         readonly System.Action        _onTerrainChanged;
 
-        // 8 种 type（0~7），bit 位越高视觉权重越大
-        static readonly string[] LayerNames = { "泥", "草", "岩", "雪", "腐", "沙", "苔", "晶" };
+        // 5 种 type（与 atlas layer 0~4 对齐）
+        static readonly string[] LayerNames = { "泥", "草", "岩", "雪", "紫" };
 
         float _pressTime   = -1f;
         int   _pressButton = -1;
