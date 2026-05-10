@@ -141,35 +141,34 @@ namespace MarchingSquares
 
         // ── Atlas 美术约定（terrain_overlay.asset 4×4 子格排布）────────────────
         //
-        // 美术烘焙 atlas 时使用与 TileTable 不同的 bit 编码（逆时针从 BR 起点）：
+        // atlas 子格按 TileTable 标准编码排布（与角点 V0~V3 序号直接对应）：
         //
-        //   atlas bit 0 = BR (V1)
-        //   atlas bit 1 = TR (V2)
-        //   atlas bit 2 = TL (V3)
-        //   atlas bit 3 = BL (V0)
+        //   bit 0 = V0(BL) → mask 贡献 1
+        //   bit 1 = V1(BR) → mask 贡献 2
+        //   bit 2 = V2(TR) → mask 贡献 4
+        //   bit 3 = V3(TL) → mask 贡献 8
         //
-        // 子格在 atlas 中的位置 (Unity UV 视角，row=0 在底)：
-        //   col = atlas_idx % 4，row = atlas_idx / 4
+        //   atlas_idx = Σ (Vi 标记 ? 1<<i : 0)            ← 4 个点 mask 直接相加
+        //   子格位置: col = atlas_idx % 4, row = atlas_idx / 4 (Unity UV，row=0 在底)
         //
-        // 示例：BR 单角标记 → atlas_idx = 1 → atlas 子格 (col=1, row=0)
+        // 例：V0+V2 标记 → idx = 1 + 4 = 5 → 子格 (col=1, row=1)
         //
-        // 与 TileTable 的 GetTextureCase 差一步顺时针旋转（BL→bit3 而非 bit0）。
-        // 任何需要从 4 角 mask 算 atlas case_idx 的代码（C# / Python 离线工具）
-        // 都必须走这里，禁止散落在各端各自实现。
+        // 任何端（C# runtime / Python 离线 / shader）的「4 角 → atlas idx」一律
+        // 直接位运算，无须查表无须旋转。
 
-        /// <summary>4 角 mask + 单 bit type → atlas case_idx (0~15)。</summary>
+        /// <summary>4 角 mask + 单 bit type → atlas case_idx (0~15)，TileTable 标准编码。</summary>
         public static int GetAtlasCase(byte mBL, byte mBR, byte mTR, byte mTL, int bit)
-            =>  ((mBR >> bit) & 1)
-            | (((mTR >> bit) & 1) << 1)
-            | (((mTL >> bit) & 1) << 2)
-            | (((mBL >> bit) & 1) << 3);
+            =>  ((mBL >> bit) & 1)
+            | (((mBR >> bit) & 1) << 1)
+            | (((mTR >> bit) & 1) << 2)
+            | (((mTL >> bit) & 1) << 3);
 
         /// <summary>4 角是否参与 (true/false) → atlas case_idx (0~15)。离线工具友好。</summary>
         public static int GetAtlasCase(bool BL, bool BR, bool TR, bool TL)
-            =>  (BR ? 1 : 0)
-            |   (TR ? 1 : 0) << 1
-            |   (TL ? 1 : 0) << 2
-            |   (BL ? 1 : 0) << 3;
+            =>  (BL ? 1 : 0)
+            |   (BR ? 1 : 0) << 1
+            |   (TR ? 1 : 0) << 2
+            |   (TL ? 1 : 0) << 3;
 
         /// <summary>atlas case_idx (0~15) → 子格 (col, row)（Unity UV，row=0 在底）。</summary>
         public static (int col, int row) GetAtlasCell(int atlasCase)
