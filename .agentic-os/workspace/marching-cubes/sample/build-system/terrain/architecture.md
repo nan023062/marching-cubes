@@ -32,43 +32,74 @@ MqTable + TilePoint（runtime/marching-squares）
 ### TerrainBuilder：格点 → tile → colliderMesh
 
 1. `BrushMapHigh(brush, delta)` → 更新笔刷覆盖范围内 `Point.high` → 标记 dirty tiles → `RefreshAffectedTiles()` 重建 tile prefab 实例 → 更新 `colliderMesh`
-2. `PaintTerrainType(brush, type)` → **Add 语义**：`Point.terrainMask |= (1 << type)` → 调 `SetPointTexPixel(px,pz)` 写入 pointTex R 通道（不重建 prefab）；`EraseTerrainType(brush, type)` 反向擦除：`mask &= ~(1 << type)`；`ClearTerrainMask(brush)` 一键清空：`mask = 0` → 该格点 fallback 到 `_BaseTex`
+2. `PaintTerrainType(brush, type)` → **Add 语义**：`Point.terrainMask |= (1 << type)` → 收集 dirty 格点集 → `RefreshAffectedTilesMPB(dirtyPoints)` 重推 MPB（不重建 prefab）；`EraseTerrainType(brush, type)` 反向擦除：`mask &= ~(1 << type)`；`ClearTerrainMask(brush)` 一键清空：`mask = 0` → 该格点 4 邻 cell 重推 MPB（atlas idx 全归零，shader 露底色）
 3. `colliderMesh`：预分配 `renderWidth * renderDepth * 6` 个顶点（每格 6 顶点不共享），高度更新只修改 Y 分量
 
-### 地形纹理方案：per-vertex pointTex bitmask + Shader 4 角加权混合
+### 地形纹理方案：WC3 风格 per-tile MPB uniform + 5 layer atlas 高编号覆盖低
 
-**编码协议**（核心）：
+**架构动机**（核心权衡）：
 
-- `Point.terrainMask` 是 1 byte bitmask，**bit i = 1 表示 type i 存在**，最多支持 8 种 type 同时叠加
-- `pointTex` 尺寸为 `(length+1) × (width+1)`，每像素对应一个格点，**R 通道直接存 mask byte**（Color32 整数写入，shader 端 `round(tex.r * 255.0)` 反解，不再做 `/(TerrainTypeCount-1)` 浮点归一化）
-- 取消旧编码的 magic number 耦合：`TerrainTypeCount` 与编解码常数完全解耦，未来扩展 type 不需改 shader
-- 编码契约**集中在一处**：bit i ↔ type i 的映射在 architecture.md / shader 注释 / TerrainBuilder.cs 三处保持完全一致
+旧方案（per-vertex pointTex + sampler 采样 + shader 端解码 mask）有一个根本性缺陷：bilinear filtering 跨像素插值让 byte 值偏离原值，按位解码出非零 idx 让其他 layer 误显示（如刷泥出绿）。即便 `FilterMode.Point` + `Color32` 整数往返，渲染管线在某些边界情况下仍会引入精度漂移。
 
-**4 角解码 + 加权混合**（shader 端）：
+WC3 模式根除这个问题：**每个 tile 渲染时直接读 5 个 atlas case_idx 作为 per-tile uniform，shader 0 采样 0 解码**。代价是 mask 变化时要遍历受影响 cells 重推 MPB，但 mask 变化频率远低于渲染频率，整体大赚。
+
+**渲染管线**（shader 端）：
 
 ```
 对每个 fragment:
-  1. 4 角采样：mask_c = round(tex2D(pointTex, uv_c).r * 255.0)，c ∈ {BL,BR,TR,TL}
-  2. 每角解码：
-     col_c = float3(0,0,0)
-     totalW_c = 0
-     for i in 0..7:
-       if (mask_c >> i) & 1:
-         w = i + 1                              // 线性权重：bit 位越高权重越大
-         col_c += w * sample_overlay(i, lUV)
-         totalW_c += w
-     if totalW_c == 0: col_c = sample_base(baseUV)  // 空像素 fallback _BaseTex
-     else:             col_c /= totalW_c
-  3. 4 角双线性插值：col = bilinear(col_BL, col_BR, col_TR, col_TL, fracUV)
+  1. 直接读 5 个 per-tile uniform：
+     int idx0..idx4 = (int)_TileMsIdx.xyzw + (int)_TileMsIdx4   // 0..15，无采样无解码
+  2. 底色：col = tex2D(_BaseTex, baseUV).rgb
+  3. 5 layer 高编号覆盖低编号顺序遍历：
+     for t in 0..4:
+       if idx_t > 0:
+         atlasUV = float2(((idx_t & 3) + lUV.x) * 0.25,
+                          ((idx_t >> 2) + lUV.y) * 0.25)
+         ov = sample_2DArray(_OverlayArray, atlasUV, layer = t)
+         col = lerp(col, ov.rgb, ov.a)        // alpha 决定覆盖
+  4. 法线扰动 + Lambert 光照
 ```
 
-**视觉效果**：
-- 同点多 type → 自动加权混合，**bit 位越高（type ID 越大）权重越大**
-- 4 角共享 quad → 跨格点的 type 边界 双线性自然过渡，无 atlas 子格切割
+**渲染管线**（C# 端）：
 
-**性能注意**：每 fragment 最多 4 角 × 8 type = 32 次 overlay 采样（实际场景大部分像素 mask 稀疏，分支跳过空 bit），如需进一步优化可限制 max 4 个最高 bit，待性能 profile 后再决定。
+```
+ApplyTileMPB(tile, cx, cz):
+  4 角 mask = _points[BL/BR/TR/TL].terrainMask
+  for layer t in 0..4:
+    idx_t = TileTable.GetAtlasCase(mBL, mBR, mTR, mTL, bit = t)   // 4 个 (mask>>t)&1 拼成 0..15
+  mpb.SetVector("_TileMsIdx",  Vector4(idx0, idx1, idx2, idx3))
+  mpb.SetFloat ("_TileMsIdx4", idx4)
+```
 
-**MPB 接口不变**：`ApplyTileMPB` 仍写入 `_TerrainPointTex` + `_TerrainPointTexST(xy=BL UV, zw=步长)`，步长显式传入（不依赖 MPB 的 `_TexelSize`，原因见 module.json constraints）。
+**Mask 变化 → MPB 重推**（核心新机制）：
+
+```
+PaintTerrainType / EraseTerrainType / ClearTerrainMask 末尾:
+  RefreshAffectedTilesMPB(dirtyPoints):
+    dirtyCells = ∅
+    for each (px, pz) in dirtyPoints:
+      for dx, dz in {-1,0} × {-1,0}:                # 每点影响 4 邻 cell
+        cx, cz = px+dx, pz+dz
+        if (cx, cz) in bounds: dirtyCells.add((cx, cz))
+    for each (cx, cz) in dirtyCells:
+      ApplyTileMPB(_tiles[cx, cz], cx, cz)
+```
+
+不重建 prefab，只重推 5 个 idx；`ApplyTileMPB` 是无状态计算，可重复调用。
+
+**Atlas 资产协议**（_OverlayArray）：
+
+- 5 layer 2DArray，**layer t = type t 的 marching squares atlas**（0 ≤ t ≤ 4）
+- 每 layer 是 4×4 atlas，存 16 个 MS case 的形状纹理（带 alpha）
+- col = ms_idx % 4，row = ms_idx / 4（Unity UV，row=0 在底）
+- ms_idx 编码 = `bit_BL | bit_BR<<1 | bit_TR<<2 | bit_TL<<3`（与 `TileTable.GetMeshCase` V0~V3 编码完全一致）
+- ms_idx = 0 跳过该 layer（透明全空），底色 _BaseTex 露出
+
+**Atlas 编码标准化收口**：
+
+`TileTable.GetAtlasCase(mBL, mBR, mTR, mTL, bit)` / `GetAtlasCase(bool, bool, bool, bool)` / `GetAtlasCell(idx)` 是唯一编码权威。任何端（C# runtime / Python 离线 / shader）一律走它，禁止散落（之前 atlas 美术按 BR/TR/TL/BL 逆时针编码，现已重排到 V0~V3 标准编码与 GetMeshCase 对齐）。
+
+**MPB 接口**：`_TileMsIdx (Vector4) + _TileMsIdx4 (Float)` per-tile uniform；保留 `_NormalMap` (Texture2D) 用于法线扰动；删除旧 `_TerrainPointTex` / `_TerrainPointTexST`。
 
 ### TileCaseConfig：35 槽双轨 + editor 持久化
 

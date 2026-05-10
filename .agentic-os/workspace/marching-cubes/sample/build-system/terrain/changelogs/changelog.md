@@ -1,9 +1,52 @@
 # Terrain Changelog
 
+## [2026-05-10 16:00:00]
+type: decision
+title: 渲染管线重设计：WC3 风格 per-tile MPB uniform 5 layer atlas idx，废弃 per-vertex pointTex + shader 端 mask 解码
+editor: architect；过渡产物（owner 治理前代写 append-only）
+supersedes: [2026-05-10 14:30:00] + [2026-05-10 15:30:00]（两条 bitmask 解码方案）
+
+**触发**：老板自验证发现旧方案视觉异常（"刷泥出绿"），定位根因后重写渲染管线（commit `b408899` / `683671c` / `394f31b`）。
+
+**根因**（旧方案为何废弃）：
+- 旧 [14:30] 方案：pointTex per-vertex 编码 mask byte → shader 4 角采样 → DecodeCorner 加权混合 weight=i+1
+- 即便 `FilterMode.Point` + `Color32` 整数往返，渲染管线在 sampler 边界仍可能引入 ±1 byte 偏差
+- byte 偏差按 bit 解码后，**非目标 bit 被误置为 1** → 其他 layer 错误显示（症状：刷 type 0 泥，相邻像素出 type 1 草）
+- 这是 sampler-decode 范式的根本缺陷，不是参数 tuning 能解决的
+
+**新方案**（WC3 风格）：
+- 数据结构：`Point.terrainMask: byte` **保留**（mask 仍是低 5 bit 的 bitmask 编码）
+- API：`PaintTerrainType` Add 语义 / `EraseTerrainType` / `ClearTerrainMask` / `GetTerrainMask` **全部保留**
+- **删除**：`pointTex` / `_pixelBuffer` / `SetPixels32` / `FlushPointTex` / `SetPointTexPixel` / `RefreshPointTexAll`
+- **新增**：`RefreshAffectedTilesMPB(HashSet<(int,int)>)` — mask 变化 → dirty 格点扩散到 4 邻 cell → 重推 MPB
+- `ApplyTileMPB`：读 4 角 mask → 调 `TileTable.GetAtlasCase(mBL,mBR,mTR,mTL,bit)` 算每 layer 的 atlas case_idx → 推 `_TileMsIdx (Vector4 layer 0-3)` + `_TileMsIdx4 (Float layer 4)` 到 MPB
+- shader frag 直接读 uniform 拿 5 个 idx，**0 采样 0 解码**；按 type 0~4 高编号覆盖低编号 lerp by alpha
+
+**关键架构收益**：
+- **0 sampler 误差**：uniform 直读不走 bilinear，根除"刷泥出绿"类型的视觉串扰
+- **atlas 编码统一收口**：所有「4 角 → atlas idx」走 `TileTable.GetAtlasCase`，C# / Python / shader 三端通用
+- **TerrainTypeCount 回到 5**：与 mc 美术约定对齐（之前为支持 8 layer 临时扩到 8）
+- **MPB 重推开销可控**：mask 变化频率远低于渲染频率，整体性能优于 sampler 路径
+
+**资产协议**（_OverlayArray）：
+- 5 layer 2DArray，每 layer 4×4 atlas，存 16 个 MS case 形状（带 alpha）
+- col = ms_idx % 4，row = ms_idx / 4（Unity UV，row=0 在底）
+- ms_idx 编码标准化（commit `683671c` / `394f31b`）：从原 BR/TR/TL/BL 逆时针约定改为 V0~V3 标准（与 GetMeshCase 对齐），各层 contrast 拉伸提升清晰度
+- 老板已自行重排 atlas 资产 + 提升对比度，新协议**已生效**
+
+**跨模块影响**：
+- `runtime/marching-squares` 三件套同步补完：新增 `TileTable.GetAtlasCase` / `GetAtlasCell` / `CliffD4Map` 等 API；同步漂移已久的命名（MqTable→TileTable / MqTilePrefab→TilePrefab / ISquareTerrainReceiver→ITileTerrainReceiver）
+- `art-mq-mesh prefab UV` 跨模块契约**仍然有效**（atlas 4×4 子格采样依赖 lUV ∈ [0,1]×[0,1]）
+
+**Bitmask 数据结构遗产保留**：
+- `Point.terrainMask: byte` + Add/Erase/Clear API 是 [14:30] 方案的核心遗产，对用户交互体验最有价值（多 type 同点叠加 + 一键清空）
+- 仅渲染管线（sampler vs uniform）被替换；数据层和 UX 层完全继承
+
 ## [2026-05-10 15:30:00]
 type: decision
 title: bitmask 协议补完：ClearTerrainMask 一键清空 API + SetPixels32 批量写入路径 + UV 跨模块契约显式化
 editor: architect；过渡产物（owner 治理前代写 append-only）
+status: ⚠️ SUPERSEDED by [2026-05-10 16:00:00]（渲染管线整体重设计为 WC3 风格 per-tile MPB uniform；ClearTerrainMask API + UV 契约保留有效；SetPixels32 路径随 pointTex 一起删除）
 
 **触发**：reviewer 对抗审查（[2026-05-10 14:30:00] 决策的实装交付）发现 2 个必修点 + 1 个建议，老板拍板全采纳。
 
@@ -29,6 +72,10 @@ editor: architect；过渡产物（owner 治理前代写 append-only）
 type: decision
 title: terrainType 单值 → 8-bit bitmask 编码；多 type 同点叠加 + 线性权重混合；废弃 TileTerrainTest 沙盒
 editor: architect；过渡产物（owner 治理前代写 append-only）
+status: ⚠️ PARTIALLY SUPERSEDED by [2026-05-10 16:00:00]
+  保留：terrainMask byte 数据结构 + PaintTerrainType Add 语义 + EraseTerrainType API + TerrainTypeCount 概念
+  废弃：TerrainTypeCount=8（回退到 5）+ pointTex per-vertex 编码 + DecodeCorner 4 角加权混合 + weight=i+1 线性权重 + _OverlayArray 1 type/层资产协议
+  TileTerrainTest 沙盒退役 + UV 跨模块契约依然有效
 
 **编码协议变更（核心）**：
 - `Point.terrainType: byte`（单值枚举 0~4）→ `Point.terrainMask: byte`（8-bit bitmask，bit i=1 表示 type i 存在）

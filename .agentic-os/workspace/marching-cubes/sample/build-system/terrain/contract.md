@@ -8,7 +8,7 @@ namespace MarchingSquares
 public class Terrain : MonoBehaviour
 {
     public Brush           Brush        { get; }
-    public int             TextureLayer { get; set; }   // 当前涂色类型（0~7）
+    public int             TextureLayer { get; set; }   // 当前涂色类型（0~4，bit 索引）
     public TerrainBuilder  Builder      { get; }
 
     // TileCaseConfig 通过 [SerializeField] 在 Inspector 注入，不在 Init 参数里
@@ -27,28 +27,26 @@ public class Terrain : MonoBehaviour
 namespace MarchingSquares
 public class TerrainBuilder
 {
-    public const int TerrainTypeCount = 8;   // R 通道 8-bit bitmask 上限
+    public const int TerrainTypeCount = 5;   // 5 layer：泥/草/岩/雪/紫；mask 仍 byte，只用低 5 bit
 
     public readonly int       width, length, height;
     public readonly float     unit;
     public readonly Matrix4x4 localToWorld;
     public readonly Matrix4x4 worldToLocal;
     public readonly Mesh      colliderMesh;
-    public readonly Texture2D pointTex;
     public int MaxHeightDiff { get; set; } = 1;
 
     public TerrainBuilder(int width, int length, int height, float unit,
                           Vector3 worldPosition, TileCaseConfig config, Transform parent);
 
     public bool  BrushMapHigh(Brush brush, int delta);
-    public bool  PaintTerrainType(Brush brush, int type);   // Add: mask |= 1<<type
+    public bool  PaintTerrainType(Brush brush, int type);   // Add: mask |= 1<<type，触发 RefreshAffectedTilesMPB
     public bool  EraseTerrainType(Brush brush, int type);   // Erase: mask &= ~(1<<type)
-    public bool  ClearTerrainMask(Brush brush);             // Clear: mask = 0（一键清空所有 type）
+    public bool  ClearTerrainMask(Brush brush);             // Clear: mask = 0（一键清空所有 layer）
     public void  RefreshAllTiles();
     public void  RefreshAffectedTiles(int px, int pz);
     public sbyte GetPointHeight(int x, int z);
-    public byte  GetTerrainMask(int x, int z);              // 返回 8-bit bitmask（旧 GetTerrainType 已废弃）
-    public void  RefreshPointTexAll();
+    public byte  GetTerrainMask(int x, int z);              // 返回 byte bitmask（低 5 bit 表示 5 layer 是否存在）
     public void  DrawGizmos();
 }
 ```
@@ -103,4 +101,5 @@ public class Brush : MonoBehaviour
 
 ## 跨模块隐含契约
 
-- **art-mq-mesh prefab UV 布局**：每个 quad 顶点 UV 必须满足 BL=(0,0), BR=(1,0), TR=(1,1), TL=(0,1)。SplatmapTerrain.shader 的 4 角混合（DecodeCorner + 双线性插值）依赖这个 UV 约定按 quad 内 [0,1]×[0,1] 解释 fragment 位置。Blender 端 `mq_mesh.py` 烘焙的 UV (col/sub, row/sub) 已符合此约定。**任何修改 prefab UV 顺序的改动（如旋转、镜像）将导致 SplatmapTerrain 4 角颜色错位且无任何编译/运行报错**。
+- **art-mq-mesh prefab UV 布局**：每个 quad 顶点 UV 必须满足 BL=(0,0), BR=(1,0), TR=(1,1), TL=(0,1)。SplatmapTerrain.shader 用 lUV 直接定位 atlas 4×4 子格内的 [0,1]×[0,1] 区间（`((idx & 3) + lUV.x) * 0.25` / `((idx >> 2) + lUV.y) * 0.25`）。Blender 端 `mq_mesh.py` 烘焙的 UV (col/sub, row/sub) 已符合此约定。**任何修改 prefab UV 顺序的改动（如旋转、镜像）将导致 atlas 子格采样错位且无任何编译/运行报错**。
+- **atlas 美术约定**：`_OverlayArray` 5 layer 2DArray，每 layer 4×4 atlas 共 16 个 MS case 形状（带 alpha）；ms_idx 编码 = `bit_BL | bit_BR<<1 | bit_TR<<2 | bit_TL<<3`，与 `TileTable.GetMeshCase` 的 V0~V3 编码完全一致；col = ms_idx % 4, row = ms_idx / 4（Unity UV，row=0 在底）。任何端（C# runtime / Python 离线工具 / shader）的「4 角 → atlas idx」一律走 `TileTable.GetAtlasCase / GetAtlasCell`，禁止散落。
