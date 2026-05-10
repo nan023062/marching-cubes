@@ -263,7 +263,8 @@ namespace MarchingSquares
         /// 为 tile 设置 MPB：点阵纹理引用 + 该 tile 在纹理中的 UV 偏移/缩放。
         /// 纹理内容变化时（Apply()）所有 tile 自动生效，无需重推 MPB。
         /// </summary>
-        // WC3 风格 per-tile uniform：5 layer 的 ms_idx 直接推 MPB，无纹理采样无误差
+        // WC3 风格 per-tile uniform：5 layer 的 atlas case_idx 直接推 MPB，无纹理采样无误差
+        // 4 角 mask → atlas case_idx 走 TileTable.GetAtlasCase（atlas 美术约定单点维护）
         private void ApplyTileMPB(GameObject tile, int cx, int cz)
         {
             var mpb = new MaterialPropertyBlock();
@@ -271,23 +272,16 @@ namespace MarchingSquares
             byte mBR = _points[cx + 1, cz    ].terrainMask;
             byte mTR = _points[cx + 1, cz + 1].terrainMask;
             byte mTL = _points[cx,     cz + 1].terrainMask;
-            int idx0 = MsIndex(mBL, mBR, mTR, mTL, 0);
-            int idx1 = MsIndex(mBL, mBR, mTR, mTL, 1);
-            int idx2 = MsIndex(mBL, mBR, mTR, mTL, 2);
-            int idx3 = MsIndex(mBL, mBR, mTR, mTL, 3);
-            int idx4 = MsIndex(mBL, mBR, mTR, mTL, 4);
+            int idx0 = TileTable.GetAtlasCase(mBL, mBR, mTR, mTL, 0);
+            int idx1 = TileTable.GetAtlasCase(mBL, mBR, mTR, mTL, 1);
+            int idx2 = TileTable.GetAtlasCase(mBL, mBR, mTR, mTL, 2);
+            int idx3 = TileTable.GetAtlasCase(mBL, mBR, mTR, mTL, 3);
+            int idx4 = TileTable.GetAtlasCase(mBL, mBR, mTR, mTL, 4);
             mpb.SetVector("_TileMsIdx",  new Vector4(idx0, idx1, idx2, idx3));
             mpb.SetFloat ("_TileMsIdx4", idx4);
             foreach (var mr in tile.GetComponentsInChildren<MeshRenderer>())
                 mr.SetPropertyBlock(mpb);
         }
-
-        // 4 角 mask + bit t → ms_idx (0~15)，标准编码 BL=bit0, BR=bit1, TR=bit2, TL=bit3
-        private static int MsIndex(byte mBL, byte mBR, byte mTR, byte mTL, int t)
-            =>  ((mBL >> t) & 1)
-            | (((mBR >> t) & 1) << 1)
-            | (((mTR >> t) & 1) << 2)
-            | (((mTL >> t) & 1) << 3);
 
         private int GetCaseIndex(int x, int z, out int baseH)
             => TileTable.GetMeshCase(

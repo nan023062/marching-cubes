@@ -1,3 +1,4 @@
+
 namespace MarchingSquares
 {
     /// <summary>
@@ -137,5 +138,41 @@ namespace MarchingSquares
             }
             return count;
         }
+
+        // ── Atlas 美术约定（terrain_overlay.asset 4×4 子格排布）────────────────
+        //
+        // 美术烘焙 atlas 时使用与 TileTable 不同的 bit 编码（逆时针从 BR 起点）：
+        //
+        //   atlas bit 0 = BR (V1)
+        //   atlas bit 1 = TR (V2)
+        //   atlas bit 2 = TL (V3)
+        //   atlas bit 3 = BL (V0)
+        //
+        // 子格在 atlas 中的位置 (Unity UV 视角，row=0 在底)：
+        //   col = atlas_idx % 4，row = atlas_idx / 4
+        //
+        // 示例：BR 单角标记 → atlas_idx = 1 → atlas 子格 (col=1, row=0)
+        //
+        // 与 TileTable 的 GetTextureCase 差一步顺时针旋转（BL→bit3 而非 bit0）。
+        // 任何需要从 4 角 mask 算 atlas case_idx 的代码（C# / Python 离线工具）
+        // 都必须走这里，禁止散落在各端各自实现。
+
+        /// <summary>4 角 mask + 单 bit type → atlas case_idx (0~15)。</summary>
+        public static int GetAtlasCase(byte mBL, byte mBR, byte mTR, byte mTL, int bit)
+            =>  ((mBR >> bit) & 1)
+            | (((mTR >> bit) & 1) << 1)
+            | (((mTL >> bit) & 1) << 2)
+            | (((mBL >> bit) & 1) << 3);
+
+        /// <summary>4 角是否参与 (true/false) → atlas case_idx (0~15)。离线工具友好。</summary>
+        public static int GetAtlasCase(bool BL, bool BR, bool TR, bool TL)
+            =>  (BR ? 1 : 0)
+            |   (TR ? 1 : 0) << 1
+            |   (TL ? 1 : 0) << 2
+            |   (BL ? 1 : 0) << 3;
+
+        /// <summary>atlas case_idx (0~15) → 子格 (col, row)（Unity UV，row=0 在底）。</summary>
+        public static (int col, int row) GetAtlasCell(int atlasCase)
+            => (atlasCase & 3, atlasCase >> 2);
     }
 }
