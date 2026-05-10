@@ -8,15 +8,15 @@
 
 ```
 editor/
-├── art-mc-mesh/    ← MC case prefab 构建工具（D4 FBX 归约 + IOS 直映射 + 程序化生成）
-├── art-mq-mesh/    ← MQ case prefab 构建工具（16 FBX → 16 prefab）
+├── art-mc-mesh/    ← MC case prefab 构建工具（D4 FBX 归约 + IOS 直映射 + 53 canonical 法线贴图烘焙）
+├── art-mq-mesh/    ← MQ case prefab 构建工具（19 地形 FBX + 5 规范悬崖 FBX → 19+15 prefab，编辑器配置随 .asset 持久化）
 ├── art-mq-texture/ ← MQ 地形贴图生成器（Texture2DArray + 材质）
 └── blender/        ← Blender DCC Add-on（参考场景 + FBX 批量导出）
 ```
 
 依赖方向：
-- `art-mc-mesh` → `runtime/marching-cubes`（依赖 CubeTable、D4FbxCaseConfig、CubedMeshPrefab）
-- `art-mq-mesh` → `runtime/marching-squares`（依赖 MqMeshConfig）
+- `art-mc-mesh` → `runtime/marching-cubes`（依赖 CubeTable、CubedMeshPrefab）+ `sample/build-system/structure`（依赖 D4FbxCaseConfig）
+- `art-mq-mesh` → `sample/build-system/terrain.TileCaseConfig`（写入目标 + editor 字段宿主）+ `runtime/marching-squares.TileTable.CliffD4Map`（悬崖 D4 旋转关系查询）
 - `art-mq-texture`：无运行时依赖（纯程序化生成）
 - `blender`：独立工具链（Blender Python，产出 FBX 供其他子模块消费）
 

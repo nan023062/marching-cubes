@@ -1,21 +1,26 @@
 {
   "name": "art-mc-mesh",
   "workspaceType": "csharp-unity",
-  "summary": "MC case prefab 编辑器工具集：D4 FBX 归约构建（255 prefab）、IOS mesh 直接映射构建（256 prefab）、程序化 case mesh 生成（算法插槽可替换）、FBX 导入后处理",
+  "summary": "MC case prefab 编辑器工具集：D4 FBX 归约构建（53 canonical → 255 prefab）+ IOS mesh 直接映射（256 prefab）+ FBX 导入后处理 + 53 canonical case 法线贴图烘焙器（tileable 全局噪声场，保证相邻 cell 边界连续）",
   "workspace": ["Assets/MarchingCubes/Editor/ArtMcMesh"],
   "dependencies": [
-    { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" }
+    { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" },
+    { "target": "marching-cubes/sample/build-system/structure", "type": "Association" }
   ],
   "boundary": "closed",
   "publicApi": [
-    "D4FbxCaseConfigEditor — [CustomEditor(D4FbxCaseConfig)] Inspector：批量构建 255 prefab（53 canonical FBX + D4 变换）、case 网格 Gizmos 可视化、Validate 检查",
-    "IosMeshCaseConfigEditor — [CustomEditor(IosMeshCaseConfig)] Inspector：256 mesh asset → 256 prefab 直接映射、Validate 检查",
-    "CaseMeshProceduralGenerator — EditorWindow（菜单：MarchingCubes/Procedural Case Mesh Generator）：算法插槽 CaseMeshBuilderAsset 驱动程序化生成 254 case prefab",
-    "ArtMeshFbxPostprocessor — AssetPostprocessor：对 Assets/MarchingCubes/Sample/Resources 下所有 FBX 统一开启 bakeAxisConversion=true，覆盖 MC 和 MQ 两类 FBX"
+    "ArtMeshCaseConfigEditor — [CustomEditor(D4FbxCaseConfig)] Inspector：批量构建 255 prefab（53 canonical FBX + D4 变换）+ 法线贴图烘焙按钮（一键烘 53 张 + 写入 D4FbxCaseConfig.editorNormalMaps）+ Validate",
+    "IosMeshCaseConfigEditor — [CustomEditor(IosMeshCaseConfig)] Inspector：256 mesh asset → 256 prefab 直接映射 + Validate",
+    "ArtMeshFbxPostprocessor — AssetPostprocessor：对 Assets/MarchingCubes/Sample/Resources 下所有 FBX 统一开启 bakeAxisConversion=true + ImportTangents=true（法线贴图烘焙依赖 mesh tangent 数据）",
+    "TileableNoiseField — 纯算法类（编辑器内部）：tileable 3D fbm 噪声场，f(0,y,z) ≡ f(1,y,z) 三轴均成立",
+    "NormalMapBaker — 编辑器烘焙器（编辑器内部）：53 canonical mesh × TileableNoiseField → 53 张 .png 法线贴图（128² BC5 + NormalMap 类型）"
   ],
   "constraints": [
     "D4 变换存储方向为 ci→canonical，构建 prefab 时需取逆（non-flip: Inverse(d4)；flip: 变换自逆直接用 d4）",
     "D4 flip 对应 X 轴镜像：localScale=(-1,1,1)，pivot=(-0.5,0.5,0.5)；non-flip pivot=S_CENTER=(0.5,0.5,0.5)",
-    "ArtMeshFbxPostprocessor 监听路径 Assets/MarchingCubes/Sample/Resources，MC 和 MQ FBX 均在此路径下，无需两个 postprocessor"
+    "ArtMeshFbxPostprocessor 监听路径 Assets/MarchingCubes/Sample/Resources，MC 和 MQ FBX 均在此路径下，无需两个 postprocessor",
+    "法线贴图边界连续硬约束：TileableNoiseField 在 [0,1]³ 周期严格 tileable（三轴均满足 f(0,y,z) ≡ f(1,y,z)），相邻 cell 共享面上同一物理点在两个 case 的局部 [0,1]³ 坐标里采样到同一 noise 值，shader 切线空间法线连续，无 seam",
+    "法线贴图采样空间：canonical mesh 顶点局部坐标严格在 [0,1]³（依赖 ArtMeshFbxPostprocessor 已对齐 Blender 导出轴向）；烘焙时 texel → mesh UV → 三角形重心 → 局部 3D 位置 p → tileable_fbm(p) → 切线空间扰动向量",
+    "D4 衍生 prefab 复用 canonical 法线贴图：同一 mesh + 同一 tangent + 同一法线贴图，D4 旋转通过 Transform 自动作用于法线/切线，shader 端无需任何反变换"
   ]
 }

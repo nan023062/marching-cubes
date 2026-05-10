@@ -14,7 +14,7 @@ namespace MarchingSquares
     {
         [SerializeField] private Brush           _brush;
         [SerializeField] private TileCaseConfig  _meshConfig;
-        [SerializeField, Header("涂刷类型 0=泥 1=草 2=岩 3=雪 4=腐"), Range(0, 4)]
+        [SerializeField, Header("涂刷类型 (0~7，bit 位越高视觉权重越大)"), Range(0, 7)]
         private int _textureLayer = 1;
 
         public Brush            Brush        => _brush;
@@ -60,6 +60,12 @@ namespace MarchingSquares
 
         public bool PaintTerrainType(int type)
             => Builder.PaintTerrainType(_brush, type);
+
+        public bool EraseTerrainType(int type)
+            => Builder.EraseTerrainType(_brush, type);
+
+        public bool ClearTerrainMask()
+            => Builder.ClearTerrainMask(_brush);
 
         public void SetBrushVisible(bool visible)
         {

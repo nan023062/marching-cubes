@@ -50,6 +50,39 @@ public abstract class CasePrefabConfig : ScriptableObject
 // 实现：IosMeshCaseConfig（256 mesh 直接映射）
 ```
 
+## D4FbxCaseConfig
+
+```csharp
+namespace MarchingCubes
+public sealed class D4FbxCaseConfig : CasePrefabConfig
+{
+    // 运行时 API（CasePrefabConfig 实现）
+    public override GameObject GetPrefab(int cubeIndex);  // 0/255 → null
+    public void SetPrefab(int cubeIndex, GameObject prefab);
+
+    // D4 对称查询（编辑器构建 prefab 时使用）
+    public int        GetCanonicalIndex(int ci);
+    public Quaternion GetRotation(int ci);
+    public bool       GetFlipped(int ci);
+    public bool       IsCanonical(int ci);
+
+#if UNITY_EDITOR
+    // 编辑器持久化字段（[HideInInspector]，仅 art-mc-mesh 工具读写，不进运行时）
+    public string    editorFbxFolder;
+    public string    editorPrefabFolder;
+    public Material  editorMaterial;
+
+    // 法线贴图烘焙参数 + 产物引用
+    public int       editorNoiseSeed;
+    public int       editorNoiseOctaves        = 3;
+    public float     editorNoiseAmplitude      = 1.0f;
+    public float     editorNoiseFrequency      = 4.0f;
+    public int       editorNormalMapResolution = 128;
+    public Texture2D[] editorNormalMaps = new Texture2D[53];  // 下标 = canonical case 0~52
+#endif
+}
+```
+
 ## PointElement / PointCube / PointQuad
 
 ```csharp

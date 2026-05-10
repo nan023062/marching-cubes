@@ -12,7 +12,7 @@
     "McStructureBuilder — 纯 C# 格点建造核心：SetPointStatus(x,y,z,bool) / RefreshAllMeshes / X / Y / Z",
     "BuildState — IBuildState 实现：方块建造/拆除交互 + GUI Config 选择 + SyncWithTerrain(MqTerrainBuilder)",
     "CasePrefabConfig — prefab 配置抽象基类（ScriptableObject）：GetPrefab(int caseIndex)",
-    "D4FbxCaseConfig — 53 canonical FBX + D4 对称归约生成 255 prefab",
+    "D4FbxCaseConfig — 53 canonical FBX + D4 对称归约生成 255 prefab；含 #if UNITY_EDITOR 持久化字段（editorFbxFolder/editorPrefabFolder/editorMaterial + editorNoiseSeed/editorNoiseOctaves/editorNoiseAmplitude/editorNoiseFrequency/editorNormalMapResolution=128 + Texture2D[53] editorNormalMaps）供 art-mc-mesh 编辑器写入",
     "IosMeshCaseConfig — 256 mesh 直接 1:1 生成 256 prefab",
     "PointElement / PointCube / PointQuad — 交互点组件（MonoBehaviour）"
   ],
@@ -22,6 +22,7 @@
     "case 0（全空）和 case 255（全实）GetPrefab 返回 null，不生成网格",
     "McStructure.unit 是 uint（整数边长），统一由 BuildingConst.Unit 决定",
     "McStructure 不声明 IMeshStore 接口，功能等价：GetMesh(cubeIndex) 内联实现，由 McStructureBuilder 持有 McStructure 引用直接调用",
-    "交互逻辑（SetPointStatus / 点击处理）已从 McStructure 迁移到 BuildState，McStructure 只提供 Init + Config + 委托桥（SetBuildHandlers）"
+    "交互逻辑（SetPointStatus / 点击处理）已从 McStructure 迁移到 BuildState，McStructure 只提供 Init + Config + 委托桥（SetBuildHandlers）",
+    "D4FbxCaseConfig.editor* 字段仅 UNITY_EDITOR 编译，[HideInInspector] 隐藏，由 art-mc-mesh.ArtMeshCaseConfigEditor 读写并随 .asset 持久化，不进运行时构建；editorNormalMaps[53] 数组下标对应 canonical case 0~52，运行时由 prefab 构建器把对应贴图写入 CubedMeshPrefab.normalMap"
   ]
 }

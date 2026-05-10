@@ -17,9 +17,9 @@
     "BuildMode — 状态枚举：Terrain / Build"
   ],
   "constraints": [
-    "BuildingConst.Unit 是 terrain 和 structure 子模块 unit 对齐的唯一真相源：MqTerrainBuilder.unit = 1f / Unit，McStructure.unit = Unit",
+    "BuildingConst.Unit 是 terrain 和 structure 子模块 unit 对齐的唯一真相源：TerrainBuilder.unit = 1f / Unit，McStructure.unit = Unit",
     "子模块之间无直接代码依赖——协同通过 BuildingManager 状态机 + 场景坐标系编排",
-    "MqTerrainBuilder.MaxHeightDiff 由 BuildingConst.TerrainMaxHeightDiff * BuildingConst.Unit 初始化",
+    "TerrainBuilder.MaxHeightDiff 由 BuildingConst.TerrainMaxHeightDiff * BuildingConst.Unit 初始化",
     "TerrainState 与 BuildState 均实现 IBuildState，IBuildState 定义在此父模块根目录"
   ]
 }

@@ -1,5 +1,64 @@
 # Terrain Changelog
 
+## [2026-05-10 15:30:00]
+type: decision
+title: bitmask 协议补完：ClearTerrainMask 一键清空 API + SetPixels32 批量写入路径 + UV 跨模块契约显式化
+editor: architect；过渡产物（owner 治理前代写 append-only）
+
+**触发**：reviewer 对抗审查（[2026-05-10 14:30:00] 决策的实装交付）发现 2 个必修点 + 1 个建议，老板拍板全采纳。
+
+**新增 ClearTerrainMask API**：
+- 旧 type 0 当 base 用，"刷 type 0 重置"是隐式入口；新协议下 type 0 是 bit 0 overlay 之一，**无任何方式让用户一键清空格点回到 _BaseTex**
+- 新增：
+  - `TerrainBuilder.ClearTerrainMask(Brush brush): bool` — 笔刷范围内所有格点 `mask = 0`
+  - `Terrain.ClearTerrainMask(): bool` 薄壳转发
+  - GUI 加「清空」按钮（与 PaintTerrainType / EraseTerrainType 并列）
+- 视觉效果：mask=0 的格点在 shader DecodeCorner 内部 totalW=0 → fallback `_BaseTex(baseUV)`，与"未刷过"语义一致
+
+**SetPixels32 批量写入重构**：
+- 旧实装：`pointTex.SetPixel(px, pz, new Color32(...))`，走 `Color32 → Color → RGBA32` 浮点中转，当前 byte 0..255 数学守恒但脆弱（format/sRGB 变更会立刻翻车）
+- 新实装：TerrainBuilder 维护 `Color32[] _pixelBuffer`（length+1 × width+1），`SetPointTexPixel` 改为更新缓存元素；操作末尾统一 `pointTex.SetPixels32(_pixelBuffer)` + `Apply()`
+- 收益：绕开浮点中转 + 批量写入吞吐高于单像素 SetPixel + 未来 format 变更免审
+
+**契约显式化**（reviewer 找出来的架构遗漏，我的责任）：
+- contract.md 新增「§ 跨模块隐含契约」段：声明 art-mq-mesh prefab UV 必须 BL=(0,0)/BR=(1,0)/TR=(1,1)/TL=(0,1)
+- module.json constraints 同步加这一条
+- 之前这是"口口相传"的依赖：Blender 端 mq_mesh.py 的 UV 生成顺序 + SplatmapTerrain 4 角混合数学**两边数据正确但契约不在文档**——reviewer 评语原文："能跑，但下次谁动 UV 谁哭"
+
+## [2026-05-10 14:30:00]
+type: decision
+title: terrainType 单值 → 8-bit bitmask 编码；多 type 同点叠加 + 线性权重混合；废弃 TileTerrainTest 沙盒
+editor: architect；过渡产物（owner 治理前代写 append-only）
+
+**编码协议变更（核心）**：
+- `Point.terrainType: byte`（单值枚举 0~4）→ `Point.terrainMask: byte`（8-bit bitmask，bit i=1 表示 type i 存在）
+- `TerrainTypeCount: 5 → 8`（用满一个 byte，未来扩展不需再改协议）
+- pointTex R 通道改为 **直接存 mask byte**：C# 端 `Color32((byte)mask, 0, 0, 255)` 整数写入，shader 端 `round(tex.r * 255.0)` 反解；废弃旧 `terrainType / (TerrainTypeCount-1)` 浮点归一化
+- **解决 magic number 散落**：原方案 `TerrainTypeCount=5` 与 shader 硬编码 `*4.0 / round(*4.0)` 耦合在两端，改一处必崩另一处；新方案编解码常数为固定 255，shader 与 TerrainTypeCount 完全解耦
+
+**API 语义变更（破坏性）**：
+- `PaintTerrainType(brush, type)` 从 Replace 语义（`mask = (byte)type`）改为 **Add 语义**（`mask |= 1<<type`）—— 反复刷绘自然累积叠加
+- 新增 `EraseTerrainType(brush, type)`：反向擦除（`mask &= ~(1<<type)`）
+- `GetTerrainType(x,z): byte` → `GetTerrainMask(x,z): byte`（语义改名）
+- `Terrain.TextureLayer` 注释由 0~4 → 0~7
+
+**Shader 4 角加权混合（SplatmapTerrain.shader）**：
+- 4 角各采样 1 次得到 mask byte → 每角按 bitmask 解码出"加权 overlay 颜色 + 总权重"→ `col_c /= totalW_c` 归一化 → 4 角 quad 双线性插值
+- 权重函数：**线性 `weight(i) = i + 1`**（bit 位越高权重越大；type 0 权重 1，type 7 权重 8；同点 type 0+type 7 共存时颜色 = (1*c_0 + 8*c_7) / 9）
+- mask=0 fallback：当一角的 mask 为空（无任何 type），该角颜色取 `_BaseTex(baseUV)`，参与 4 角插值
+- 性能上限：每 fragment 最多 4 角 × 8 type = 32 次 overlay 采样（实际场景大部分像素 mask 稀疏，分支跳过空 bit）；待性能 profile 后决定是否限制 max 4 个最高 bit
+
+**TileTerrainTest 沙盒退役**：
+- 沙盒已验证完"连续 mesh + 全局 UV + 双线性权重混合"假设，主路径 SplatmapTerrain 沿用同思路，沙盒不再需要
+- 删除：`Sample/BuildSystem/Terrain/TileTerrainTest.cs`(+meta) / `Sample/Resources/Shaders/TileTerrainTest.shader`(+meta) / `Sample/Resources/Shaders/TileTerrainTestOverlay.shader`(+meta) / `Sample/Resources/mq/TileTerrainTest.mat`(+meta)
+- 保留：`Runtime/MarchingSquares/TileTerrain.cs` + `ITileTerrainReceiver`（runtime 模块脚手架，留作未来 prototype 复用，非 terrain 模块产物）
+- 场景 mc_bulding.unity 已确认无 TileTerrainTest GameObject 引用
+
+**动机回顾**：
+- 用户场景：多层纹理叠加（同一格点既有岩石又有青苔），单 type 编码无法表达
+- 老板提出方向：编码进 R 通道，权重靠 bit 位置隐式决定，不单独存 weight
+- 选定方案 B（8-bit bitmask × 8 type，约定同时为 1 的 bit ≤ 4），优势：unique type 编码无重复 + 自然加权 + 通道占用最小（剩 GBA 三通道留作未来扩展）
+
 ## [2026-05-09 19:00:00]
 type: decision
 title: 纹理方案改为 per-vertex R 通道 + Shader 4 次采样；刷绘改为 click-only；TerrainMaxHeightDiff 收紧为 1

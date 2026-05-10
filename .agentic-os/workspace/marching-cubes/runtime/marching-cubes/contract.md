@@ -81,6 +81,26 @@ public sealed class RoundedOctantMeshBuilder : CaseMeshBuilderAsset
 }
 ```
 
+## CubedMeshPrefab
+
+```csharp
+namespace MarchingCubes
+[ExecuteAlways, ExecuteInEditMode]
+public class CubedMeshPrefab : MonoBehaviour
+{
+    public static readonly float Unit = 0.5f;
+
+    public CubeVertexMask mask;       // Editor Gizmos 可视化用
+    public Texture2D      normalMap;  // 可选，编辑器烘焙后由 art-mc-mesh 工具写入
+
+    // Awake 时若 normalMap 不为 null：
+    //   foreach mr in GetComponentsInChildren<MeshRenderer>():
+    //       var mpb = new MaterialPropertyBlock();
+    //       mpb.SetTexture("_BumpMap", normalMap);
+    //       mr.SetPropertyBlock(mpb);
+}
+```
+
 ## 核心数据结构
 
 ```csharp

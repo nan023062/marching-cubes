@@ -14,7 +14,7 @@
     "CaseMeshBuilderAsset — 程序化 case mesh 算法插槽（ScriptableObject 抽象基类）：Build(caseIndex)",
     "RoundedOctantMeshBuilder — 默认 CaseMeshBuilderAsset：圆角八分体（sideRadius / topRadius / segments）",
     "ProceduralCaseMesh — 静态工具类：连通分量 BFS + arc bevel 程序化 mesh 生成",
-    "CubedMeshPrefab — prefab 根组件（持有 CubeVertexMask，Editor Gizmos 可视化）",
+    "CubedMeshPrefab — prefab 根组件（持有 CubeVertexMask + 可选 normalMap，Editor Gizmos 可视化）：Awake 时若 normalMap 不为 null，向所有子 MeshRenderer 注入 MaterialPropertyBlock 设 _BumpMap = normalMap",
     "MeshUtility — 编辑器工具菜单（Gen 256-Mesh）：批量生成 256 种 case mesh asset",
     "Point, Edge, Vertex, Triangle, Coord, Axis, CubeVertexMask — 核心数据结构/枚举"
   ],
@@ -22,6 +22,7 @@
     "CubeTable 是纯静态只读查表，运行时不可修改",
     "Edge 使用 StructLayout(Explicit) 将 (x,y,z,axis) 映射为 long，确保哈希唯一性，内存布局不可轻易修改",
     "C# 语法兼容约束：禁止 new()、SetLocalPositionAndRotation()、HashCode.Combine()",
-    "CubeMesh / CubeMeshSmooth 通过 IMarchingCubeReceiver 与上层业务解耦，不持有 MonoBehaviour 引用"
+    "CubeMesh / CubeMeshSmooth 通过 IMarchingCubeReceiver 与上层业务解耦，不持有 MonoBehaviour 引用",
+    "CubedMeshPrefab.normalMap 仅在 prefab 构建期由编辑器工具（art-mc-mesh.ArtMeshCaseConfigEditor）写入，运行时只读；MPB 注入走 _BumpMap，要求材质 shader 支持切线空间法线（默认 m_marching.mat 用 Unity Standard shader 即可）"
   ]
 }

@@ -8,7 +8,7 @@
 
 ```
 build-system/
-├── terrain/    ← MQ 地形层（MqTerrain + MqTerrainBuilder + TerrainState + Brush + MqMeshConfig）
+├── terrain/    ← MQ 地形层（Terrain + TerrainBuilder + TerrainState + Brush + TileCaseConfig）
 └── structure/  ← MC 建造层（McStructure + McStructureBuilder + BuildState + PointElement 系列）
 ```
 
@@ -25,5 +25,5 @@ build-system/
 
 ## 涌现性洞察
 
-- **Unit 对齐是核心约束**：MqTerrainBuilder 以 `1f / Unit` 为格子尺寸，McStructure 以 `Unit` 为整数格子数，`BuildingConst.Unit` 是唯一真相源，任一子模块擅自修改都会导致坐标系错位
+- **Unit 对齐是核心约束**：TerrainBuilder 以 `1f / Unit` 为格子尺寸，McStructure 以 `Unit` 为整数格子数，`BuildingConst.Unit` 是唯一真相源，任一子模块擅自修改都会导致坐标系错位
 - **地形同步回调**：TerrainState 在地形刷绘完成后调用 `buildState.SyncWithTerrain(builder)`，McStructure 层检查坐标冲突并销毁被地形覆盖的 PointCube，这是两套系统唯一的数据交叉点

@@ -119,3 +119,13 @@ C# parse time         : 194ms
 candidates check time : 22ms
 console write time    : 0ms
 
+[api-updater (non-obsolete-error-filter)] 2026/5/9 22:22:24 : Starting /Users/linan/xdt_unity/MacEditor/Unity.app/Contents/Tools/ScriptUpdater/APIUpdater.NonObsoleteApiUpdaterDetector.exe
+[api-updater (non-obsolete-error-filter)] 
+----------------------------------
+jit/startup time      : 925.685ms
+moved types parse time: 117ms
+candidates parse time : 5ms
+C# parse time         : 463ms
+candidates check time : 278ms
+console write time    : 0ms
+

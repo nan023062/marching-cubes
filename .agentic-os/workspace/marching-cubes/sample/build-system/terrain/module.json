@@ -1,27 +1,35 @@
 {
   "name": "terrain",
   "workspaceType": "csharp-unity",
-  "summary": "MQ 地形层：Terrain MonoBehaviour 薄壳 + TerrainBuilder 纯 C# 核心（格点+碰撞 mesh+tile 管理）+ TileCaseConfig prefab 配置 + Brush 笔刷 + TerrainState 刷绘交互",
+  "summary": "MQ 地形层：Terrain MonoBehaviour 薄壳 + TerrainBuilder 纯 C# 核心（格点+碰撞 mesh+tile 管理）+ TileCaseConfig prefab 配置（35 槽：19 地形 + 16 悬崖）+ Brush 笔刷 + TerrainState 刷绘交互",
   "workspace": ["Assets/MarchingCubes/Sample/BuildSystem/Terrain"],
   "dependencies": [
     { "target": "marching-cubes/runtime/marching-squares", "type": "Association" }
   ],
   "boundary": "semi-open",
   "publicApi": [
-    "Terrain — MonoBehaviour 薄壳：Init(renderWidth,renderDepth,heightRange) / BrushMapHigh(delta) / PaintTerrainType(type) / SetBrushVisible(visible) / TextureLayer / Builder / Brush",
-    "TerrainBuilder — 纯 C# 核心：持有 Point[,] + colliderMesh + Tile[,]，管理笔刷和 tile 生命周期；BrushMapHigh / PaintTerrainType / RefreshAllTiles / GetPointHeight / localToWorld / worldToLocal",
-    "TileCaseConfig — 16 槽直接映射 ScriptableObject：GetPrefab(0-15) / SetPrefab",
+    "Terrain — MonoBehaviour 薄壳：Init(renderWidth,renderDepth,heightRange) / BrushMapHigh(delta) / PaintTerrainType(type) / EraseTerrainType(type) / ClearTerrainMask() / SetBrushVisible(visible) / TextureLayer(0~7) / Builder / Brush；TileCaseConfig 通过 [SerializeField] 在 Inspector 注入，不进 Init 参数",
+    "TerrainBuilder — 纯 C# 核心：构造 (width,length,height,unit,worldPosition,TileCaseConfig,Transform)，持有 Point[,] + colliderMesh + Tile[,]；BrushMapHigh / PaintTerrainType(Add 语义) / EraseTerrainType / ClearTerrainMask / GetTerrainMask / RefreshAllTiles / RefreshAffectedTiles / GetPointHeight / RefreshPointTexAll / localToWorld / worldToLocal / MaxHeightDiff / TerrainTypeCount=8",
+    "TileCaseConfig — ScriptableObject，35 槽双 API：地形 GetPrefab/SetPrefab(0~18) + 悬崖 GetCliffPrefab/SetCliffPrefab(0~15) + 常量 TerrainCaseCount=19 / CliffCaseCount=16 + 法线贴图槽 normalMaps[19] 与 GetNormalMap/SetNormalMap(0~18) 运行时 API（Blender 烘焙→art-mq-mesh Refresh 写入，TerrainBuilder.ApplyTileMPB 查询注入 _NormalMap）；含 #if UNITY_EDITOR 持久化字段（editorFbxFolder/editorPrefabFolder/editorTerrainMat/editorCliffMat）供 art-mq-mesh 编辑器写入",
     "Brush — 笔刷 MonoBehaviour：Size 属性 / colorBrush 标志",
     "TerrainState — IBuildState 实现：封装刷绘 UI（高度/涂色切换 + 地形类型选择）+ click-only 鼠标交互逻辑"
   ],
   "constraints": [
     "TerrainBuilder 是纯 C# 类，无 MonoBehaviour 依赖，可脱离 Unity 场景独立测试",
     "Point.high 运行时 clamp 到 -64~64（SetPointHeightDelta 硬约束，sbyte 声明范围更大）",
-    "TileCaseConfig 不做 D4 归约：16 个独立 prefab，旋转导致 UV 方向错误",
+    "TileCaseConfig 地形 19 槽不做 D4 归约：mesh + UV 紧耦合，旋转破坏 UV 方向；悬崖 16 槽（case 0 留空）由 art-mq-mesh 编辑器经 D4 旋转从 5 规范 FBX 派生",
+    "TileCaseConfig.editor* 字段仅 UNITY_EDITOR 编译，[HideInInspector] 隐藏，由 MQMeshConfigEditor 读写并随 .asset 持久化，不进运行时构建",
     "MqTable.GetMeshCase() 以四角高度最小值为 base，超过 base 的角点 bit=1",
-    "pointTex 为 (length+1)×(width+1) RGBA32，每像素=一个格点，R 通道存 terrainType/4；Shader 分 4 次独立采样各角格点 R 通道，用 _TerrainPointTex_TexelSize.xy 作步长，不依赖 MPB 的 ST.zw",
+    "pointTex 为 (length+1)×(width+1) RGBA32，每像素=一个格点，R 通道存 8-bit terrainMask（bit i=1 表示 type i 存在，type 0~7 共 8 种）；C# 端用 Color32 整数往返写入，Shader 端 round(tex.r * 255.0) 反解 byte，不再做 /(N-1) 浮点归一化（消除 TerrainTypeCount 与编解码常数的耦合）",
+    "Shader 4 角解码：每角 round(... * 255.0) 取 mask，按 bit 位线性权重 weight(i) = i+1 加权混合 8 张 overlay → 角点颜色；mask=0 时全部 weight=0 → fallback 到 _BaseTex；4 角颜色再做 quad 双线性插值产生平滑过渡",
+    "PaintTerrainType 改为 Add 语义（mask |= 1<<type），EraseTerrainType 提供反向擦除（mask &= ~(1<<type)），ClearTerrainMask 提供一键清空（mask = 0 → fallback _BaseTex）；同点多 type 自然叠加，bit 位高的 type 视觉权重大",
+    "pointTex 像素写入走 SetPixels32(Color32[]) 批量路径：TerrainBuilder 维护 _pixelBuffer 缓存数组，单像素更新只改缓存元素，操作结束统一 SetPixels32 + Apply；绕开 SetPixel(Color) 的浮点中转（Color32→Color→RGBA32），免除未来 format/sRGB 变更引入的精度漂移风险",
+    "art-mq-mesh prefab UV 必须满足 BL=(0,0), BR=(1,0), TR=(1,1), TL=(0,1)；SplatmapTerrain.shader 4 角混合（DecodeCorner + 双线性插值）依赖此约定按 quad 内 [0,1]×[0,1] 解释 fragment 位置；任何修改 prefab UV 顺序的改动将导致 4 角颜色错位且无任何编译/运行报错（详见 contract.md § 跨模块隐含契约）",
     "colliderMesh 顶点格式：(x + length*z)*6，每格 6 顶点不共享，高度更新只修改 Y 分量",
     "TerrainState 采用 click-only 机制：按下计时，抬起时判断是否为短按（< ClickMaxDuration=0.3s）才触发刷绘；长按不触发",
-    "TerrainMaxHeightDiff = 1（BuildingConst），与 19-case 坡面 tile 系统匹配；相邻格点高差 ≤ 1，高差 > 1 的坡面缺口待后续悬崖补全方案覆盖"
+    "TerrainMaxHeightDiff = 1（BuildingConst），与 19-case 坡面 tile 系统匹配；相邻格点高差 ≤ 1，高差 > 1 的坡面缺口待后续悬崖补全方案覆盖",
+    "TileCaseConfig.normalMaps[19] 是运行时引用数组（与 _prefabs 同级），由 art-mq-mesh.Refresh Normal Maps 按钮按命名约定 mq_case_N_normal.png 自动写入；运行时由 TerrainBuilder.ApplyTileMPB 查 GetNormalMap(caseIndex) 注入 MPB 的 _NormalMap，shader 端 SplatmapTerrain 切线空间解码扰动 i.worldNormal 影响 ndl",
+    "SplatmapTerrain.shader 改造：appdata 加 tangent: TANGENT，v2f 加 worldTangent + worldBitangent，frag 内若 _NormalMap 非空则采样切线空间法线 → TBN 矩阵转世界 → 替换 i.worldNormal 计算 ndl；保留原 _BaseTex + _OverlayArray 4 角采样逻辑不变",
+    "MQ 地形切线基天然稳定（mesh 几乎水平，tangent≈+X / bitangent≈+Z / normal≈+Y），相邻 cell 共享边切线基由 MikkTSpace 算出实际一致，结合 Blender 端 tileable noise 烘焙实现边界连续无 seam"
   ]
 }

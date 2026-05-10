@@ -7,17 +7,10 @@ namespace MarchingCubes.Editor
     [CustomEditor(typeof(MarchingSquares.TileCaseConfig))]
     public sealed class MQMeshConfigEditor : UnityEditor.Editor
     {
-        // ── 地形 ──────────────────────────────────────────────────────────────
-        private string   _fbxFolder    = "Assets/MarchingCubes/Sample/Resources/mq";
-        private string   _prefabFolder = "Assets/MarchingCubes/Sample/Resources/mq/prefabs";
-        private Material _terrainMat;
-        private string   _terrainLog   = "";
-
-        // ── 悬崖 ──────────────────────────────────────────────────────────────
-        private string   _cliffFbxFolder    = "Assets/MarchingCubes/Sample/Resources/mq";
-        private string   _cliffPrefabFolder = "Assets/MarchingCubes/Sample/Resources/mq/prefabs";
-        private Material _cliffMat;
-        private string   _cliffLog          = "";
+        // ── 日志（每次 Build 后刷新，不需要持久化）──────────────────────────────
+        private string _terrainLog = "";
+        private string _cliffLog   = "";
+        private string _normalLog  = "";
 
         // ── Grid / Detail ─────────────────────────────────────────────────────
         private int     _selectedTerrain = -1;
@@ -41,49 +34,51 @@ namespace MarchingCubes.Editor
             var cfg = (MarchingSquares.TileCaseConfig)target;
             serializedObject.Update();
 
-            // ── 一键全 Build ───────────────────────────────────────────────────
-            if (GUILayout.Button("Build All  19 Terrain + 16 Cliff  Cases", GUILayout.Height(34)))
-            {
-                DoTerrainBuild(cfg);
-                DoCliffBuild(cfg);
-            }
-            EditorGUILayout.Space(6);
-
-            // ── 地形 ──────────────────────────────────────────────────────────
-            EditorGUILayout.LabelField("── 地形 Tile（mq_case_*.fbx）──", EditorStyles.boldLabel);
+            // ── 统一路径 / 材质 / Build ───────────────────────────────────────
+            EditorGUILayout.LabelField("── 公共配置 ──", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "共 19 个 case：\n• 0-14：标准（四角高差 ≤ 1）\n• 15-18：对角高差 == 2 特殊 case",
+                "地形 mq_case_N.fbx（19 个，case 0-18）+ 悬崖 mq_cliff_N.fbx（5 个规范，1/3/5/7/15）共用文件夹。\n" +
+                "悬崖 case 0 留空；其余 10 个由 D4 旋转派生。",
                 MessageType.Info);
-            DrawFolderField("FBX 文件夹 (mq_case_N.fbx)", ref _fbxFolder);
-            DrawFolderField("Prefab 输出文件夹", ref _prefabFolder);
-            _terrainMat = (Material)EditorGUILayout.ObjectField("地形材质", _terrainMat, typeof(Material), false);
-            EditorGUILayout.Space(2);
-            if (GUILayout.Button("Build All 19 Terrain Prefabs", GUILayout.Height(28)))
-                DoTerrainBuild(cfg);
-            if (!string.IsNullOrEmpty(_terrainLog))
-                EditorGUILayout.LabelField(_terrainLog, new GUIStyle(EditorStyles.helpBox) { wordWrap = true });
-
+            DrawFolderField("FBX 文件夹", cfg, ref cfg.editorFbxFolder);
+            DrawFolderField("Prefab 输出文件夹", cfg, ref cfg.editorPrefabFolder);
+            EditorGUI.BeginChangeCheck();
+            var newTerrainMat = (Material)EditorGUILayout.ObjectField("地形材质", cfg.editorTerrainMat, typeof(Material), false);
+            var newCliffMat   = (Material)EditorGUILayout.ObjectField("悬崖材质", cfg.editorCliffMat,   typeof(Material), false);
+            if (EditorGUI.EndChangeCheck())
+            {
+                cfg.editorTerrainMat = newTerrainMat;
+                cfg.editorCliffMat   = newCliffMat;
+                EditorUtility.SetDirty(cfg);
+            }
             EditorGUILayout.Space(4);
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button("Build All  19 Terrain + 15 Cliff  Cases", GUILayout.Height(34)))
+                {
+                    DoTerrainBuild(cfg);
+                    DoCliffBuild(cfg);
+                }
+                if (GUILayout.Button("Refresh\nNormal Maps", GUILayout.Height(34), GUILayout.Width(110)))
+                {
+                    DoRefreshNormalMaps(cfg);
+                }
+            }
+            if (!string.IsNullOrEmpty(_terrainLog) || !string.IsNullOrEmpty(_cliffLog) || !string.IsNullOrEmpty(_normalLog))
+            {
+                var style = new GUIStyle(EditorStyles.helpBox) { wordWrap = true };
+                if (!string.IsNullOrEmpty(_terrainLog)) EditorGUILayout.LabelField(_terrainLog, style);
+                if (!string.IsNullOrEmpty(_cliffLog))   EditorGUILayout.LabelField(_cliffLog,   style);
+                if (!string.IsNullOrEmpty(_normalLog))  EditorGUILayout.LabelField(_normalLog,  style);
+            }
+
+            // ── 地形 Grid ─────────────────────────────────────────────────────
+            EditorGUILayout.Space(8);
             DrawTerrainGrid(cfg);
             if (_selectedTerrain >= 0) DrawTerrainDetail(cfg, _selectedTerrain);
 
-            // ── 悬崖 ──────────────────────────────────────────────────────────
+            // ── 悬崖 Grid ─────────────────────────────────────────────────────
             EditorGUILayout.Space(8);
-            EditorGUILayout.LabelField("── 悬崖 Tile（mq_cliff_*.fbx，D4 旋转）──", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox(
-                "只需 5 个规范 FBX（mq_cliff_1/3/5/7/15.fbx），其余 10 个 prefab 由旋转派生。\n" +
-                "Mesh 以格子中心为原点（XZ 中心在 0,0）。",
-                MessageType.Info);
-            DrawFolderField("悬崖 FBX 文件夹", ref _cliffFbxFolder);
-            DrawFolderField("悬崖 Prefab 输出文件夹", ref _cliffPrefabFolder);
-            _cliffMat = (Material)EditorGUILayout.ObjectField("悬崖材质", _cliffMat, typeof(Material), false);
-            EditorGUILayout.Space(2);
-            if (GUILayout.Button("Build All 15 Cliff Prefabs（D4）", GUILayout.Height(28)))
-                DoCliffBuild(cfg);
-            if (!string.IsNullOrEmpty(_cliffLog))
-                EditorGUILayout.LabelField(_cliffLog, new GUIStyle(EditorStyles.helpBox) { wordWrap = true });
-
-            EditorGUILayout.Space(4);
             DrawCliffGrid(cfg);
             if (_selectedCliff >= 0) DrawCliffDetail(cfg, _selectedCliff);
 
@@ -92,7 +87,7 @@ namespace MarchingCubes.Editor
 
         // ── 通用 ──────────────────────────────────────────────────────────────
 
-        void DrawFolderField(string label, ref string path)
+        void DrawFolderField(string label, Object dirtyTarget, ref string path)
         {
             EditorGUILayout.LabelField(label);
             var current = AssetDatabase.LoadAssetAtPath<DefaultAsset>(path);
@@ -101,7 +96,7 @@ namespace MarchingCubes.Editor
             if (EditorGUI.EndChangeCheck() && dragged != null)
             {
                 string p = AssetDatabase.GetAssetPath(dragged);
-                if (AssetDatabase.IsValidFolder(p)) path = p;
+                if (AssetDatabase.IsValidFolder(p)) { path = p; if (dirtyTarget != null) EditorUtility.SetDirty(dirtyTarget); }
             }
         }
 
@@ -123,7 +118,7 @@ namespace MarchingCubes.Editor
         void DoTerrainBuild(MarchingSquares.TileCaseConfig cfg)
         {
             _terrainLog = "";
-            string relOut = _prefabFolder.TrimEnd('/', '\\');
+            string relOut = cfg.editorPrefabFolder.TrimEnd('/', '\\');
             EnsureDir(relOut);
             AssetDatabase.Refresh();
 
@@ -132,7 +127,7 @@ namespace MarchingCubes.Editor
 
             for (int ci = 0; ci < total; ci++)
             {
-                string fbxPath = $"{_fbxFolder.TrimEnd('/', '\\')}/mq_case_{ci}.fbx";
+                string fbxPath = $"{cfg.editorFbxFolder.TrimEnd('/', '\\')}/mq_case_{ci}.fbx";
                 var fbx = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
                 if (fbx == null) { skip++; continue; }
 
@@ -145,9 +140,9 @@ namespace MarchingCubes.Editor
                 child.transform.localRotation = Quaternion.identity;
                 child.transform.localScale    = Vector3.one;
 
-                if (_terrainMat != null)
+                if (cfg.editorTerrainMat != null)
                     foreach (var mr in root.GetComponentsInChildren<MeshRenderer>())
-                        mr.sharedMaterial = _terrainMat;
+                        mr.sharedMaterial = cfg.editorTerrainMat;
 
                 var saved = PrefabUtility.SaveAsPrefabAsset(root, $"{relOut}/mq_case_{ci}.prefab");
                 Object.DestroyImmediate(root);
@@ -166,12 +161,55 @@ namespace MarchingCubes.Editor
             Repaint();
         }
 
+        // ── 法线贴图 Refresh ──────────────────────────────────────────────────
+
+        void DoRefreshNormalMaps(MarchingSquares.TileCaseConfig cfg)
+        {
+            _normalLog = "";
+            string folder = cfg.editorFbxFolder.TrimEnd('/', '\\');
+            if (!AssetDatabase.IsValidFolder(folder))
+            {
+                _normalLog = $"✗ Folder invalid: {folder}";
+                return;
+            }
+            var rx = new System.Text.RegularExpressions.Regex(
+                @"mq_case_(\d+)_normal\.png$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            int matched = 0, fixedType = 0, skipOOB = 0;
+            string[] guids = AssetDatabase.FindAssets("t:Texture2D", new[] { folder });
+            foreach (var guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var m = rx.Match(path);
+                if (!m.Success) continue;
+                int n = int.Parse(m.Groups[1].Value);
+                if (n < 0 || n >= MarchingSquares.TileCaseConfig.TerrainCaseCount) { skipOOB++; continue; }
+
+                var importer = AssetImporter.GetAtPath(path) as TextureImporter;
+                if (importer != null && importer.textureType != TextureImporterType.NormalMap)
+                {
+                    importer.textureType = TextureImporterType.NormalMap;
+                    importer.SaveAndReimport();
+                    fixedType++;
+                }
+                var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                cfg.SetNormalMap(n, tex);
+                matched++;
+            }
+            EditorUtility.SetDirty(cfg);
+            AssetDatabase.SaveAssets();
+            _normalLog = $"✓ Refreshed normal maps: matched {matched}, importer fixed {fixedType}" + (skipOOB > 0 ? $", out-of-range {skipOOB}" : "");
+            Debug.Log($"[Refresh Normal Maps] {_normalLog}");
+            Repaint();
+        }
+
         // ── 悬崖 Build（D4 旋转）──────────────────────────────────────────────
 
         void DoCliffBuild(MarchingSquares.TileCaseConfig cfg)
         {
             _cliffLog = "";
-            string relOut = _cliffPrefabFolder.TrimEnd('/', '\\');
+            string relOut = cfg.editorPrefabFolder.TrimEnd('/', '\\');
             EnsureDir(relOut);
             AssetDatabase.Refresh();
 
@@ -180,7 +218,7 @@ namespace MarchingCubes.Editor
             for (int ci = 1; ci < MarchingSquares.TileCaseConfig.CliffCaseCount; ci++)
             {
                 var (canonical, rotCount) = MarchingSquares.TileTable.CliffD4Map[ci];
-                string fbxPath = $"{_cliffFbxFolder.TrimEnd('/', '\\')}/mq_cliff_{canonical}.fbx";
+                string fbxPath = $"{cfg.editorFbxFolder.TrimEnd('/', '\\')}/mq_cliff_{canonical}.fbx";
                 var fbx = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
                 if (fbx == null) { skip++; continue; }
 
@@ -194,9 +232,9 @@ namespace MarchingCubes.Editor
                 child.transform.localRotation = Quaternion.Euler(0, 90f * rotCount, 0);
                 child.transform.localScale    = Vector3.one;
 
-                if (_cliffMat != null)
+                if (cfg.editorCliffMat != null)
                     foreach (var mr in root.GetComponentsInChildren<MeshRenderer>())
-                        mr.sharedMaterial = _cliffMat;
+                        mr.sharedMaterial = cfg.editorCliffMat;
 
                 var saved = PrefabUtility.SaveAsPrefabAsset(root, $"{relOut}/mq_cliff_{ci}.prefab");
                 Object.DestroyImmediate(root);

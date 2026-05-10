@@ -43,7 +43,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0, g: 0.99999905, b: 0.99999905, a: 1}
+  m_IndirectSpecularColor: {r: 0.18028352, g: 0.22571363, b: 0.30692217, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -258,8 +258,8 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
-  m_LocalRotation: {x: -0.5990382, y: -0.0040744734, z: 0.0030493762, w: -0.8007043}
-  m_LocalPosition: {x: 0.3332038, y: 6.5508394, z: -1.2546682}
+  m_LocalRotation: {x: 0.53427154, y: 0.0004091463, z: -0.00025859685, w: 0.8453128}
+  m_LocalPosition: {x: 5.2832117, y: 7.9689703, z: 0.37725735}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
@@ -459,7 +459,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _brush: {fileID: 1092352291}
-  _meshConfig: {fileID: 0}
+  _meshConfig: {fileID: 11400000, guid: 0b81b08a3c66a6b459b375ec6fcbc363, type: 2}
   _textureLayer: 1
 --- !u!4 &518160457
 Transform:

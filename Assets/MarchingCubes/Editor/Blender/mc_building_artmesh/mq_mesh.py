@@ -435,7 +435,24 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
 
         os.makedirs(out_dir, exist_ok=True)
 
+        # ── 法线贴图烘焙：所有 case 共享同一 noise_field（保证边界连续）─────────
+        noise_field = None
+        bake_res    = props.normal_map_resolution
+        if props.bake_normal_maps:
+            try:
+                from . import noise as _noise_mod
+            except ImportError:
+                self.report({'ERROR'}, "noise.py 缺失，无法烘焙法线贴图。")
+                return {'CANCELLED'}
+            noise_field = _noise_mod.TileableNoiseField(
+                seed      = props.noise_seed,
+                octaves   = props.noise_octaves,
+                amplitude = props.noise_amplitude,
+                frequency = props.noise_frequency,
+            )
+
         exported = []
+        baked    = 0
         for ci in ALL_CASES:
             h = DIAGONAL2_HEIGHTS.get(ci, [1.0 if (ci & (1 << i)) else 0.0 for i in range(4)])
 
@@ -488,13 +505,32 @@ class MQ_OT_ExportAllCases(bpy.types.Operator):
                 add_leaf_bones       = False,
             )
 
+            # ── 烘焙法线贴图（与 .fbx 同目录、同名后缀 _normal.png）──────────
+            if noise_field is not None:
+                from . import noise as _noise_mod
+                pixels = _noise_mod.bake_normal_map(mesh, noise_field, bake_res)
+                img_name = f"mq_case_{ci}_normal"
+                # 若同名 image 已存在（重导出场景），先清理避免引用泄漏
+                if img_name in bpy.data.images:
+                    bpy.data.images.remove(bpy.data.images[img_name])
+                img = bpy.data.images.new(img_name, bake_res, bake_res, alpha=True)
+                # Blender image.pixels: row-major, row 0 = bottom (Y up)，与 numpy bake 输出一致
+                # numpy uint8 → float32 ∈ [0, 1]
+                img.pixels = (pixels.astype('float32') / 255.0).flatten()
+                img.filepath_raw = os.path.join(out_dir, f"{img_name}.png")
+                img.file_format  = 'PNG'
+                img.save()
+                bpy.data.images.remove(img)
+                baked += 1
+
             context.scene.collection.objects.unlink(exp_obj)
             bpy.data.objects.remove(exp_obj)
             bpy.data.meshes.remove(mesh)
             exported.append(ci)
 
         bpy.ops.object.select_all(action='DESELECT')
-        self.report({'INFO'}, f"已导出 {len(exported)} 个 case → {out_dir}  (mq_case_0..15.fbx)")
+        bake_msg = f" + {baked} normal maps" if noise_field is not None else ""
+        self.report({'INFO'}, f"已导出 {len(exported)} 个 case{bake_msg} → {out_dir}")
         return {'FINISHED'}
 
 
@@ -519,6 +555,32 @@ class MQProperties(bpy.types.PropertyGroup):
         subtype = 'DIR_PATH',
         default = "//mq_export/",
         description="地形和悬崖 FBX 统一输出目录"
+    )
+    # ── 法线贴图烘焙参数（仅地形 19 case 使用，与 .fbx 同 operator 同目录导出）─
+    bake_normal_maps: bpy.props.BoolProperty(
+        name="烘焙法线贴图",
+        default=True,
+        description="导出地形 .fbx 同时烘焙 mq_case_N_normal.png（tileable 3D fbm noise）",
+    )
+    noise_seed: bpy.props.IntProperty(
+        name="噪声种子", default=42,
+        description="伪随机种子，固定后结果可复现",
+    )
+    noise_octaves: bpy.props.IntProperty(
+        name="噪声 Octaves", default=3, min=1, max=8,
+        description="fbm 叠加层数，越多细节越丰富但越慢",
+    )
+    noise_amplitude: bpy.props.FloatProperty(
+        name="噪声振幅衰减", default=0.5, min=0.0, max=1.0, step=5,
+        description="高频 octave 的振幅衰减系数（典型 0.5）",
+    )
+    noise_frequency: bpy.props.IntProperty(
+        name="噪声基频", default=4, min=1, max=16,
+        description="基础周期分割数（必须整数，每 octave 周期 = freq×2^k 保证 tileable）",
+    )
+    normal_map_resolution: bpy.props.IntProperty(
+        name="法线贴图分辨率", default=128, min=64, max=512,
+        description="烘焙输出 PNG 像素尺寸（正方形）",
     )
 
 
@@ -569,6 +631,19 @@ class MQ_PT_Panel(bpy.types.Panel):
         box4.label(text="4. 导出全部 FBX", icon='EXPORT')
         box4.operator("mq.export_all", icon='EXPORT')
         box4.label(text="mq_case_0..18.fbx + mq_cliff_1/3/5/7/15.fbx", icon='INFO')
+
+        # 5. 法线贴图烘焙参数（与地形 .fbx 同 operator 同目录导出）
+        box5 = layout.box()
+        box5.label(text="5. 法线贴图烘焙（仅地形 19 case）", icon='TEXTURE')
+        box5.prop(props, "bake_normal_maps")
+        sub = box5.column()
+        sub.enabled = props.bake_normal_maps
+        sub.prop(props, "noise_seed")
+        sub.prop(props, "noise_octaves")
+        sub.prop(props, "noise_amplitude")
+        sub.prop(props, "noise_frequency")
+        sub.prop(props, "normal_map_resolution")
+        box5.label(text="mq_case_N_normal.png 与 .fbx 同目录", icon='INFO')
 
 
 # ── Cliff operators ───────────────────────────────────────────────────────────

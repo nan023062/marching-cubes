@@ -13,39 +13,63 @@ MonoBehaviour:
   m_Name: TileCaseConfig
   m_EditorClassIdentifier: 
   _prefabs:
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 5279014759470428250, guid: d3d2357c7f399754bb1ad71b20a1aad9, type: 3}
+  - {fileID: 560716843561290980, guid: ca5607ab50b8a2c4f9f4730560c48c65, type: 3}
+  - {fileID: 3782840448164774949, guid: 212ebb9f6767ea84db552a21dda3bf70, type: 3}
+  - {fileID: 95575555143006168, guid: 78065d419cd77fb4a812baac7a6dc129, type: 3}
+  - {fileID: 775293381611590045, guid: c45a74316d0373c40b58249da7348f30, type: 3}
+  - {fileID: 5099063497066936049, guid: c3d75684c16c57946bbb4bded14a831e, type: 3}
+  - {fileID: 2206258645935117392, guid: 81090a987056266489ffad56d49dab7a, type: 3}
+  - {fileID: 6299693183425238288, guid: 705e338e6ac68cd45abc4e5500ac18a6, type: 3}
+  - {fileID: 7458596432844455575, guid: ad69e1f448a8983458e22137bbfa6de2, type: 3}
+  - {fileID: 8524331043401562091, guid: a6c21194170df214cba4ec5e069f8d4e, type: 3}
+  - {fileID: 1678853167493804227, guid: 3ef12678722d54449b72cca80d5468c9, type: 3}
+  - {fileID: 849823256885982786, guid: 58f56a76fead07643a0325b0ea3c71e2, type: 3}
+  - {fileID: 1374981975510179194, guid: c3d227430d3c2fe48ab90abd19555c0b, type: 3}
+  - {fileID: 8028875294886709272, guid: 9cdb319600f25d741b168f02d357331a, type: 3}
+  - {fileID: 4099079202606592379, guid: a934dfe20b3b68240a4e558f118794b7, type: 3}
+  - {fileID: 2540770813145122367, guid: 38fdba73d8236485f8e8e9f5e6622be1, type: 3}
+  - {fileID: 1360414009853025373, guid: 29354f94b83474a4c8466d121ceca782, type: 3}
+  - {fileID: 1946933664547371755, guid: bacfca81ecdc14485802d47cfff989cb, type: 3}
+  - {fileID: 525920110081870066, guid: a08020c56cf4941e8a310172713ef7ec, type: 3}
   _cliffPrefabs:
   - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
-  - {fileID: 0}
+  - {fileID: 1724582922021104859, guid: c20ae2857349d400f9e8e5a17cf39433, type: 3}
+  - {fileID: 430841695901450931, guid: 68df08b312a7c45acb570a1ef3259c8b, type: 3}
+  - {fileID: 3596667710019505891, guid: 890965babb38841f19875d1b9c3bef84, type: 3}
+  - {fileID: 2070529828388274253, guid: 087f7de80089d4b7fa5b4143b71dac30, type: 3}
+  - {fileID: 3413006889352641164, guid: 223288167a9a74b21840a8ac9ed65412, type: 3}
+  - {fileID: 7875860955872164768, guid: 499cf10904e1442be9ef900b1f81b2cc, type: 3}
+  - {fileID: 7918692125795598734, guid: d4fecb2a1aebc457b9f0babec091b6d5, type: 3}
+  - {fileID: 4548182924694845239, guid: d62fbf9adc6ba4059a22b80960300a51, type: 3}
+  - {fileID: 8156199325467955834, guid: df0e5afdfcd494e1f8f377ed5d7f1002, type: 3}
+  - {fileID: 6263315452405977802, guid: 102f331b8a93c47ae8e21ec0858973d8, type: 3}
+  - {fileID: 8589020151223917752, guid: b26495f1b78d441c78a76b43ffa7b6ad, type: 3}
+  - {fileID: 7063966375850054598, guid: abf6c573f41f4410196d1cc5a6741dd5, type: 3}
+  - {fileID: 5672106105031575100, guid: 789a11fc14394433a994078789fcc7f6, type: 3}
+  - {fileID: 8067712611597835943, guid: b6e77eae5873d42e6a196756b5b032d6, type: 3}
+  - {fileID: 8107149319035808978, guid: 396bfce25af0f41398ec8082d7306494, type: 3}
+  _normalMaps:
+  - {fileID: 2800000, guid: 6b97120ae5d3d4a22a5e8d2af65c4178, type: 3}
+  - {fileID: 2800000, guid: b1f521815394e468995448d7779cb51e, type: 3}
+  - {fileID: 2800000, guid: a4f3db01b53ad4ef88ae231d1d3bb61d, type: 3}
+  - {fileID: 2800000, guid: f6628e7d860a84d8db953cef07637a35, type: 3}
+  - {fileID: 2800000, guid: a65ee1512d4c2408f91aea1ad7d32af9, type: 3}
+  - {fileID: 2800000, guid: 73700809b39dc4fd8ac2d44992a3f7d0, type: 3}
+  - {fileID: 2800000, guid: f2f68c4eaf18f4c2690ad6b83d4e3f6c, type: 3}
+  - {fileID: 2800000, guid: 9160cdb2c9f7747128098162d7f8f6cf, type: 3}
+  - {fileID: 2800000, guid: 2e234e6349aea435e873894de263a41c, type: 3}
+  - {fileID: 2800000, guid: bb8ecbd07a9a142ae9cd6fdd0275063b, type: 3}
+  - {fileID: 2800000, guid: a64a642f3dbe749139f92d038dbb6fdf, type: 3}
+  - {fileID: 2800000, guid: f5948d3b5e6444141b9178cea7258956, type: 3}
+  - {fileID: 2800000, guid: 510d1a82024e944e6a52ca4addff5662, type: 3}
+  - {fileID: 2800000, guid: e6370ce5174754b23af7e9e1d7718c4a, type: 3}
+  - {fileID: 2800000, guid: 6a749e9ba15ed42d7a15e0f486637cb0, type: 3}
+  - {fileID: 2800000, guid: 56d86ebad411f4ebd87799dd5a7c4f4d, type: 3}
+  - {fileID: 2800000, guid: bc0630956d2e74d888dfd5a9091d5e9f, type: 3}
+  - {fileID: 2800000, guid: 4416a7842256744dd9858fb00ff2358e, type: 3}
+  - {fileID: 2800000, guid: bf587369f0b354dcba7325720a6d2847, type: 3}
+  editorFbxFolder: Assets/MarchingCubes/Sample/Resources/mq_mesh/fbx
+  editorPrefabFolder: Assets/MarchingCubes/Sample/Resources/mq_mesh/prefabs
+  editorTerrainMat: {fileID: 2100000, guid: b4a38119e7ee5ca4c94741f6303091e4, type: 2}
+  editorCliffMat: {fileID: 2100000, guid: 844ac55cf64e9f242843bd3b8976b020, type: 2}

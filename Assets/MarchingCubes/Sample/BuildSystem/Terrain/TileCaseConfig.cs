@@ -30,14 +30,31 @@ namespace MarchingSquares
         [Header("悬崖 Tile（case 0-15，Mesh 以格子中心为原点）")]
         [SerializeField] private GameObject[] _cliffPrefabs = new GameObject[CliffCaseCount];
 
-        private void OnEnable() { EnsureArray(ref _prefabs, TerrainCaseCount); EnsureArray(ref _cliffPrefabs, CliffCaseCount); }
+        [Header("地形法线贴图（case 0-18，Blender 烘焙 → art-mq-mesh Refresh 写入）")]
+        [SerializeField] private Texture2D[] _normalMaps = new Texture2D[TerrainCaseCount];
 
-        private static void EnsureArray(ref GameObject[] arr, int count)
+#if UNITY_EDITOR
+        // ── Editor 缓存（仅编辑器使用，随 .asset 持久化，不进运行时）────────────
+        // 地形 / 悬崖 共用 FBX 与 Prefab 文件夹；材质各自独立
+        [HideInInspector] public string   editorFbxFolder    = "Assets/MarchingCubes/Sample/Resources/mq";
+        [HideInInspector] public string   editorPrefabFolder = "Assets/MarchingCubes/Sample/Resources/mq/prefabs";
+        [HideInInspector] public Material editorTerrainMat;
+        [HideInInspector] public Material editorCliffMat;
+#endif
+
+        private void OnEnable()
+        {
+            EnsureArray(ref _prefabs,      TerrainCaseCount);
+            EnsureArray(ref _cliffPrefabs, CliffCaseCount);
+            EnsureArray(ref _normalMaps,   TerrainCaseCount);
+        }
+
+        private static void EnsureArray<T>(ref T[] arr, int count) where T : class
         {
             if (arr == null || arr.Length != count)
             {
                 var old = arr;
-                arr = new GameObject[count];
+                arr = new T[count];
                 if (old != null)
                     for (int i = 0; i < Mathf.Min(old.Length, count); i++)
                         arr[i] = old[i];
@@ -70,6 +87,20 @@ namespace MarchingSquares
         {
             EnsureArray(ref _cliffPrefabs, CliffCaseCount);
             if (ci >= 0 && ci < CliffCaseCount) _cliffPrefabs[ci] = prefab;
+        }
+
+        // ── 法线贴图 API ──────────────────────────────────────────────────────
+
+        public Texture2D GetNormalMap(int ci)
+        {
+            EnsureArray(ref _normalMaps, TerrainCaseCount);
+            return (ci >= 0 && ci < TerrainCaseCount) ? _normalMaps[ci] : null;
+        }
+
+        public void SetNormalMap(int ci, Texture2D tex)
+        {
+            EnsureArray(ref _normalMaps, TerrainCaseCount);
+            if (ci >= 0 && ci < TerrainCaseCount) _normalMaps[ci] = tex;
         }
     }
 }
