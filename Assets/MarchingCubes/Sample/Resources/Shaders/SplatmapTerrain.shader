@@ -12,9 +12,6 @@ Shader "MarchingSquares/SplatmapTerrain"
         // 直接 per-tile uniform，无纹理采样无解码 → 0 误差
         [HideInInspector] _TileMsIdx  ("Layer ms_idx 0-3", Vector) = (0, 0, 0, 0)
         [HideInInspector] _TileMsIdx4 ("Layer ms_idx 4",   Float)  = 0
-
-        // _NormalMap : 切线空间法线贴图（Blender 端 tileable noise 烘焙；缺省 "bump" = 平面无扰动）
-        _NormalMap ("Normal Map", 2D) = "bump" {}
     }
 
     // ── _OverlayArray 资产协议（重要变更，2026-05-10） ────────────────────────
@@ -48,14 +45,12 @@ Shader "MarchingSquares/SplatmapTerrain"
             // 5 layer ms_idx 直接 per-tile uniform，无纹理采样
             float4 _TileMsIdx;   // x=layer0 idx, y=layer1, z=layer2, w=layer3
             float  _TileMsIdx4;  // layer4 idx
-            sampler2D _NormalMap;
             float     _Tiling;
 
             struct appdata
             {
                 float4 vertex  : POSITION;
                 float3 normal  : NORMAL;
-                float4 tangent : TANGENT;   // MikkTSpace 切线（ImportTangents=CalculateMikk 保证）
                 float2 uv      : TEXCOORD0; // 格内 [0,1] UV（Blender 导出的平面 UV）
             };
 
@@ -63,22 +58,17 @@ Shader "MarchingSquares/SplatmapTerrain"
             {
                 float4 pos            : SV_POSITION;
                 float2 baseUV         : TEXCOORD0;  // uv * _Tiling，采样基础纹理
-                float2 localUV        : TEXCOORD1;  // 原始 [0,1]，用于 overlay atlas + normal map 定位
+                float2 localUV        : TEXCOORD1;  // 原始 [0,1]，用于 overlay atlas 定位
                 float3 worldNormal    : TEXCOORD2;
-                float3 worldTangent   : TEXCOORD3;
-                float3 worldBitangent : TEXCOORD4;
             };
 
             v2f vert(appdata v)
             {
                 v2f o;
-                o.pos            = UnityObjectToClipPos(v.vertex);
-                o.baseUV         = v.uv * _Tiling;
-                o.localUV        = v.uv;
-                o.worldNormal    = UnityObjectToWorldNormal(v.normal);
-                o.worldTangent   = UnityObjectToWorldDir(v.tangent.xyz);
-                // bitangent.w 是 MikkTSpace 手性符号（±1），保证 TBN 与烘焙方向一致
-                o.worldBitangent = cross(o.worldNormal, o.worldTangent) * v.tangent.w * unity_WorldTransformParams.w;
+                o.pos         = UnityObjectToClipPos(v.vertex);
+                o.baseUV      = v.uv * _Tiling;
+                o.localUV     = v.uv;
+                o.worldNormal = UnityObjectToWorldNormal(v.normal);
                 return o;
             }
 
@@ -110,13 +100,8 @@ Shader "MarchingSquares/SplatmapTerrain"
                 BLEND_LAYER(4, idx4)
                 #undef BLEND_LAYER
 
-                // ── 4. 切线空间法线扰动 + Lambert 光照 ───────────────────────
-                // 缺省 _NormalMap = "bump" → UnpackNormal 返回 (0,0,1)，nWorld ≡ i.worldNormal，无扰动
-                float3 nT     = UnpackNormal(tex2D(_NormalMap, lUV));
-                float3 nWorld = normalize(nT.x * i.worldTangent
-                                        + nT.y * i.worldBitangent
-                                        + nT.z * i.worldNormal);
-                float ndl = max(0.2, dot(nWorld, _WorldSpaceLightPos0.xyz));
+                // ── 4. Lambert 光照 ──────────────────────────────────────────
+                float ndl = max(0.2, dot(i.worldNormal, _WorldSpaceLightPos0.xyz));
                 col = col * ndl * _LightColor0.rgb;
 
                 return fixed4(col, 1);

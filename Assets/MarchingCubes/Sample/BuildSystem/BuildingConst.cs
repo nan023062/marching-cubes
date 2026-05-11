@@ -14,12 +14,10 @@ namespace MarchingCubes.Sample
         public const int Unit = 1;
 
         /// <summary>
-        /// 悬崖最大高度（单位：Unit）。调大此值可刷出更高的悬崖墙面。
-        /// 悬崖 Tile Mesh（固定 1 unit 高）在运行时按实际高差自动缩放 Y，无需新增美术 Case。
-        ///
-        /// 注意：坡面 Tile 的相邻格点高差始终强制 ≤ 1（19-case 坡面系统的硬约束，不受此值影响）。
-        /// 相邻格 base 高差 > 1 时，坡面 tile 以最近似的 case 显示，垂直部分由悬崖 tile 补足。
+        /// 相邻格点高差硬约束（单位：Unit）。
+        /// 65 case base-3 编码统一覆盖「同格 4 角高差 ≤ 2」全部组合，
+        /// BFS 高差传播保证「相邻格点高差 ≤ 2」与之匹配。
         /// </summary>
-        public const int TerrainMaxHeightDiff = 1;
+        public const int TerrainMaxHeightDiff = 2;
     }
 }

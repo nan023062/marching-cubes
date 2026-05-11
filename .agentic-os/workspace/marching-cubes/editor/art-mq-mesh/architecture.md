@@ -2,7 +2,7 @@
 
 ## 定位
 
-MQ tile prefab 编辑器工具（叶子模块）。为 `TileCaseConfig`（ScriptableObject，35 槽：19 地形 + 16 悬崖）提供 Inspector 扩展，从 FBX 批量生成地形 + 悬崖 tile prefab。
+MQ tile prefab 编辑器工具（叶子模块）。为 `TileCaseConfig`（ScriptableObject，81 槽：65 个真实几何 + 16 个死槽）提供 Inspector 扩展，从 FBX 批量生成 65 个地形 tile prefab。
 
 ## 内部结构
 
@@ -16,53 +16,41 @@ ArtMqMesh/
 
 ### 地形构建 `DoTerrainBuild`
 
-读取 `{editorFbxFolder}/mq_case_0.fbx` ~ `mq_case_18.fbx`（19 个），每个直接实例化 → 套上 `TilePrefab` 标记 → 应用 `editorTerrainMat` → 保存到 `{editorPrefabFolder}/mq_case_N.prefab` → 写入 `cfg.SetPrefab(N)`。无旋转、无翻转、无 D4 归约。
+遍历 `case_idx ∈ [0, 80]`，对每个有效 case_idx（即 base-3 解码后 `min(r) == 0` 的 65 个组合）尝试加载 `{editorFbxFolder}/mq_case_{N}.fbx`：
+- 文件存在 → 实例化 → 套上 `TilePrefab` 标记 → 应用 `editorTerrainMat` → 保存到 `{editorPrefabFolder}/mq_case_{N}.prefab` → 写入 `cfg.SetPrefab(N, prefab)`
+- 文件不存在 → 跳过（死槽、或 Blender 端尚未导出）
 
-### 悬崖构建 `DoCliffBuild`
-
-只需 5 个规范 FBX：`mq_cliff_1/3/5/7/15.fbx`。对 case 1~15 逐个：从 `TileTable.CliffD4Map[ci]` 取 `(canonical, rotCount)`，加载 `mq_cliff_{canonical}.fbx`，绕 Y 轴旋转 `90° × rotCount`，应用 `editorCliffMat`，保存到 `mq_cliff_{ci}.prefab` → 写入 `cfg.SetCliffPrefab(ci)`。case 0（无悬崖）跳过。
+无旋转、无翻转、无 D4 归约（mesh + UV 紧耦合，旋转破坏对齐）。
 
 ### 配置持久化
 
-FBX 文件夹、Prefab 输出文件夹、地形材质、悬崖材质均写入 `TileCaseConfig` 的 `editor*` 字段（`#if UNITY_EDITOR` + `[HideInInspector]`），随 `.asset` 序列化到磁盘。Inspector 重建、域重载、Unity 重启均不丢，团队通过 git 共享。
+FBX 文件夹、Prefab 输出文件夹、地形材质均写入 `TileCaseConfig` 的 `editor*` 字段（`#if UNITY_EDITOR` + `[HideInInspector]`），随 `.asset` 序列化到磁盘。Inspector 重建、域重载、Unity 重启均不丢，团队通过 git 共享。
 
-## 为何地形不做 D4 而悬崖做
+## 为何不做 D4 归约
 
-| 维度 | 地形 (19 case) | 悬崖 (16 case) |
-|------|---------------|---------------|
-| Mesh 几何 | 高度组合，每 case 独立 | 边墙朝向，D4 等价 |
-| 纹理 UV | 与几何紧耦合，旋转破坏对齐 | 边墙独立 UV，旋转无害 |
-| 归约策略 | 无（每 case 独立 FBX）| D4 旋转（5 规范 → 15）|
+| 维度 | 65 case 地形 |
+|------|---------------|
+| Mesh 几何 | 高度组合，每 case 独立 |
+| 纹理 UV | 与几何紧耦合，旋转破坏对齐 |
+| 归约策略 | 无（每 case 独立 FBX）|
 
 ## Inspector 布局
 
-顶部统一区：FBX 文件夹 + Prefab 输出文件夹 + 地形材质 + 悬崖材质 + 2 个按钮（"Build All 19 Terrain + 15 Cliff Cases" + "Refresh Normal Maps"）。下方分别是地形 grid（0~18）和悬崖 grid（0~15），点击单元格展开单 case 详情面板（手动改 prefab + 缩略图）。
+顶部统一区：FBX 文件夹 + Prefab 输出文件夹 + 地形材质 + "Build All 65 Terrain Cases" 按钮。下方是 9×9 的 case grid（实际显示 65 个有效 case；16 个死槽位置渲染为灰色空白），点击单元格展开单 case 详情面板（手动改 prefab + 缩略图）。
 
-## 法线贴图自动映射（Refresh Normal Maps）
+## 死槽识别
 
-### 数据流
+判定 `case_idx` 是否为死槽：
 
+```csharp
+bool IsDeadSlot(int caseIdx)
+{
+    int r0 = caseIdx % 3;
+    int r1 = (caseIdx / 3) % 3;
+    int r2 = (caseIdx / 9) % 3;
+    int r3 = (caseIdx / 27) % 3;
+    return Math.Min(Math.Min(r0, r1), Math.Min(r2, r3)) > 0;
+}
 ```
-"Refresh Normal Maps" 按钮
-  ├── 扫 cfg.editorFbxFolder 目录下所有 mq_case_*_normal.png
-  ├── 正则解出 N（[0, 18]）
-  ├── AssetDatabase.LoadAssetAtPath<Texture2D>(path)
-  ├── 检查 TextureImporter.textureType
-  │     ├── 若不是 NormalMap：改成 NormalMap + AssetDatabase.ImportAsset
-  │     └── 若已是 NormalMap：直接读引用
-  ├── cfg.editorNormalMaps[N] = ref
-  └── EditorUtility.SetDirty(cfg) + AssetDatabase.SaveAssets()
-```
 
-### 与 Blender 的命名契约
-
-| 工具 | 写出 | 命名 |
-|------|------|------|
-| Blender Add-on | `mq_export/mq_case_N.fbx` + `mq_export/mq_case_N_normal.png` | `_normal` 后缀强制 |
-| Unity art-mq-mesh | 按 `mq_case_(\d+)_normal.png` 正则匹配 | N 必须 ∈ [0, 18] |
-
-### 为什么 Refresh 按钮而非自动监听
-
-- **可控**：用户决定何时同步；避免 Blender 还在 export 中 Unity 已经触发增量 import 的竞态
-- **简单**：纯 polling，不依赖 Asset Postprocessor 监听
-- **幂等**：重复点击只更新引用，不破坏现有数据
+死槽永远不会被 `TileTable.GetMeshCase` 产出，因此 `prefabs[deadIdx]` 不会在运行时被读取；编辑器扫描 / build 时跳过即可。

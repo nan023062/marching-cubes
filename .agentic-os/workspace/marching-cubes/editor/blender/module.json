@@ -2,28 +2,25 @@
   "name": "blender",
   "type": "code",
   "workspaceType": "blender-python",
-  "summary": "Blender Add-on（mc_building_artmesh）：DCC 侧建模工作流——D4 对称 53-case MC 参考场景、MQ tile 参考场景、程序化测试 mesh 对比、覆盖率检查、FBX 批量导出 + MQ 19 case 法线贴图烘焙（tileable 全局 noise 场，与 FBX 同步导出）",
+  "summary": "Blender Add-on（mc_building_artmesh）：DCC 侧建模工作流——D4 对称 53-case MC 参考场景、MQ tile 参考场景（65 case base-3 编码）、程序化测试 mesh 对比、覆盖率检查、FBX 批量导出",
   "workspace": ["Assets/MarchingCubes/Editor/Blender"],
   "dependencies": [],
   "boundary": "closed",
   "publicApi": [
-    "mc_building_artmesh.zip — Blender Add-on（N-Panel > MC ArtMesh）：Setup Reference Scene / Check Coverage / Extract & Export FBX + Bake Normal Maps（同 ExportAllCases operator 内同步出 case_N_normal.png）",
+    "mc_building_artmesh.zip — Blender Add-on（N-Panel > MC ArtMesh）：Setup Reference Scene / Check Coverage / Extract & Export FBX",
     "build_zip.py — 打包脚本：python build_zip.py → mc_building_artmesh.zip",
-    "mc_building_artmesh/__init__.py — 插件主体（含全部 Operator + Panel + MQProperties.noise_* 字段 + ExportAllCases 内嵌 bake 段）",
+    "mc_building_artmesh/__init__.py — 插件主体（含全部 Operator + Panel + MQProperties）",
     "mc_building_artmesh/cube_table.py — Unity CubeTable.cs 的 Python 移植（VERTICES / EDGES / TRI_TABLE / EDGE_TABLE）",
     "mc_building_artmesh/mc_mesh.py — MC case mesh 程序化生成（等值面 + 圆角 bevel）",
-    "mc_building_artmesh/mq_mesh.py — MQ tile mesh 程序化生成",
-    "mc_building_artmesh/noise.py — tileable 3D fbm 噪声场（hash period 严格 mod freq×2^k）+ UV→3D 反查 + 切线空间法线编码（MikkTSpace）"
+    "mc_building_artmesh/mq_mesh.py — MQ tile mesh 程序化生成（base-3 编码 65 case，bilinear_arc 函数生成几何）"
   ],
   "constraints": [
-    "对称群使用 D4（4 个 Y 轴旋转 × LR 镜像翻转 = 8 种变换），产出 53 个 canonical case（含 0/255 共 55 个），与 Unity 的 D4FbxCaseConfig 完全一致",
-    "顶点约定与 CubeTable.Vertices 完全一致：V0(0,0,1) V1(1,0,1) V2(1,0,0) V3(0,0,0) V4(0,1,1) V5(1,1,1) V6(1,1,0) V7(0,1,0)",
+    "MC 对称群使用 D4（4 个 Y 轴旋转 × LR 镜像翻转 = 8 种变换），产出 53 个 canonical case（含 0/255 共 55 个），与 Unity 的 D4FbxCaseConfig 完全一致",
+    "MC 顶点约定与 CubeTable.Vertices 完全一致：V0(0,0,1) V1(1,0,1) V2(1,0,0) V3(0,0,0) V4(0,1,1) V5(1,1,1) V6(1,1,0) V7(0,1,0)",
+    "MQ 65 case 编码：case_idx = r0 + r1*3 + r2*9 + r3*27，r_i ∈ {0,1,2}；ALL_CASES 遍历 [0,80]，跳过 16 个 min(r) > 0 的死槽（即仅遍历 65 个 base 已归约的有效组合）",
+    "MQ mesh 几何由 bilinear_arc(u, v, h, arc_s, flat) 函数统一生成：传入 4 角浮点高度数组 h[4]，产出"高角点 flat×flat 平台 + smooth-step 圆弧过渡"风格；新 65 case 与原 19 case 几何风格完全一致（同函数同参数）",
     "FBX 导出轴向：axis_forward='Y'，axis_up='Z'（Blender 原生轴）；Unity 侧 ArtMeshFbxPostprocessor 开启 bakeAxisConversion=true 对应烘入",
     "格子布局：GRID_COLS=9，步进 2（Unity 坐标），case n 位于 (col*2, 0, row*2)；扫描时直接遍历 canonical 位置，不扫整个 grid",
-    "脚本兼容 Blender 3.6+ / 4.x / 5.x Python API",
-    "法线贴图边界连续硬约束：noise.py 实现的 tileable 3D fbm 在 [0,1]³ 周期严格 tileable（三轴均满足 f(0,y,z) ≡ f(1,y,z)）；fbm 第 k 个 octave 的 lattice hash 必须按 (freq × 2^k) 取模，否则高频 octave 边界撕裂",
-    "Blender↔Unity 切线基对账：Blender 端用 mesh.calc_tangents()（MikkTSpace），Unity 端 ArtMeshFbxPostprocessor 强制 importTangents=ModelImporterTangents.CalculateMikk；两端必须一致，否则法线贴图解码方向错乱",
-    "法线贴图与 FBX 一对一同目录导出：mq_export/ 下 mq_case_N.fbx + mq_case_N_normal.png，命名约定让 Unity 端 Refresh 按钮按名字自动匹配；改 mesh 必然重导致 normal map 重 bake，零漂移",
-    "法线贴图覆盖范围：当前仅 MQ 19 个地形 case（mq_case_0.fbx ~ mq_case_18.fbx）；MC 53 case + MQ cliff 暂不烘"
+    "脚本兼容 Blender 3.6+ / 4.x / 5.x Python API"
   ]
 }

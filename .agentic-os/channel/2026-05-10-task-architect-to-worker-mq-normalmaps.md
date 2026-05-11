@@ -3,7 +3,7 @@ type: task
 from: architect
 to: worker
 date: 2026-05-10
-status: in_progress
+status: cancelled
 priority: normal
 slug: mq-normalmaps
 ---
@@ -420,3 +420,23 @@ cd Assets/MarchingCubes/Editor/Blender/mc_building_artmesh && /Applications/Blen
 （待老板验收 #1~#6 通过后 commit；当前未 commit，文件状态在 working tree。reviewer 审查 PASS = 实装合规，等老板与架构师最终验收后再 commit。）
 
 status: in_progress（等架构师合规验收 + 老板验收 #1~#6 → 通过后改 resolved）
+
+---
+
+### [architect] [2026-05-10 11:30] CANCELLED — 法线贴图整套被新拓扑改造取代
+
+**取消原因**：老板下达新需求「同格 4 角高差 ≤ 2 + 相邻格点高差 ≤ 2 + 完全取代悬崖系统 + demo 不需要法线贴图」，决策栈如下：
+
+- 法线贴图整套**全部下线**（noise.py / Refresh 按钮 / shader 切线段 / Postprocessor importTangents=CalculateMikk / TileCaseConfig.normalMaps[] 全删）
+- 悬崖系统**全部下线**（CliffD4Map / CliffCanonicalCases / 5 个 cliff FBX / SetupCliffCases / ExportCliffCases / TerrainBuilder 悬崖 tile 管理全删）
+- 19 case → 65 case（base-3 编码 `case_idx = r0 + r1*3 + r2*9 + r3*27`，TileCaseConfig 数组容量 81，16 死槽空着）
+- Mesh 风格沿用现 mq_mesh.py 的 `bilinear_arc` 函数，零换算
+
+**worker 处理**：
+- mq-normalmaps 实装（noise.py / test_noise.py / mq_mesh.py 改动 / TileCaseConfig.cs 改动 / Shader 改动 / Postprocessor 改动 / Refresh Normal Maps 按钮 / Blender add-on zip 重打）**全部作废**，无须 commit
+- 经查 git status，主 worktree 没有这些文件（worker 应该在 worktree 外做的），撒销零成本
+- 有任何已 stash / 已 commit 在其他分支的 mq-normalmaps 改动，请丢弃
+
+**后续不走 channel 派单**：架构师将以 Agent tool 直接拉 worker subagent 在主会话内闭环实装。本 task 留作历史档案。
+
+status: cancelled（架构师取消，原因：被新需求 mq-topo-65case 取代）

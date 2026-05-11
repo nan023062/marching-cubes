@@ -1,14 +1,17 @@
 # Structure Contract
 
-## McStructure
+## Structure
 
 ```csharp
 namespace MarchingCubes.Sample
-public class McStructure : MonoBehaviour
+public class Structure : MonoBehaviour
 {
     public uint unit;                       // 整数边长（由 BuildingConst.Unit 初始化）
-    public GameObject pointCubePrefab;
-    public GameObject pointQuadPrefab;
+
+    // Prefab 引用（[SerializeField]，public getter）：BuildState 通过 getter 取，BuildingManager 不再持有
+    public GameObject PointCubePrefab { get; }
+    public GameObject PointQuadPrefab { get; }
+
     public int RenderWidth  { get; }
     public int BuildHeight  { get; }
     public int RenderDepth  { get; }
@@ -86,16 +89,21 @@ public sealed class D4FbxCaseConfig : CasePrefabConfig
 ## PointElement / PointCube / PointQuad
 
 ```csharp
-public class PointElement : MonoBehaviour { public McStructure mcs; }
-public class PointCube   : PointElement   { public int x, y, z; }
-public class PointQuad   : PointElement   { public int x, z; }
+public class PointElement : MonoBehaviour { public Structure mcs; }
+public class PointCube   : PointElement   { public int x, y, z; }    // 体素索引（cube 占 [x..x+1, y..y+1, z..z+1]）
+public class PointQuad   : PointElement   { public int cx, cz; }     // cell 索引（仅平地 cell 才有实例；与 cube 索引语义对齐：CreateCube(cx,1,cz) 在该平地 cell 正上方）
 ```
 
 ## BuildState（IBuildState）
 
 ```csharp
+// ctor：prefab 不再从外部注入，由 _structure 自持
+public BuildState(Structure structure);
+
 // 关键公开方法（BuildingManager 间接调用）
-public void SyncWithTerrain(MarchingSquares.MqTerrainBuilder terrain);
+public void SyncWithTerrain(MarchingSquares.TerrainBuilder terrain);
+// 段一：扫所有 cell，按 terrain.IsCellFlat(cx,cz,out baseH) 增/删/移位 PointQuad（cell 中心 (cx+0.5, baseH+0.5, cz+0.5)）
+// 段二：扫所有 PointCube，4 角 terrain 高度 > cube.y 则销毁（地形上来后压住的方块清理）
 ```
 
 ## 使用方

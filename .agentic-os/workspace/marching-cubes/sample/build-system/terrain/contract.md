@@ -18,6 +18,9 @@ public class Terrain : MonoBehaviour
     public bool EraseTerrainType(int type);     // 地形类型擦除（mask &= ~(1<<type)），返回 dirty
     public bool ClearTerrainMask();             // 一键清空：mask = 0（fallback 到 _BaseTex），返回 dirty
     public void SetBrushVisible(bool visible);
+
+    // 平地查询（薄壳转发 Builder.IsCellFlat）：cell 4 角 high 完全相等时返回 true，baseH 给出该 cell 的统一高度
+    public bool IsCellFlat(int cx, int cz, out int baseH);
 }
 ```
 
@@ -34,8 +37,10 @@ public class TerrainBuilder
     public readonly Matrix4x4 localToWorld;
     public readonly Matrix4x4 worldToLocal;
     public readonly Mesh      colliderMesh;
-    public int MaxHeightDiff { get; set; } = 1;
+    public int MaxHeightDiff { get; set; } = 2;
 
+    // 构造期硬约束：width 必须 == length（点阵方阵）且必须是 2 的次幂（16/32/64/128/256/...）
+    // 违反任一约束抛 ArgumentException；为未来 chunk 划分 / quadtree LOD 寻址零特例做铺垫
     public TerrainBuilder(int width, int length, int height, float unit,
                           Vector3 worldPosition, TileCaseConfig config, Transform parent);
 
@@ -47,7 +52,8 @@ public class TerrainBuilder
     public void  RefreshAffectedTiles(int px, int pz);
     public sbyte GetPointHeight(int x, int z);
     public byte  GetTerrainMask(int x, int z);              // 返回 byte bitmask（低 5 bit 表示 5 layer 是否存在）
-    public void  DrawGizmos();
+    public bool  IsCellFlat(int cx, int cz, out int baseH); // cell 4 角 high 完全相等返回 true，baseH 给出统一高度；cx/cz 越界返回 false
+    public void  DrawGizmos();   // WC3 风格点阵 grid：白细线 cell 边 + 黄粗线 chunk 边界（4 cell）+ mask>0 顶点 type 色小球（半径 0.03）
 }
 ```
 
@@ -57,27 +63,17 @@ public class TerrainBuilder
 namespace MarchingSquares
 public sealed class TileCaseConfig : ScriptableObject
 {
-    public const int TerrainCaseCount = 19;   // 地形 case 0~18
-    public const int CliffCaseCount   = 16;   // 悬崖 case 0~15（case 0 留空）
+    public const int TerrainCaseCount = 81;   // 地形 case 0~80（base-3 编码）；65 个真实几何 + 16 个死槽
 
-    // 地形 API
-    public GameObject GetPrefab(int caseIndex);            // 0~18
+    // 地形 API（caseIdx ∈ [0, 80]，死槽返回 null）
+    public GameObject GetPrefab(int caseIndex);
     public void       SetPrefab(int caseIndex, GameObject prefab);
-
-    // 悬崖 API
-    public GameObject GetCliffPrefab(int caseIndex);       // 0~15
-    public void       SetCliffPrefab(int caseIndex, GameObject prefab);
-
-    // 法线贴图 API（运行时引用，Blender 烘焙 → art-mq-mesh Refresh 写入）
-    public Texture2D GetNormalMap(int caseIndex);          // 0~18，越界返回 null
-    public void      SetNormalMap(int caseIndex, Texture2D tex);
 
 #if UNITY_EDITOR
     // 编辑器持久化字段（[HideInInspector]，仅 art-mq-mesh 工具读写，不进运行时）
     public string   editorFbxFolder;
     public string   editorPrefabFolder;
     public Material editorTerrainMat;
-    public Material editorCliffMat;
 #endif
 }
 ```

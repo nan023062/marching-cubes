@@ -16,7 +16,7 @@ Sample/BuildSystem/Structure/
 ├── IosMeshCaseConfig.cs  ← 实现：256 槽直接映射
 ├── PointElement.cs       ← 点击交互基类（MonoBehaviour）
 ├── PointCube.cs          ← 实心格点交互点（MonoBehaviour，含坐标 x/y/z）
-└── PointQuad.cs          ← 地面格点交互点（MonoBehaviour，含坐标 x/z）
+└── PointQuad.cs          ← 平地 cell 交互锚点（MonoBehaviour，含 cell 坐标 cx/cz）
 ```
 
 ## 分层架构
@@ -24,14 +24,16 @@ Sample/BuildSystem/Structure/
 ```
 BuildState（IBuildState）
     ↓ 管理
-PointCube[,,] / PointQuad[]
+PointCube[,,] / PointQuad[length,width]   ← cell 索引直接寻址，平地 cell 才有实例
     ↓ 读写
-McStructureBuilder（纯 C# 核心）
+StructureBuilder（纯 C# 核心）
     ↓ 读写 iso + 调用
-McStructure.GetMesh（委托桥）
+Structure.GetMesh（委托桥）
     ↓ 实例化
 CasePrefabConfig.GetPrefab(cubeIndex)
 ```
+
+Prefab 引用归 Structure（MonoBehaviour 持有 `[SerializeField] _pointCubePrefab / _pointQuadPrefab`），BuildState 通过 `_structure.PointCubePrefab/PointQuadPrefab` 读取。BuildingManager 不再持有 prefab 字段，仅做 wiring。
 
 ## 关键实现
 
@@ -43,11 +45,33 @@ CasePrefabConfig.GetPrefab(cubeIndex)
 ### BuildState：点击处理
 
 ```
-PointQuad 左键 → CreateCube(x, 1, z)（从地面第 1 层开始）
+PointQuad 左键 → CreateCube(quad.cx, 1, quad.cz)（cube 索引复用 cell 索引，cube 占据 [cx..cx+1, 1..2, cz..cz+1] 体素）
 PointCube 左键 → 法线方向偏移 → CreateCube（在紧邻面外新建）
 PointCube 右键 → DestroyCube（销毁该格点）
 ```
 
-### SyncWithTerrain：地形同步
+### PointQuad：平地 cell 按需生成
 
-读取 `MqTerrainBuilder.GetPointHeight()`，更新 PointQuad 悬浮高度，检测 PointCube 与地形冲突（地形高度 > cube 的 y 坐标），销毁冲突的方块。
+PointQuad 不再是「每个内部格点 1 个」的全量阵列，而是 cell 粒度的稀疏锚点：**仅当 cell 的 4 角 high 完全相等时**该 cell 才有 PointQuad（geometry 是 caseIndex==0 的纯平地块）。
+
+- **数据结构**：`GameObject[length, width]`，下标 = (cx, cz) cell 索引；非平地 cell 对应槽位 = null
+- **位置**：cell 中心 `(cx + 0.5, baseH, cz + 0.5)`，scale = (1, 0, 1) 贴地
+- **判定收口**：调用 `Terrain.IsCellFlat(cx, cz, out int baseH)`（terrain 模块独占领域知识：4 角 high 完全相等）
+- **生命周期**：完全由 SyncWithTerrain 驱动；InitBuilding 只分配空数组，不预生成
+
+### SyncWithTerrain：地形同步（含 PointQuad 增删）
+
+每次地形刷绘后由 TerrainState 回调一次。两段处理：
+
+**段一：PointQuad 增删/移位** — 扫所有 cell（cx ∈ [0, RenderWidth), cz ∈ [0, RenderDepth)）：
+
+```
+foreach cell (cx, cz):
+  flat = terrain.IsCellFlat(cx, cz, out baseH)
+  current = _pointQuads[cx, cz]
+  if (flat && current == null)        → Instantiate quad at (cx+0.5, baseH+0.5, cz+0.5), 写槽位
+  if (!flat && current != null)       → Destroy(current), 槽位置 null
+  if (flat && current != null)        → 同步 localPosition.y = baseH + 0.5（高度可能整体抬升/下降）
+```
+
+**段二：PointCube 冲突销毁** — 沿用旧逻辑：检查 PointCube[ci, cj, ck] 4 个角点的 terrain 高度，若任一 > cj 则销毁该 cube（地形上来后压住的方块清理）。

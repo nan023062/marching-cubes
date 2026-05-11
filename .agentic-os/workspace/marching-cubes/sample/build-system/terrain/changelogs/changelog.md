@@ -1,5 +1,136 @@
 # Terrain Changelog
 
+## [2026-05-11 12:30:00]
+type: decision
+title: Gizmos 重设计为 WC3 风格点阵 grid（统一在 Terrain 层）+ TilePrefab Gizmos 全删 + ctor 硬约束方阵 2^n
+editor: architect；过渡产物（owner 治理前代写 append-only）
+
+**触发**：65 case + Build All 65 prefab 完成、刷绘 bug 全部修完后，老板上 sample 验证视觉。展示参考图（WC3 经典编辑器：白色细 unit cell 网 + 黄色粗 chunk 边界）要求 Gizmos 改造，并补两条新约束。
+
+**改动 1：TilePrefab.cs 简化为纯数据组件**
+- **删除**：`OnEnable` / `OnDrawGizmos` / `DrawTerrainGizmos` / `_labelStyle` / `_cornerStyle` / `using UnityEditor` / `Handles.Label` 调用
+- **保留**：`caseIndex` / `baseHeight` 两个字段（供 Inspector 调试查看）+ `[ExecuteAlways]` 属性
+- **动机**：65 case 铺满场景后，每个 TilePrefab 各画 4 角高度球 + V0~V3 标签 → 视觉拥挤、信息冗余、性能浪费（每 tile 一个 OnDrawGizmos 调用）
+
+**改动 2：TerrainBuilder.DrawGizmos 重设计为 WC3 风格点阵 grid**
+- `Gizmos.matrix = localToWorld` 让 grid 跟随 Terrain transform
+- **白色细线**（α=0.35）：遍历所有格点，画到右邻 + 下邻 cell 边，形成 WC3 unit cell 网；线段 high 跟随格点起伏
+- **黄色粗线**（`Handles.DrawAAPolyLine` 屏幕 3px AA）：每 `ChunkSize = 4` cell 一条 chunk 边界（X 向 + Z 向各 N+1 条）；屏幕空间宽度，远近一致
+- **顶点 type 色小球**（半径 0.03）：mask > 0 的格点画 type 色球，颜色由 `MaskGizmoColor(mask)` 取最高置位 bit 对应 layer 中央色（与 atlas 像素色对账）；mask = 0 不画
+- **删除 dead code**：`MaskBitsString`（旧版 5-bit 字符串标签用，已不需要）
+
+**改动 3：TerrainBuilder ctor 硬约束 width == length 且 2 的次幂**
+- 老板要求"点阵长宽必须相等且必须是 2 的次幂"
+- 加在 ctor 入口，违反抛 `ArgumentException`，纯 C# 端 fail-fast 独立可测
+- 公式：`(n & (n - 1)) == 0` 判 2 的幂，需排除 n=0
+- 动机：等宽方阵 + 2^n 让未来 chunk 划分（已在 Gizmos 黄粗线见原型）/ 分级 LOD / quadtree 寻址全部零特例处理
+
+**遵守的架构原则**：
+- C2 单一职责：Gizmos 由 Terrain 层统一渲染，TilePrefab 退回纯数据组件
+- C3 单向依赖：TerrainBuilder 依赖 Tile 数据，不反过来；TilePrefab 不依赖 TileTable.Corners 了
+- C5 共同复用：grid 渲染逻辑收口在 DrawGizmos 一处，避免散落到每个 prefab
+
+## [2026-05-11 11:30:00]
+type: incident
+title: EnforceHeightConstraint 4 邻 BFS 漏对角 → 中心点连续升 +3 时 cell 4 角 max-min > 2 → mesh 穿帮
+editor: architect；过渡产物（owner 治理前代写 append-only）
+
+**触发**：65 case 改造完成 + Build All 65 prefab + 右键修复后，老板继续测刷绘——单点连续升 +3 时出现穿帮 mesh。
+
+**根因**：
+- `EnforceHeightConstraint` 使用 `_neighbors4` = 上下左右 4 邻 BFS 传播 |diff| ≤ MaxHeightDiff（=2）约束
+- 中心点 (5,5) 升到 high=3 后，4 个正向邻居被拉到 high=1（target = h - MaxHeightDiff = 1）
+- **但对角邻居** (4,4)/(4,6)/(6,4)/(6,6) **没被检查**，仍然 high=0
+- 中心 cell (5,5) 4 角 = (5,5)→3, (6,5)→1, (6,6)→0, (5,6)→1
+- max-min = 3 > MaxHeightDiff（违反「同格 4 角高差 ≤ 2」约束）
+- 触发 `GetMeshCase(3,1,0,1)`：baseH=0, r=(3,1,0,1) → r0=3 ∉ {0,1,2}
+- case_idx = 3 + 3 + 0 + 27 = 33 = base-3 解码后 r=(0,1,0,1) 4-bit 标准 case
+- → 渲染的 mesh 几何与实际格点高度不符 → 视觉穿帮
+
+**原理**：grid 上「任意 cell 4 角 max-min ≤ K」⟺「任意 8 邻（含对角）格点高差 ≤ K」。  
+4 邻 BFS 仅保证正向相邻 |diff| ≤ K，但 cell 由 4 角组成，**对角点也参与同一 cell**——必须 8 邻 BFS 才能传导约束到对角。
+
+**修复**：
+- `_neighbors4` 改名 `_neighbors8`，迭代器从 4 项扩到 8 项（含 4 个对角方向）
+- `EnforceHeightConstraint` foreach 改用 `_neighbors8`
+- 注释更新解释为何必须 8 邻
+
+**收益**：
+- 中心点连续升任意高度，对角邻居都会被同步 BFS 传播至 |diff| ≤ MaxHeightDiff
+- 任何 cell 4 角 max-min ≤ MaxHeightDiff（=2）严格成立
+- GetMeshCase 永远拿到 r_i ∈ {0,1,2} → case_idx 永远落在 65 个有效槽 → mesh 几何与高度始终一致
+
+**根因复盘**：
+- 65 case 改造本身正确（base-3 编码、bilinear_arc、TileTable.GetMeshCase）
+- 但 `_neighbors4` 是 19 case 时代留下的（19 case 也需要同样约束，但 MaxHeightDiff=1 时 4 邻 BFS 漏对角的概率小且穿帮表现轻）
+- 改造时漏了一个隐含前提：grid cell 约束必须以 cell 维度（8 邻）传播，不是 grid 邻接（4 邻）维度
+- 启示：扩展约束阈值时（1→2），漏覆盖的对角差从「偶发轻微」变成「系统性穿帮」——阈值调整必须重新审视约束传播图的完备性
+
+## [2026-05-11 11:00:00]
+type: incident
+title: TerrainState click-only 0.3s 短按限制被废除：右键 / trackpad 长按法被误判忽略
+editor: architect；过渡产物（owner 治理前代写 append-only）
+
+**触发**：65 case 改造完成 + Build All 65 prefab 完工后，老板首测 sample 场景反馈「左键能抬高，右键不降低」。架构师定位代码 100% 对称（`delta = clickBtn == 0 ? 1 : -1` + EnforceHeightConstraint 双向都处理），无方向偏好，但 `ClickMaxDuration = 0.3f` 短按阈值在右键自然按法 / trackpad 双指点击下经常 > 0.3s 被判长按而忽略 → 用户感受为「右键无效」。
+
+**修复**：
+- 删除 `_pressTime` 字段 + `ClickMaxDuration` 常量
+- `OnUpdate` 抬起判断改为「按下/抬起按键匹配即生效」（不再 check 持续时间）
+- 保留「按住不重复触发」的本质（按下 → 抬起 = 一次操作）
+- `OnExit` 同步只重置 `_pressButton`
+
+**收益**：
+- 右键 / trackpad 双指点击的所有自然按法都生效
+- 仍是 click 机制（按住不连发），不变成持续刷绘
+- 代码更短（删 1 字段 + 1 常量 + 1 行时间判断 + 1 行赋值）
+
+**根因复盘**：
+- 原 0.3s 阈值是 [2026-05-09 19:00:00] 决策从「持续按住刷绘」改为「click-only」时引入的，目的是过滤"长按持续刷"
+- 但实际上「按下/抬起匹配」+「抬起后立即生效」已经能保证按住不重复（mouseUp 触发后 _pressButton 重置，下次按住期间不再触发）
+- 0.3s 是「为防御长按持续刷」加的多余约束，反而把 trackpad 自然按法误伤
+- 启示：约束最小化 — 能用一个机制（按下/抬起匹配）解决的就别叠两个（再加时长上限）
+
+## [2026-05-10 17:30:00]
+type: decision
+title: 地形 case 系统重设计：19 → 81 槽 base-3 编码（65 真实几何 + 16 死槽），悬崖 + 法线贴图整套下线
+editor: architect；过渡产物（owner 治理前代写 append-only）
+supersedes: [2026-05-09 19:00:00]（TerrainMaxHeightDiff = 1，悬崖补全 > 1 高差）
+
+**触发**：老板下达需求"同一格子 4 个点的高差 ≤ 2"。深挖发现现状 19-case 系统已经包含 4 个对角差=2 特殊 case（15~18），但相邻格点高差仍硬卡 ≤ 1 + 高差 > 1 由悬崖 tile 补全 —— 这是混合状态。老板拍板激进路线：相邻格点 + 同格 4 角统一放杠到 ≤ 2，悬崖系统完全下线，demo 不需要法线贴图。
+
+**新 case 编码**（base-3）：
+- `TileTable.GetMeshCase(h0,h1,h2,h3, out baseH)` 返回 `case_idx = r0 + r1*3 + r2*9 + r3*27`，其中 `r_i = h_i - min(h0..h3) ∈ {0,1,2}`
+- `case_idx ∈ [0, 80]` —— TileCaseConfig 数组容量 81
+- 65 个真实几何 case（min(r) = 0 的有效组合）+ 16 个死槽（min(r) > 0 的不可达组合，永久填 null，TileTable.GetMeshCase 永远不会产出这些 idx）
+- 死槽换零查表：`prefabs[GetMeshCase(...)]` 直接索引，不需要 lookup 表，代价是 16 个 null 槽位
+
+**为什么是 65 而不是 81**：
+- `r_i ∈ {0,1,2}^4` 共 3^4 = 81 组合
+- 减去 16 个不可达组合：所有 `r_i ≥ 1` 的组合（即 `r_i ∈ {1,2}^4 = 2^4 = 16 个`），它们应该被 base 再下降一级归约
+- 真实有效 = 65 个
+
+**删除清单**：
+- TileCaseConfig：CliffCaseCount / GetCliffPrefab / SetCliffPrefab / GetNormalMap / SetNormalMap / editorCliffMat
+- TerrainBuilder：cliffMesh / 悬崖 tile 管理
+- BuildingConst.TerrainMaxHeightDiff：1 → 2
+- SplatmapTerrain.shader：tangent / worldTangent / worldBitangent / TBN / UnpackNormal / _NormalMap 字段
+- SplatmapTerrain.mat：_NormalMap 字段值（保留运行时新增的 _TileMsIdx / _TileMsIdx4 / _TerrainCellUV / _TerrainPointBL，那是 WC3 渲染管线的字段，不受本次影响）
+
+**保留清单**：
+- atlas overlay 渲染管线（WC3 风格 per-tile MPB uniform）
+- TileTable.GetAtlasCase / GetAtlasCell（与 case 系统正交）
+- Brush / TerrainState / colliderMesh / Point.terrainMask / 5 layer atlas
+- art-mq-mesh prefab UV 跨模块契约（atlas 子格采样依赖）
+
+**跨模块联动**：
+- `art-mq-mesh`：删 Refresh Normal Maps 按钮、悬崖 prefab 构建、CliffD4Map 依赖；19 → 65 prefab grid
+- `blender`：删 noise.py、bake_normal_map、cliff operators、normal map UI；mq_mesh.py 改 ALL_CASES 遍历策略
+- `art-mc-mesh`：**不动**（MC 53 case 法线贴图烘焙器与 MQ 法线贴图无关，是独立系统）
+
+**审计意图**：
+- mq-normalmaps task / review 同步 cancelled（worker 实装作废，主 worktree 零代码回滚）
+- 后续 worker 实装不走 channel，改由 Agent tool 直接调 worker subagent 闭环
+
 ## [2026-05-10 16:00:00]
 type: decision
 title: 渲染管线重设计：WC3 风格 per-tile MPB uniform 5 layer atlas idx，废弃 per-vertex pointTex + shader 端 mask 解码

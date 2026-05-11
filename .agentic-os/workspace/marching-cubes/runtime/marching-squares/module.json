@@ -2,21 +2,23 @@
   "name": "marching-squares",
   "type": "code",
   "workspaceType": "csharp-unity",
-  "summary": "2.5D Marching Squares 算法基础层：地形 19-case + 悬崖 16-case 查表（TileTable）、5 layer atlas 编码 API（GetAtlasCase/GetAtlasCell）、核心类型定义（Tile.cs）、程序化连续 tile mesh 生成器（TileTerrain）、prefab 调试组件（TilePrefab）",
+  "summary": "2.5D Marching Squares 算法基础层：地形 81 槽 base-3 编码查表（TileTable，65 真实几何 + 16 死槽）、5 layer atlas 编码 API（GetAtlasCase/GetAtlasCell）、核心类型定义（Tile.cs）、程序化连续 tile mesh 生成器（TileTerrain）、prefab 调试组件（TilePrefab）",
   "workspace": ["Assets/MarchingCubes/Runtime/MarchingSquares"],
   "dependencies": [],
   "boundary": "semi-open",
   "publicApi": [
-    "TileTable — 全局静态映射表：GetMeshCase(h0,h1,h2,h3, out baseH) / GetTextureCase / GetTerrainLayers / GetAtlasCase(mBL,mBR,mTR,mTL, bit) / GetAtlasCase(BL,BR,TR,TL bool) / GetAtlasCell(idx) / CliffD4Map[16] / CliffCanonicalCases[5]={1,3,5,7,15} / Corners[4]",
+    "TileTable — 全局静态映射表：GetMeshCase(h0,h1,h2,h3, out baseH) / IsValidCase(caseIdx) / GetTextureCase / GetTerrainLayers / GetAtlasCase(mBL,mBR,mTR,mTL, bit) / GetAtlasCase(BL,BR,TR,TL bool) / GetAtlasCell(idx) / Corners[4] / 常量 CornerCount=4 / CaseCount=16（atlas mask case 数）/ BaseCaseCount=81（mesh case 数组容量）",
     "TileTerrain — 程序化连续 mesh 生成器（快速原型用）：Rebuild() / RebuildHeightOnly() / SetHeight / SetTerrainType / GetPoint",
-    "TilePrefab — tile prefab 调试组件：tileType (Terrain/Cliff) / caseIndex / baseHeight / Gizmos",
-    "Tile.cs 中的公开类型 — TileType / TileVertex / TileVertexMask / TileEdge / TilePoint / TileVertex2D / TileTriangle / CliffEdge / CliffEdgeMask / ITileTerrainReceiver"
+    "TilePrefab — tile prefab 纯数据组件：caseIndex (0~80, base-3 编码) / baseHeight；Inspector 调试可视；不再绘制 Gizmos（点阵 grid 可视化由 Terrain 层 TerrainBuilder.DrawGizmos 统一渲染）",
+    "Tile.cs 中的公开类型 — TileVertex / TileVertexMask / TileEdge / TilePoint / TileVertex2D / TileTriangle / ITileTerrainReceiver"
   ],
   "constraints": [
-    "TileTable.GetMeshCase 共 19 种 case：0~14 标准（同格四角高差 ≤ 1），15~18 对角高差==2 的特殊 case；以四角高度最小值为 base，bit_i=1 表示 Vi 高于 base",
+    "TileTable.GetMeshCase 采用 base-3 编码：base = min(h0..h3)，r_i = h_i - base ∈ {0,1,2}，case_idx = r0 + r1*3 + r2*9 + r3*27 ∈ [0, 80]",
+    "TileTable 81 个 case_idx 中 65 个为有效真实几何（min(r) == 0 的组合），16 个为死槽（min(r) > 0 的不可达组合，GetMeshCase 永远不会产出）；上层 TileCaseConfig 数组容量 81，死槽永远填 null",
+    "TileTable.IsValidCase(caseIdx) 用于判定一个 case_idx 是否为有效几何（解出 r0..r3 后判 min(r) == 0），离线工具 / Editor / Inspector grid 用它决定是否渲染该槽",
     "TileTable.GetAtlasCase 标准编码：ms_idx = bit_BL | bit_BR<<1 | bit_TR<<2 | bit_TL<<3，与 GetMeshCase 的 V0~V3 编码完全一致；任何端（C# runtime / Python 离线 / shader）的「4 角 → atlas idx」一律走它，无须查表无须旋转",
-    "TileTable.CliffD4Map[16] 把 16 个悬崖 case 归约到 5 个规范 case {1,3,5,7,15}，通过 D4 旋转覆盖全部情形；规范 case 对应 mq_cliff_1/3/5/7/15.fbx",
     "TerrainTypeCount = 5（泥/草/岩/雪/紫），与 sample/build-system/terrain 的 _OverlayArray 5 layer 对应",
-    "本模块只含算法基础层，不含 MonoBehaviour；TerrainBuilder / Terrain / TileCaseConfig 在 sample/build-system/terrain 中"
+    "本模块只含算法基础层，不含 MonoBehaviour（除 TilePrefab 调试组件外）；TerrainBuilder / Terrain / TileCaseConfig 在 sample/build-system/terrain 中",
+    "悬崖系统已下线：原 CliffD4Map / CliffCanonicalCases / CliffEdge / CliffEdgeMask / TileType.Cliff 全部删除；高差 ≤ 2 全部由 65 坡面 case 表达，无需独立悬崖 tile"
   ]
 }

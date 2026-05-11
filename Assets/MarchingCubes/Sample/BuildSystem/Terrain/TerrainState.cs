@@ -13,9 +13,7 @@ namespace MarchingCubes.Sample
         // 5 种 type（与 atlas layer 0~4 对齐）
         static readonly string[] LayerNames = { "泥", "草", "岩", "雪", "紫" };
 
-        float _pressTime   = -1f;
-        int   _pressButton = -1;
-        const float ClickMaxDuration = 0.3f;
+        int _pressButton = -1;
 
         public TerrainState(Terrain sample, System.Action onTerrainChanged)
         {
@@ -28,7 +26,6 @@ namespace MarchingCubes.Sample
         public void OnExit()
         {
             _sample.SetBrushVisible(false);
-            _pressTime   = -1f;
             _pressButton = -1;
         }
 
@@ -98,23 +95,18 @@ namespace MarchingCubes.Sample
             p.z = Mathf.RoundToInt(p.z / unit) * unit;
             t.position = p;
 
-            // 记录最近一次按下的按键和时刻
+            // 记录按下的按键
             for (int btn = 0; btn <= 1; btn++)
                 if (Input.GetMouseButtonDown(btn))
-                {
-                    _pressTime   = Time.time;
                     _pressButton = btn;
-                }
 
-            // 抬起时判断是否为短按（点击）；长按抬起不触发
+            // 抬起时触发：按下与抬起按键匹配即生效（不限按住时长）
             int clickBtn = -1;
             for (int btn = 0; btn <= 1; btn++)
             {
-                if (Input.GetMouseButtonUp(btn) && _pressButton == btn
-                    && _pressTime >= 0 && Time.time - _pressTime < ClickMaxDuration)
+                if (Input.GetMouseButtonUp(btn) && _pressButton == btn)
                 {
                     clickBtn     = btn;
-                    _pressTime   = -1f;
                     _pressButton = -1;
                     break;
                 }

@@ -1,7 +1,7 @@
 {
   "name": "art-mq-mesh",
   "workspaceType": "csharp-unity",
-  "summary": "MQ tile prefab 编辑器工具：MQMeshConfigEditor 从 19 个地形 FBX + 5 个规范悬崖 FBX 批量生成 19 + 15 个 prefab；法线贴图按命名约定从 Blender 同目录导出自动映射到 TileCaseConfig.editorNormalMaps[19]；配置随 TileCaseConfig.asset 持久化",
+  "summary": "MQ tile prefab 编辑器工具：MQMeshConfigEditor 从 65 个地形 FBX 批量生成 65 个 prefab（按 base-3 编码 case_idx ∈ [0,80] 命名）；配置随 TileCaseConfig.asset 持久化",
   "workspace": ["Assets/MarchingCubes/Editor/ArtMqMesh"],
   "dependencies": [
     { "target": "marching-cubes/sample/build-system/terrain", "type": "Association" },
@@ -9,14 +9,12 @@
   ],
   "boundary": "closed",
   "publicApi": [
-    "MQMeshConfigEditor — [CustomEditor(TileCaseConfig)] Inspector：统一 FBX/Prefab 文件夹 + 地形/悬崖材质 + 一键 Build 19 地形 + 15 悬崖 prefab + Refresh Normal Maps 按钮（扫 FBX 同目录下 mq_case_N_normal.png 按名字匹配填 editorNormalMaps[N]），编辑器配置写入 TileCaseConfig.editor* 字段持久化"
+    "MQMeshConfigEditor — [CustomEditor(TileCaseConfig)] Inspector：统一 FBX/Prefab 文件夹 + 地形材质 + 一键 Build 65 地形 prefab，编辑器配置写入 TileCaseConfig.editor* 字段持久化"
   ],
   "constraints": [
-    "地形 tile（19 个，case 0~18）不做 D4 归约：mesh 几何 + 纹理 UV 双重组合要求每 case 独立 FBX，旋转会破坏 UV 方向；case 0~14 标准（四角高差 ≤ 1），case 15~18 对角高差 == 2 特殊 case",
-    "悬崖 tile（16 槽，case 0~15）做 D4 归约：5 个规范 FBX（mq_cliff_1/3/5/7/15.fbx）经 D4 旋转生成 case 1~15 共 15 个 prefab，case 0 留空（无悬崖）；旋转关系存于 TileTable.CliffD4Map",
-    "Editor 字段（editorFbxFolder/editorPrefabFolder/editorTerrainMat/editorCliffMat）声明在 TileCaseConfig 中，包 #if UNITY_EDITOR + [HideInInspector]，不进运行时构建",
-    "MQFbxPostprocessor.cs 已废弃，FBX 导入处理合并入 art-mc-mesh/ArtMeshFbxPostprocessor.cs",
-    "法线贴图不在本模块烘焙：烘焙在 blender add-on 端做（与 FBX 同 operator 同目录导出），本模块只负责按命名约定 mq_case_N_normal.png 自动扫描映射到 TileCaseConfig.editorNormalMaps[N]；改 mesh → blender 重导出自动重 bake，单一真相源",
-    "Refresh Normal Maps 是只读扫描操作：扫到的贴图必须确认导入类型为 NormalMap（若非 NormalMap 类型，按钮内自动改 TextureImporter.textureType 并 ReimportAsset 一次）"
+    "地形 tile 不做 D4 归约：mesh 几何 + 纹理 UV 双重组合要求每 case 独立 FBX，旋转会破坏 UV 方向；65 个有效 case 一一对应 65 个独立 FBX",
+    "FBX 命名约定：mq_case_N.fbx，N ∈ [0,80] 中的 65 个 base-3 编码有效 case_idx；16 个死槽（min(r) > 0 的组合）无对应 FBX 文件，编辑器扫描时跳过",
+    "Editor 字段（editorFbxFolder/editorPrefabFolder/editorTerrainMat）声明在 TileCaseConfig 中，包 #if UNITY_EDITOR + [HideInInspector]，不进运行时构建",
+    "MQFbxPostprocessor.cs 已废弃，FBX 导入处理合并入 art-mc-mesh/ArtMeshFbxPostprocessor.cs"
   ]
 }

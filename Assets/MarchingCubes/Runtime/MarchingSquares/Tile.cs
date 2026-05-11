@@ -18,15 +18,6 @@ namespace MarchingSquares
 
 ****************************************************/
 
-    // ── Tile 类型 ─────────────────────────────────────────────────────────────
-
-    /// <summary>MQ tile 的两种类型，决定 TilePrefab Gizmos 的可视化方式。</summary>
-    public enum TileType
-    {
-        Terrain = 0,  // 地形坡面 tile：caseIndex = 角点高差 bit mask（0-18）
-        Cliff   = 1,  // 悬崖墙面 tile：caseIndex = 边墙 bit mask（0-15）
-    }
-
     // ── 角点 ─────────────────────────────────────────────────────────────────
 
     public enum TileVertex
@@ -95,36 +86,6 @@ namespace MarchingSquares
     public struct TileTriangle
     {
         public TileVertex2D v0, v1, v2;
-    }
-
-    // ── 悬崖边 ───────────────────────────────────────────────────────────────
-    //
-    //   V3(TL) ───E2─── V2(TR)       bit mask：bit_i=1 表示该边有悬崖墙面
-    //      |                 |          （当前格高于该边方向的相邻格）
-    //     E3                E1
-    //      |                 |
-    //   V0(BL) ───E0─── V1(BR)
-    //
-    //   E0=南(-Z)  E1=东(+X)  E2=北(+Z)  E3=西(-X)
-    //   悬崖 Mesh 以格子 XZ 中心为原点，Y∈[0,1]（1 unit 高）。
-
-    public enum CliffEdge
-    {
-        E0 = 0,  // 南 -Z
-        E1 = 1,  // 东 +X
-        E2 = 2,  // 北 +Z
-        E3 = 3,  // 西 -X
-    }
-
-    [Flags]
-    public enum CliffEdgeMask
-    {
-        None = 0x00,
-        E0   = 0x01,  // 南
-        E1   = 0x02,  // 东
-        E2   = 0x04,  // 北
-        E3   = 0x08,  // 西
-        All  = 0x0F,
     }
 
     // ── 接收器接口 ───────────────────────────────────────────────────────────

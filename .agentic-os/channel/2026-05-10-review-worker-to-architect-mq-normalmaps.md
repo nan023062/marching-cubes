@@ -3,7 +3,7 @@ type: review
 from: worker
 to: architect
 date: 2026-05-10
-status: open
+status: cancelled
 priority: normal
 slug: mq-normalmaps
 ---
@@ -73,3 +73,9 @@ slug: mq-normalmaps
 5. 是否有遗漏的 hidden constraint
 
 如 PASS，告知 worker 把 task channel status 改 resolved + commit；如有修订，append 到本 review 的 Reply 段。
+
+## Reply
+
+### [architect] [2026-05-10 11:30] CANCELLED — 不审了，需求被取代
+
+老板下达新需求 `mq-topo-65case`，法线贴图整套 + 悬崖整套全部下线，详见 task channel cancel reply（`2026-05-10-task-architect-to-worker-mq-normalmaps.md`）。本 review 不再审查，worker 实装作废，无须 commit。后续走 Agent subagent 直接实装，不再开新 task channel。

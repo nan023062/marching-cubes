@@ -5,51 +5,23 @@ namespace MarchingSquares
     /// Marching Squares 全局静态映射表（类比 CubeTable）。
     ///
     /// 两类组合映射：
-    ///   1. Mesh 组合映射 — 四角高差（高/低）→ 16 种几何 case
-    ///   2. 纹理组合映射 — 四角 terrainType → 16 种 overlay 混合 case
+    ///   1. Mesh 组合映射 — 四角高度 → base-3 编码 case_idx ∈ [0,80]（65 真实几何 + 16 死槽）
+    ///   2. 纹理组合映射 — 四角 terrainType / mask → 16 种 atlas overlay case
     ///
     /// 角点编号（unit quad，XZ 平面）：
-    ///   V3(TL) ─── V2(TR)       bit mask：bit_i = 1 表示 Vi 高于 base（Mesh）
-    ///     │               │                         或 Vi 属于 overlay 类型（纹理）
+    ///   V3(TL) ─── V2(TR)       Mesh: r_i = h_i - min(h0..h3) ∈ {0,1,2}
+    ///     │               │       Atlas: bit_i = 该角是否参与本 layer
     ///   V0(BL) ─── V1(BR)
     /// </summary>
     public static class TileTable
     {
         public const int CornerCount = 4;
+
+        /// <summary>Atlas overlay 的 4-bit mask case 数（与 mesh case 完全解耦）。</summary>
         public const int CaseCount   = 16;
 
-        // ── 悬崖查表 ─────────────────────────────────────────────────────────
-
-        public const int CliffCaseCount = 16;
-
-        /// <summary>
-        /// D4 旋转映射：每个悬崖 case → (规范 case, 旋转次数)。
-        /// 旋转单位 = 90° CW（Unity Euler(0, 90*n, 0)）。
-        /// 规范 case 集合：{1, 3, 5, 7, 15}，只需这 5 个 FBX。
-        /// Mesh 以格子 XZ 中心为原点，旋转后自动覆盖全部 16 种情形。
-        /// </summary>
-        public static readonly (int canonical, int rotCount)[] CliffD4Map =
-        {
-            (0,  0),  // 0:  无悬崖
-            (1,  0),  // 1:  南墙
-            (1,  1),  // 2:  东墙  = canonical 1 旋转 1 次
-            (3,  0),  // 3:  南+东
-            (1,  2),  // 4:  北墙  = canonical 1 旋转 2 次
-            (5,  0),  // 5:  南+北（对穿）
-            (3,  1),  // 6:  东+北 = canonical 3 旋转 1 次
-            (7,  0),  // 7:  南+东+北
-            (1,  3),  // 8:  西墙  = canonical 1 旋转 3 次
-            (3,  3),  // 9:  南+西 = canonical 3 旋转 3 次
-            (5,  1),  // 10: 东+西 = canonical 5 旋转 1 次
-            (7,  3),  // 11: 南+东+西 = canonical 7 旋转 3 次
-            (3,  2),  // 12: 北+西 = canonical 3 旋转 2 次
-            (7,  2),  // 13: 南+北+西 = canonical 7 旋转 2 次
-            (7,  1),  // 14: 东+北+西 = canonical 7 旋转 1 次
-            (15, 0),  // 15: 四面（孤岛）
-        };
-
-        /// <summary>5 个规范 case，对应 mq_cliff_1/3/5/7/15.fbx。</summary>
-        public static readonly int[] CliffCanonicalCases = { 1, 3, 5, 7, 15 };
+        /// <summary>Mesh case 数组容量（base-3 编码：65 真实几何 + 16 死槽）。</summary>
+        public const int BaseCaseCount = 81;
 
         // ── 角点坐标 ─────────────────────────────────────────────────────────
 
@@ -62,18 +34,14 @@ namespace MarchingSquares
             (0, 1),  // V3 TL
         };
 
-        // ── Mesh 组合映射 ─────────────────────────────────────────────────────
+        // ── Mesh 组合映射（base-3 编码）───────────────────────────────────────
 
         /// <summary>
         /// 根据四角高度计算 Mesh case index 和 base 高度。
         /// h0=V0(BL), h1=V1(BR), h2=V2(TR), h3=V3(TL)。
-        /// base = 四角最小高度，bit_i=1 表示该角点高于 base。
-        /// </summary>
-        /// <summary>
-        /// 返回值 0-14：标准 case（同格四角高差 ≤ 1）。
-        /// 返回值 15-18：对角高差 == 2 的特殊 case，需要独立 mesh：
-        ///   15 = V0 最高(+2)，V2 为 base；16 = V1 最高，V3 为 base；
-        ///   17 = V2 最高，V0 为 base；  18 = V3 最高，V1 为 base。
+        /// base = 四角最小高度，r_i = h_i - base ∈ {0,1,2}（同格 4 角高差 ≤ 2 硬约束）。
+        /// 返回 case_idx = r0 + r1*3 + r2*9 + r3*27 ∈ [0, 80]。
+        /// 65 个真实几何 case（min(r) == 0）+ 16 个死槽（min(r) > 0，永远不会产出）。
         /// </summary>
         public static int GetMeshCase(int h0, int h1, int h2, int h3, out int baseH)
         {
@@ -83,14 +51,25 @@ namespace MarchingSquares
             if (h3 < baseH) baseH = h3;
 
             int r0 = h0 - baseH, r1 = h1 - baseH, r2 = h2 - baseH, r3 = h3 - baseH;
+            return r0 + r1 * 3 + r2 * 9 + r3 * 27;
+        }
 
-            // 对角点高差 == 2：4 方向约束允许此情况，需要专用 mesh
-            if (r0 == 2) return 15;
-            if (r1 == 2) return 16;
-            if (r2 == 2) return 17;
-            if (r3 == 2) return 18;
-
-            return (r0 > 0 ? 1 : 0) | (r1 > 0 ? 2 : 0) | (r2 > 0 ? 4 : 0) | (r3 > 0 ? 8 : 0);
+        /// <summary>
+        /// 判定 case_idx 是否为有效（真实几何）case：min(r0..r3) == 0。
+        /// 死槽 case_idx（min(r) > 0）不会被 GetMeshCase 产出，运行时永不访问；
+        /// 编辑器扫描 / 批量构建时跳过。
+        /// </summary>
+        public static bool IsValidCase(int caseIdx)
+        {
+            int r0 = caseIdx % 3;
+            int r1 = (caseIdx / 3) % 3;
+            int r2 = (caseIdx / 9) % 3;
+            int r3 = (caseIdx / 27) % 3;
+            int m  = r0;
+            if (r1 < m) m = r1;
+            if (r2 < m) m = r2;
+            if (r3 < m) m = r3;
+            return m == 0;
         }
 
         // ── 纹理组合映射 ──────────────────────────────────────────────────────
