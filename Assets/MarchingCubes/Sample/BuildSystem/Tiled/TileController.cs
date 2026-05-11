@@ -311,76 +311,7 @@ namespace MarchingSquares
             _visualMesh.SetIndices(idx, MeshTopology.Lines, 0);
             _visualMesh.RecalculateBounds();
         }
-
-        // ── Gizmos ───────────────────────────────────────────────────────────
-
-        private void OnDrawGizmos()
-        {
-            if (Application.isPlaying &&
-                BuildingManager.Instance?.CurrentMode != BuildMode.Terrain) return;
-            if (Builder == null) return;
-
-            var prevMatrix = Gizmos.matrix;
-            Gizmos.matrix = Builder.localToWorld;
-
-            Gizmos.color = new Color(1f, 1f, 1f, 0.35f);
-            for (int x = 0; x <= Builder.length; x++)
-            for (int z = 0; z <= Builder.width; z++)
-            {
-                int h = Builder.GetPointHeight(x, z);
-                var p = new Vector3(x, h, z);
-                if (x < Builder.length)
-                    Gizmos.DrawLine(p, new Vector3(x + 1, Builder.GetPointHeight(x + 1, z), z));
-                if (z < Builder.width)
-                    Gizmos.DrawLine(p, new Vector3(x, Builder.GetPointHeight(x, z + 1), z + 1));
-            }
-
-            for (int x = 0; x <= Builder.length; x++)
-            for (int z = 0; z <= Builder.width; z++)
-            {
-                byte mask = Builder.GetTerrainMask(x, z);
-                if (mask == 0) continue;
-                Gizmos.color = MaskGizmoColor(mask);
-                Gizmos.DrawSphere(new Vector3(x, Builder.GetPointHeight(x, z), z), 0.03f);
-            }
-
-            Gizmos.matrix = prevMatrix;
-
-#if UNITY_EDITOR
-            const int ChunkSize = 4;
-            var prevHandlesMatrix = UnityEditor.Handles.matrix;
-            UnityEditor.Handles.matrix = Builder.localToWorld;
-            UnityEditor.Handles.color  = new Color(1f, 0.85f, 0f, 0.9f);
-
-            for (int z = 0; z <= Builder.width; z += ChunkSize)
-            {
-                var line = new Vector3[Builder.length + 1];
-                for (int x = 0; x <= Builder.length; x++)
-                    line[x] = new Vector3(x, Builder.GetPointHeight(x, z), z);
-                UnityEditor.Handles.DrawAAPolyLine(3f, line);
-            }
-            for (int x = 0; x <= Builder.length; x += ChunkSize)
-            {
-                var line = new Vector3[Builder.width + 1];
-                for (int z = 0; z <= Builder.width; z++)
-                    line[z] = new Vector3(x, Builder.GetPointHeight(x, z), z);
-                UnityEditor.Handles.DrawAAPolyLine(3f, line);
-            }
-
-            UnityEditor.Handles.matrix = prevHandlesMatrix;
-#endif
-        }
-
-        static Color MaskGizmoColor(byte mask)
-        {
-            if ((mask & 0x10) != 0) return new Color(0.36f, 0.15f, 0.41f);
-            if ((mask & 0x08) != 0) return new Color(0.88f, 0.91f, 0.96f);
-            if ((mask & 0x04) != 0) return new Color(0.50f, 0.50f, 0.48f);
-            if ((mask & 0x02) != 0) return new Color(0.18f, 0.62f, 0.17f);
-            if ((mask & 0x01) != 0) return new Color(0.60f, 0.47f, 0.20f);
-            return Color.gray;
-        }
-
+        
         private void OnDestroy() { Builder = null; }
     }
 }

@@ -21,6 +21,11 @@ namespace MarchingCubes.Sample
         [SerializeField] private KeyCode   _switchKey   = KeyCode.Tab;
         [SerializeField] private BuildMode _initialMode = BuildMode.Terrain;
 
+        [Header("Grid 渲染")]
+        [SerializeField] private Material _gridMaterial;
+
+        public Material GridMaterial => _gridMaterial;
+
         // ── 三层数据 ─────────────────────────────────────────────────────────
 
         public TileBuilder   Tiles { get; private set; }
@@ -100,7 +105,7 @@ namespace MarchingCubes.Sample
             float y = Screen.height - btnH - pad;
 
             if (GUI.Button(new Rect(pad, y, btnW, btnH),
-                    CurrentMode == BuildMode.Terrain ? "[ 刷子 ]" : "  刷子  "))
+                    CurrentMode == BuildMode.Terrain ? "[ 地形 ]" : "  地形  "))
                 SwitchTo(BuildMode.Terrain);
 
             if (GUI.Button(new Rect(pad + btnW + gap, y, btnW, btnH),
@@ -108,7 +113,7 @@ namespace MarchingCubes.Sample
                 SwitchTo(BuildMode.Build);
 
             GUI.Label(new Rect(pad, y - 22f, 260f, 18f),
-                $"[{_switchKey}] 切换  当前：{(CurrentMode == BuildMode.Terrain ? "地形刷子" : "Cube 建造")}");
+                $"[{_switchKey}] 切换  当前：{(CurrentMode == BuildMode.Terrain ? "地形" : "Cube 建造")}");
         }
     }
 }

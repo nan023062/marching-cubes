@@ -9,7 +9,7 @@ namespace MarchingCubes.Sample
         public uint unit = BuildingConst.Unit;
 
         [SerializeField] private CasePrefabConfig[] _configs;
-        [SerializeField] private int _currentConfigIndex = 0;
+        [SerializeField] private int _currentConfigIndex = 1;
 
         public CubeBuilder Builder { get; private set; }
 
@@ -220,36 +220,13 @@ namespace MarchingCubes.Sample
             int W = RenderWidth;
             int D = RenderDepth;
 
-            int flatCount = 0;
-            for (int cx = 0; cx < W; cx++)
-            for (int cz = 0; cz < D; cz++)
-                if (_cellActive[cx, cz]) flatCount++;
-
-            var vV = new Vector3[flatCount * 8];
-            var iV = new int[flatCount * 8];
-            int vi = 0;
-            const float yOff = 0.02f;
-
-            for (int cx = 0; cx < W; cx++)
-            for (int cz = 0; cz < D; cz++)
-            {
-                if (!_cellActive[cx, cz]) continue;
-                float y = _cellBaseH[cx, cz] + yOff;
-                Vector3 p00 = new Vector3(cx,   y, cz),   p10 = new Vector3(cx+1, y, cz),
-                        p11 = new Vector3(cx+1, y, cz+1), p01 = new Vector3(cx,   y, cz+1);
-                vV[vi]=p00; iV[vi]=vi; vi++; vV[vi]=p10; iV[vi]=vi; vi++;
-                vV[vi]=p10; iV[vi]=vi; vi++; vV[vi]=p11; iV[vi]=vi; vi++;
-                vV[vi]=p11; iV[vi]=vi; vi++; vV[vi]=p01; iV[vi]=vi; vi++;
-                vV[vi]=p01; iV[vi]=vi; vi++; vV[vi]=p00; iV[vi]=vi; vi++;
-            }
-
-            _visualMesh.Clear();
-            _visualMesh.vertices = vV;
-            _visualMesh.SetIndices(iV, MeshTopology.Lines, 0);
-            _visualMesh.RecalculateBounds();
-
-            var cVerts = new List<Vector3>();
-            var cTris  = new List<int>();
+            // 单一 quad 几何源（每 4 顶点 = 一个 quad，每 6 indices = 2 triangle）：
+            // 1) 平地 cell（baseMcY 没 cube 占据的）的顶面 quad
+            // 2) StructureBuilder.AppendExposedFaces 输出的所有 cube 暴露面 quad
+            // visual mesh 和 collider mesh 共享同一套顶点；visual 走 line topology
+            // 每 quad 画 4 条边（a-b, b-c, c-d, d-a）。
+            var verts = new List<Vector3>();
+            var tris  = new List<int>();
 
             for (int cx = 0; cx < W; cx++)
             for (int cz = 0; cz < D; cz++)
@@ -258,19 +235,38 @@ namespace MarchingCubes.Sample
                 int baseMcY = _cellBaseH[cx, cz] + 1;
                 if (_blockBuilding.IsPointActive(cx + 1, baseMcY, cz + 1)) continue;
 
-                float y = _cellBaseH[cx, cz] + yOff;
-                int v0 = cVerts.Count;
-                cVerts.Add(new Vector3(cx,   y, cz));   cVerts.Add(new Vector3(cx+1, y, cz));
-                cVerts.Add(new Vector3(cx+1, y, cz+1)); cVerts.Add(new Vector3(cx,   y, cz+1));
-                cTris.Add(v0); cTris.Add(v0+2); cTris.Add(v0+1);
-                cTris.Add(v0); cTris.Add(v0+3); cTris.Add(v0+2);
+                float y = _cellBaseH[cx, cz];
+                int v0 = verts.Count;
+                verts.Add(new Vector3(cx,   y, cz));   verts.Add(new Vector3(cx+1, y, cz));
+                verts.Add(new Vector3(cx+1, y, cz+1)); verts.Add(new Vector3(cx,   y, cz+1));
+                tris.Add(v0); tris.Add(v0+2); tris.Add(v0+1);
+                tris.Add(v0); tris.Add(v0+3); tris.Add(v0+2);
             }
 
-            _blockBuilding.AppendExposedFaces(cVerts, cTris);
+            _blockBuilding.AppendExposedFaces(verts, tris);
+
+            // visual lines：每 quad（4 顶点）→ 4 条边
+            int quadCount   = verts.Count / 4;
+            var lineIndices = new int[quadCount * 8];
+            for (int q = 0; q < quadCount; q++)
+            {
+                int b = q * 4;
+                int li = q * 8;
+                lineIndices[li]   = b;     lineIndices[li+1] = b + 1;
+                lineIndices[li+2] = b + 1; lineIndices[li+3] = b + 2;
+                lineIndices[li+4] = b + 2; lineIndices[li+5] = b + 3;
+                lineIndices[li+6] = b + 3; lineIndices[li+7] = b;
+            }
+
+            var vArr = verts.ToArray();
+            _visualMesh.Clear();
+            _visualMesh.vertices = vArr;
+            _visualMesh.SetIndices(lineIndices, MeshTopology.Lines, 0);
+            _visualMesh.RecalculateBounds();
 
             _colliderMesh.Clear();
-            _colliderMesh.vertices  = cVerts.ToArray();
-            _colliderMesh.triangles = cTris.ToArray();
+            _colliderMesh.vertices  = vArr;
+            _colliderMesh.triangles = tris.ToArray();
             _colliderMesh.RecalculateBounds();
             _meshCollider.sharedMesh = null;
             _meshCollider.sharedMesh = _colliderMesh;
@@ -295,53 +291,6 @@ namespace MarchingCubes.Sample
             _blockBuilding.SetPointStatus(cx, cy, cz, false);
             RefreshCubesAround(cx, cy, cz);
             RebuildGridMesh();
-        }
-
-        // ── Gizmos ───────────────────────────────────────────────────────────
-
-        private void OnDrawGizmos()
-        {
-            if (Application.isPlaying &&
-                BuildingManager.Instance?.CurrentMode != BuildMode.Build) return;
-            if (_blockBuilding == null) return;
-
-            var prevMatrix = Gizmos.matrix;
-            Gizmos.matrix = _blockBuilding.localToWorld;
-            Gizmos.color  = new Color(1f, 1f, 1f, 0.35f);
-
-            for (int x = 0; x <= _blockBuilding.X; x++)
-            for (int y = 0; y <= _blockBuilding.Y; y++)
-            for (int z = 0; z <= _blockBuilding.Z; z++)
-            {
-                if (!_blockBuilding.IsPointActive(x, y, z)) continue;
-                if (!_blockBuilding.IsPointActive(x+1, y,   z  )) DrawGizmoFace(new Vector3(x+0.5f, y,      z      ), Vector3.forward, Vector3.up);
-                if (!_blockBuilding.IsPointActive(x-1, y,   z  )) DrawGizmoFace(new Vector3(x-0.5f, y,      z      ), Vector3.forward, Vector3.up);
-                if (!_blockBuilding.IsPointActive(x,   y+1, z  )) DrawGizmoFace(new Vector3(x,      y+0.5f, z      ), Vector3.right,   Vector3.forward);
-                if (!_blockBuilding.IsPointActive(x,   y-1, z  )) DrawGizmoFace(new Vector3(x,      y-0.5f, z      ), Vector3.right,   Vector3.forward);
-                if (!_blockBuilding.IsPointActive(x,   y,   z+1)) DrawGizmoFace(new Vector3(x,      y,      z+0.5f), Vector3.right,   Vector3.up);
-                if (!_blockBuilding.IsPointActive(x,   y,   z-1)) DrawGizmoFace(new Vector3(x,      y,      z-0.5f), Vector3.right,   Vector3.up);
-            }
-
-            for (int cx = 0; cx < _blockBuilding.X; cx++)
-            for (int cz = 0; cz < _blockBuilding.Z; cz++)
-            {
-                if (!_blockBuilding.IsQuadActive(cx, cz)) continue;
-                int qh = _blockBuilding.GetQuadBaseH(cx, cz);
-                if (_blockBuilding.IsPointActive(cx + 1, qh + 1, cz + 1)) continue;
-                DrawGizmoFace(new Vector3(cx + 1f, qh + 0.5f, cz + 1f), Vector3.right, Vector3.forward);
-            }
-
-            Gizmos.matrix = prevMatrix;
-        }
-
-        static void DrawGizmoFace(Vector3 center, Vector3 right, Vector3 up)
-        {
-            var a = center - right * 0.5f - up * 0.5f;
-            var b = center + right * 0.5f - up * 0.5f;
-            var c = center + right * 0.5f + up * 0.5f;
-            var d = center - right * 0.5f + up * 0.5f;
-            Gizmos.DrawLine(a, b); Gizmos.DrawLine(b, c);
-            Gizmos.DrawLine(c, d); Gizmos.DrawLine(d, a);
         }
 
         // ── Case mesh ────────────────────────────────────────────────────────

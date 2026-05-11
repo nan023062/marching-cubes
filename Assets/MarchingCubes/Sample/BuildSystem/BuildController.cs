@@ -71,10 +71,6 @@ namespace MarchingCubes.Sample
 
         // ── 网格基础设施 ─────────────────────────────────────────────────────────
 
-        static Material s_gridMaterial;
-        static Material GridMaterial => s_gridMaterial ??=
-            new Material(Shader.Find("Unlit/Color")) { color = new Color(0f, 1f, 0.2f) };
-
         protected void InitGridMeshes(string visualName, string colliderName)
         {
             _visualMesh   = new Mesh { name = visualName };
@@ -84,7 +80,7 @@ namespace MarchingCubes.Sample
             mf.sharedMesh = _visualMesh;
 
             var mr = GetComponent<MeshRenderer>();
-            mr.sharedMaterial = GridMaterial;
+            mr.sharedMaterial = BuildingManager.Instance.GridMaterial;
 
             _meshCollider = GetComponent<MeshCollider>();
             _meshCollider.sharedMesh = _colliderMesh;
