@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using MarchingSquares;
 
@@ -9,14 +10,11 @@ namespace MarchingCubes.Sample
         readonly TerrainBuilder _terrain;
 
         StructureBuilder _blockBuilding;
-        PointCube[,,]    _pointCubes;
 
-        // BuildGrid mesh（直接挂在 Structure 上）
         Mesh         _gridVisualMesh;
         Mesh         _gridColliderMesh;
         MeshCollider _gridCollider;
 
-        // cell 状态
         bool[,] _cellActive;
         int[,]  _cellBaseH;
 
@@ -40,14 +38,11 @@ namespace MarchingCubes.Sample
             _blockBuilding = new StructureBuilder(x, y, z, matrix, _structure);
             _structure.Builder = _blockBuilding;
 
-            _pointCubes = new PointCube[x + 1, y + 1, z + 1];
-
             int W = _structure.RenderWidth;
             int D = _structure.RenderDepth;
             _cellActive = new bool[W, D];
             _cellBaseH  = new int[W, D];
 
-            // Structure 自身 MeshFilter/MeshCollider 作为 BuildGrid 载体
             _gridVisualMesh   = new Mesh { name = "BuildGridVisual" };
             _gridColliderMesh = new Mesh { name = "BuildGridCollider" };
             _structure.GetComponent<MeshFilter>().sharedMesh = _gridVisualMesh;
@@ -59,14 +54,16 @@ namespace MarchingCubes.Sample
 
         public void OnEnter()
         {
-            _structure.SetBuildHandlers(HandleClick, HandleGridClick, RefreshAllMeshes);
+            _structure.OnBuildGridClicked += HandleBuildClick;
+            _structure.OnConfigChanged    += _blockBuilding.RefreshAllMeshes;
             SyncWithTerrain(_terrain);
             SetInteraction(true);
         }
 
         public void OnExit()
         {
-            _structure.SetBuildHandlers(null, null, null);
+            _structure.OnBuildGridClicked -= HandleBuildClick;
+            _structure.OnConfigChanged    -= _blockBuilding.RefreshAllMeshes;
             SetInteraction(false);
         }
 
@@ -90,33 +87,14 @@ namespace MarchingCubes.Sample
 
         public void OnUpdate() { }
 
-        // ── 点击处理 ─────────────────────────────────────────────────────────
+        // ── 点击处理（统一公式：src = 被点面的 MC 格点，adj = 建造目标）────────
 
-        void HandleClick(PointElement element, bool left, Vector3 normal)
+        void HandleBuildClick(Vector3Int src, Vector3Int adj, bool left)
         {
-            if (!(element is PointCube cube)) return;
             if (left)
-            {
-                Vector3 local = cube.transform.InverseTransformVector(normal).normalized;
-                Vector3 coord = new Vector3(cube.x, cube.y, cube.z) + local;
-                CreateCube(Mathf.RoundToInt(coord.x), Mathf.RoundToInt(coord.y), Mathf.RoundToInt(coord.z));
-            }
+                CreateCube(adj.x, adj.y, adj.z);
             else
-            {
-                DestroyCube(cube);
-            }
-        }
-
-        // BuildGrid（可建造面）点击
-        public void HandleGridClick(Vector3 worldPos, bool left)
-        {
-            int cx = Mathf.FloorToInt(worldPos.x);
-            int cz = Mathf.FloorToInt(worldPos.z);
-            int W  = _structure.RenderWidth;
-            int D  = _structure.RenderDepth;
-            if (cx < 0 || cx >= W || cz < 0 || cz >= D) return;
-            if (!_cellActive[cx, cz]) return;
-            if (left) CreateCube(cx + 1, _cellBaseH[cx, cz] + 1, cz + 1);
+                DestroyCube(src.x, src.y, src.z);
         }
 
         // ── 地形同步 ──────────────────────────────────────────────────────────
@@ -134,23 +112,25 @@ namespace MarchingCubes.Sample
                 _cellBaseH[cx, cz]  = baseH;
                 _blockBuilding.SetQuadActive(cx, cz, flat, baseH);
             }
-            RebuildGridMesh();
 
-            // PointCube 冲突销毁
-            int xMax = W, yMax = _structure.BuildHeight, zMax = D;
+            // 地形升高时销毁被压住的 cube
+            int xMax = _structure.RenderWidth;
+            int yMax = _structure.BuildHeight;
+            int zMax = _structure.RenderDepth;
             for (int ci = 1; ci <= xMax; ci++)
             for (int cj = 1; cj <= yMax; cj++)
             for (int ck = 1; ck <= zMax; ck++)
             {
-                var cube = _pointCubes[ci, cj, ck];
-                if (cube == null) continue;
+                if (!_blockBuilding.IsPointActive(ci, cj, ck)) continue;
                 bool conflict =
                     terrain.GetPointHeight(ci - 1, ck - 1) >= cj ||
                     terrain.GetPointHeight(ci,     ck - 1) >= cj ||
                     terrain.GetPointHeight(ci - 1, ck    ) >= cj ||
                     terrain.GetPointHeight(ci,     ck    ) >= cj;
-                if (conflict) DestroyCube(cube);
+                if (conflict) DestroyCube(ci, cj, ck);
             }
+
+            RebuildGridMesh();
         }
 
         // ── BuildGrid mesh 生成 ───────────────────────────────────────────────
@@ -159,56 +139,62 @@ namespace MarchingCubes.Sample
         {
             int W = _structure.RenderWidth;
             int D = _structure.RenderDepth;
-            int count = 0;
+
+            // ── 视觉 Lines：所有平地 cell 轮廓 ──────────────────────────────
+            int flatCount = 0;
             for (int cx = 0; cx < W; cx++)
             for (int cz = 0; cz < D; cz++)
-                if (_cellActive[cx, cz]) count++;
+                if (_cellActive[cx, cz]) flatCount++;
 
-            // 视觉：Lines，每 cell 4 条边
-            var vVerts   = new Vector3[count * 8];
-            var vIndices = new int[count * 8];
-            // 碰撞：Triangles，每 cell 2 个三角
-            var cVerts = new Vector3[count * 4];
-            var cTris  = new int[count * 6];
-            int vi = 0, ci2 = 0, ti = 0;
+            var vV = new Vector3[flatCount * 8];
+            var iV = new int[flatCount * 8];
+            int vi = 0;
             const float yOff = 0.02f;
 
             for (int cx = 0; cx < W; cx++)
             for (int cz = 0; cz < D; cz++)
             {
                 if (!_cellActive[cx, cz]) continue;
-                float   y   = _cellBaseH[cx, cz] + yOff;
-                Vector3 p00 = new Vector3(cx,     y, cz    );
-                Vector3 p10 = new Vector3(cx + 1, y, cz    );
-                Vector3 p11 = new Vector3(cx + 1, y, cz + 1);
-                Vector3 p01 = new Vector3(cx,     y, cz + 1);
-
-                // Lines
-                vVerts[vi] = p00; vIndices[vi] = vi; vi++;
-                vVerts[vi] = p10; vIndices[vi] = vi; vi++;
-                vVerts[vi] = p10; vIndices[vi] = vi; vi++;
-                vVerts[vi] = p11; vIndices[vi] = vi; vi++;
-                vVerts[vi] = p11; vIndices[vi] = vi; vi++;
-                vVerts[vi] = p01; vIndices[vi] = vi; vi++;
-                vVerts[vi] = p01; vIndices[vi] = vi; vi++;
-                vVerts[vi] = p00; vIndices[vi] = vi; vi++;
-
-                // Triangles
-                int v0 = ci2;
-                cVerts[ci2++] = p00; cVerts[ci2++] = p10;
-                cVerts[ci2++] = p11; cVerts[ci2++] = p01;
-                cTris[ti++] = v0; cTris[ti++] = v0 + 2; cTris[ti++] = v0 + 1;
-                cTris[ti++] = v0; cTris[ti++] = v0 + 3; cTris[ti++] = v0 + 2;
+                float y = _cellBaseH[cx, cz] + yOff;
+                Vector3 p00 = new Vector3(cx, y, cz), p10 = new Vector3(cx+1, y, cz),
+                        p11 = new Vector3(cx+1, y, cz+1), p01 = new Vector3(cx, y, cz+1);
+                vV[vi]=p00; iV[vi]=vi; vi++; vV[vi]=p10; iV[vi]=vi; vi++;
+                vV[vi]=p10; iV[vi]=vi; vi++; vV[vi]=p11; iV[vi]=vi; vi++;
+                vV[vi]=p11; iV[vi]=vi; vi++; vV[vi]=p01; iV[vi]=vi; vi++;
+                vV[vi]=p01; iV[vi]=vi; vi++; vV[vi]=p00; iV[vi]=vi; vi++;
             }
 
             _gridVisualMesh.Clear();
-            _gridVisualMesh.vertices = vVerts;
-            _gridVisualMesh.SetIndices(vIndices, MeshTopology.Lines, 0);
+            _gridVisualMesh.vertices = vV;
+            _gridVisualMesh.SetIndices(iV, MeshTopology.Lines, 0);
             _gridVisualMesh.RecalculateBounds();
 
+            // ── 碰撞 Triangles：BuildGrid 平面（无 cube）+ cube 暴露面 ───────
+            var cVerts = new List<Vector3>();
+            var cTris  = new List<int>();
+
+            // 平地 cell（该位置还没有 cube 才加平面）
+            for (int cx = 0; cx < W; cx++)
+            for (int cz = 0; cz < D; cz++)
+            {
+                if (!_cellActive[cx, cz]) continue;
+                int baseMcY = _cellBaseH[cx, cz] + 1;
+                if (_blockBuilding.IsPointActive(cx + 1, baseMcY, cz + 1)) continue; // cube 已存在
+
+                float y = _cellBaseH[cx, cz] + yOff;
+                int v0 = cVerts.Count;
+                cVerts.Add(new Vector3(cx, y, cz)); cVerts.Add(new Vector3(cx+1, y, cz));
+                cVerts.Add(new Vector3(cx+1, y, cz+1)); cVerts.Add(new Vector3(cx, y, cz+1));
+                cTris.Add(v0); cTris.Add(v0+1); cTris.Add(v0+2);
+                cTris.Add(v0); cTris.Add(v0+2); cTris.Add(v0+3);
+            }
+
+            // cube 暴露面
+            _blockBuilding.AppendExposedFaces(cVerts, cTris);
+
             _gridColliderMesh.Clear();
-            _gridColliderMesh.vertices  = cVerts;
-            _gridColliderMesh.triangles = cTris;
+            _gridColliderMesh.vertices  = cVerts.ToArray();
+            _gridColliderMesh.triangles = cTris.ToArray();
             _gridColliderMesh.RecalculateBounds();
             _gridCollider.sharedMesh = null;
             _gridCollider.sharedMesh = _gridColliderMesh;
@@ -220,36 +206,20 @@ namespace MarchingCubes.Sample
         {
             if (cx <= 0 || cy <= 0 || cz <= 0) return;
             if (cx >= _blockBuilding.X || cy >= _blockBuilding.Y || cz >= _blockBuilding.Z) return;
-            ref var cube = ref _pointCubes[cx, cy, cz];
-            if (cube != null) return;
+            if (_blockBuilding.IsPointActive(cx, cy, cz)) return;
 
-            var go = Object.Instantiate(_structure.PointCubePrefab);
-            var t  = go.transform;
-            t.SetParent(_structure.transform);
-            t.localPosition = new Vector3(cx - 0.5f, cy - 0.5f, cz - 0.5f);
-            t.localRotation = Quaternion.identity;
-            t.localScale    = Vector3.one;
-
-            cube     = go.GetComponent<PointCube>();
-            cube.mcs = _structure;
-            cube.x   = cx; cube.y = cy; cube.z = cz;
             _blockBuilding.SetPointStatus(cx, cy, cz, true);
+            RebuildGridMesh();
         }
 
-        void DestroyCube(PointCube cube)
+        void DestroyCube(int cx, int cy, int cz)
         {
-            _blockBuilding.SetPointStatus(cube.x, cube.y, cube.z, false);
-            Object.DestroyImmediate(cube.gameObject);
-            _pointCubes[cube.x, cube.y, cube.z] = null;
+            if (!_blockBuilding.IsPointActive(cx, cy, cz)) return;
+            _blockBuilding.SetPointStatus(cx, cy, cz, false);
+            RebuildGridMesh();
         }
-
-        void RefreshAllMeshes() => _blockBuilding.RefreshAllMeshes();
 
         void SetInteraction(bool active)
-        {
-            _structure.GetComponent<MeshRenderer>().enabled = active;
-            foreach (var cube in _pointCubes)
-                if (cube != null) cube.gameObject.SetActive(active);
-        }
+            => _structure.GetComponent<MeshRenderer>().enabled = active;
     }
 }

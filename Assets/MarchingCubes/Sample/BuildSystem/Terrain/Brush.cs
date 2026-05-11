@@ -47,8 +47,8 @@ namespace MarchingSquares
 
                 int ti = i * 3;
                 tris[ti]     = segments;
-                tris[ti + 1] = i;
-                tris[ti + 2] = (i + 1) % segments;
+                tris[ti + 1] = (i + 1) % segments;
+                tris[ti + 2] = i;
             }
 
             _mesh.Clear();

@@ -688,7 +688,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   size: 1
   colorBrush: 1
-  ringWidth: 0.08
 --- !u!23 &1092352292
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -708,7 +707,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 7b074fe146beea648bfa7091b2103585, type: 2}
+  - {fileID: 2100000, guid: 34e5b4ce23c8ce1408cdff7ad67a086f, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

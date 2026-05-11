@@ -185,6 +185,65 @@ namespace MarchingCubes.Sample
             Gizmos.DrawLine(d, a);
         }
 
+        public bool IsPointActive(int x, int y, int z)
+        {
+            if (x < 0 || x > X || y < 0 || y > Y || z < 0 || z > Z) return false;
+            return _points[x, y, z].iso > 0.5f;
+        }
+
+        // 将所有活跃 MC point 的暴露面追加到 verts/tris（Structure 本地坐标）
+        // MC point (cx,cy,cz) 的视觉 block 占 [cx-1,cx] x [cy-1,cy] x [cz-1,cz]
+        public void AppendExposedFaces(System.Collections.Generic.List<Vector3> verts,
+                                       System.Collections.Generic.List<int>     tris)
+        {
+            for (int cx = 1; cx <= X; cx++)
+            for (int cy = 1; cy <= Y; cy++)
+            for (int cz = 1; cz <= Z; cz++)
+            {
+                if (!IsPointActive(cx, cy, cz)) continue;
+
+                if (!IsPointActive(cx + 1, cy, cz)) // +X
+                    AddFace(verts, tris,
+                        new Vector3(cx, cy-1, cz-1), new Vector3(cx, cy, cz-1),
+                        new Vector3(cx, cy, cz),     new Vector3(cx, cy-1, cz));
+
+                if (!IsPointActive(cx - 1, cy, cz)) // -X
+                    AddFace(verts, tris,
+                        new Vector3(cx-1, cy-1, cz),   new Vector3(cx-1, cy, cz),
+                        new Vector3(cx-1, cy, cz-1),   new Vector3(cx-1, cy-1, cz-1));
+
+                if (!IsPointActive(cx, cy + 1, cz)) // +Y
+                    AddFace(verts, tris,
+                        new Vector3(cx-1, cy, cz-1), new Vector3(cx-1, cy, cz),
+                        new Vector3(cx, cy, cz),     new Vector3(cx, cy, cz-1));
+
+                if (!IsPointActive(cx, cy - 1, cz)) // -Y
+                    AddFace(verts, tris,
+                        new Vector3(cx-1, cy-1, cz),   new Vector3(cx, cy-1, cz),
+                        new Vector3(cx, cy-1, cz-1),   new Vector3(cx-1, cy-1, cz-1));
+
+                if (!IsPointActive(cx, cy, cz + 1)) // +Z
+                    AddFace(verts, tris,
+                        new Vector3(cx-1, cy-1, cz), new Vector3(cx, cy-1, cz),
+                        new Vector3(cx, cy, cz),     new Vector3(cx-1, cy, cz));
+
+                if (!IsPointActive(cx, cy, cz - 1)) // -Z
+                    AddFace(verts, tris,
+                        new Vector3(cx-1, cy-1, cz-1), new Vector3(cx-1, cy, cz-1),
+                        new Vector3(cx, cy, cz-1),     new Vector3(cx, cy-1, cz-1));
+            }
+        }
+
+        static void AddFace(System.Collections.Generic.List<Vector3> verts,
+                            System.Collections.Generic.List<int>     tris,
+                            Vector3 a, Vector3 b, Vector3 c, Vector3 d)
+        {
+            int i = verts.Count;
+            verts.Add(a); verts.Add(b); verts.Add(c); verts.Add(d);
+            tris.Add(i); tris.Add(i+1); tris.Add(i+2);
+            tris.Add(i); tris.Add(i+2); tris.Add(i+3);
+        }
+
         public void SetPointStatus(int x, int y, int z, bool active)
         {
             x = Mathf.Clamp(x, 0, X);
