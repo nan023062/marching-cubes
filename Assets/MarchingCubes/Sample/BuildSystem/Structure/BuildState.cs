@@ -10,6 +10,7 @@ namespace MarchingCubes.Sample
         StructureBuilder _blockBuilding;
         PointCube[,,]    _pointCubes;
         GameObject[,]    _pointQuads;   // [RenderWidth, RenderDepth]，cell 索引；非平地 cell 槽位 = null
+        bool             _interactionActive;
 
         public BuildState(Structure structure)
         {
@@ -117,9 +118,10 @@ namespace MarchingCubes.Sample
                     var go = Object.Instantiate(_structure.PointQuadPrefab);
                     var t  = go.transform;
                     t.SetParent(_structure.transform);
-                    t.localPosition = new Vector3(cx + 0.5f, baseH + 0.5f, cz + 0.5f);
+                    t.localPosition = new Vector3(cx + 0.5f, baseH, cz + 0.5f);
                     t.localRotation = Quaternion.identity;
                     t.localScale    = new Vector3(1f, 0f, 1f);
+                    go.SetActive(_interactionActive);
 
                     var quad = go.GetComponent<PointQuad>();
                     quad.mcs = _structure;
@@ -136,7 +138,7 @@ namespace MarchingCubes.Sample
                 else if (flat && current != null)
                 {
                     var pos = current.transform.localPosition;
-                    pos.y = baseH + 0.5f;
+                    pos.y = baseH;
                     current.transform.localPosition = pos;
                 }
             }
@@ -194,6 +196,7 @@ namespace MarchingCubes.Sample
 
         void SetInteraction(bool active)
         {
+            _interactionActive = active;
             foreach (var go in _pointQuads)
                 if (go != null) go.SetActive(active);
             foreach (var cube in _pointCubes)
