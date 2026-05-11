@@ -162,6 +162,7 @@ MonoBehaviour:
   _buildHeight: 5
   terrain: {fileID: 518160456}
   structure: {fileID: 999007710}
+  face: {fileID: 0}
   _switchKey: 9
   _initialMode: 1
 --- !u!4 &122453181
@@ -444,7 +445,7 @@ GameObject:
   - component: {fileID: 518160459}
   - component: {fileID: 518160458}
   m_Layer: 3
-  m_Name: MarchingSquares
+  m_Name: TileController
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -557,7 +558,7 @@ GameObject:
   - component: {fileID: 999007711}
   - component: {fileID: 999007713}
   m_Layer: 6
-  m_Name: MarchingCubes
+  m_Name: CubeController
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -767,7 +768,7 @@ GameObject:
   - component: {fileID: 1222796530}
   - component: {fileID: 1222796529}
   m_Layer: 0
-  m_Name: MarchingEdges
+  m_Name: FaceController
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

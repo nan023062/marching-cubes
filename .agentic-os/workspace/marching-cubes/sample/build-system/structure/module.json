@@ -1,29 +1,30 @@
 {
   "name": "structure",
   "workspaceType": "csharp-unity",
-  "summary": "MC 3D 建造层：McStructure MonoBehaviour 薄壳 + McStructureBuilder 格点建造核心 + BuildState 交互逻辑 + PointElement 系列交互点组件 + CasePrefabConfig 抽象 prefab 配置",
+  "summary": "MC 3D 建造层：McController（BuildController 子类，集成建造交互 + grid mesh + 地形同步）+ StructureBuilder 纯 C# 格点核心 + CasePrefabConfig 系列 + CubeCursor hover",
   "workspace": ["Assets/MarchingCubes/Sample/BuildSystem/Structure"],
   "dependencies": [
     { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" }
   ],
   "boundary": "semi-open",
   "publicApi": [
-    "Structure — MonoBehaviour 薄壳（参数配置 + 委托桥 + prefab 持有）：Init / GetMesh(cubeIndex) / SetBuildHandlers / OnClicked / SwitchConfig / RenderWidth / BuildHeight / RenderDepth / PointCubePrefab / PointQuadPrefab（[SerializeField] + public getter，BuildState 通过 getter 取，BuildingManager 不再持有 prefab 字段）",
-    "StructureBuilder — 纯 C# 格点建造核心：SetPointStatus(x,y,z,bool) / RefreshAllMeshes / X / Y / Z",
-    "BuildState — IBuildState 实现：ctor(Structure)；方块建造/拆除交互 + GUI Config 选择 + SyncWithTerrain(TerrainBuilder)（扫所有 cell 按 IsCellFlat 增删 PointQuad + 扫所有 PointCube 销毁地形冲突方块）",
+    "McController — BuildController 子类（MonoBehaviour）：Init(renderWidth,buildHeight,renderDepth) / SetTerrain(TerrainBuilder) / SyncWithTerrain(TerrainBuilder) / ConfigCount / CurrentConfigIndex / GetConfigName(int) / SwitchConfig(int) / GetMesh(cubeIndex)；_cursor（CubeCursor）通过 Inspector 绑定；OnPointerMove/Click override",
+    "StructureBuilder — 纯 C# 格点建造核心：SetPointStatus(x,y,z,bool) / IsPointActive / GetCubeIndex / IsQuadActive / GetQuadBaseH / SetQuadActive / AppendExposedFaces / X/Y/Z / localToWorld",
     "CasePrefabConfig — prefab 配置抽象基类（ScriptableObject）：GetPrefab(int caseIndex)",
-    "D4FbxCaseConfig — 53 canonical FBX + D4 对称归约生成 255 prefab；含 #if UNITY_EDITOR 持久化字段（editorFbxFolder/editorPrefabFolder/editorMaterial + editorNoiseSeed/editorNoiseOctaves/editorNoiseAmplitude/editorNoiseFrequency/editorNormalMapResolution=128 + Texture2D[53] editorNormalMaps）供 art-mc-mesh 编辑器写入",
-    "IosMeshCaseConfig — 256 mesh 直接 1:1 生成 256 prefab",
-    "PointElement / PointCube(x,y,z 体素索引) / PointQuad(cx,cz cell 索引；仅平地 cell 实例化) — 交互点组件（MonoBehaviour）"
+    "D4FbxCaseConfig — 53 canonical FBX + D4 对称归约生成 255 prefab；含 #if UNITY_EDITOR 持久化字段",
+    "IosMeshCaseConfig — 256 mesh 直接 1:1 映射",
+    "CubeCursor — MC hover：CubeCursor : Cursor，Awake 用 Unity 内置 Cube primitive mesh"
   ],
   "constraints": [
     "StructureBuilder 是纯 C# 类，无 MonoBehaviour 依赖，可脱离 Unity 场景独立测试",
     "Point.iso 阈值为 0.5f：iso > 0.5f 视为实心顶点",
     "case 0（全空）和 case 255（全实）GetPrefab 返回 null，不生成网格",
-    "Structure.unit 是 uint（整数边长），统一由 BuildingConst.Unit 决定",
-    "Structure 不声明 IMeshStore 接口，功能等价：GetMesh(cubeIndex) 内联实现，由 StructureBuilder 持有 Structure 引用直接调用",
-    "交互逻辑（SetPointStatus / 点击处理）已从 Structure 迁移到 BuildState，Structure 只提供 Init + Config + 委托桥（SetBuildHandlers）+ prefab 持有",
-    "PointQuad 仅在 terrain.IsCellFlat(cx,cz)==true 的 cell 才被实例化（cell 4 角 high 完全相等）；位置 (cx+0.5, baseH+0.5, cz+0.5)，scale (1,0,1)；增删/移位由 BuildState.SyncWithTerrain 在每次地形刷绘后驱动，PointQuad 不主动监听地形",
-    "D4FbxCaseConfig.editor* 字段仅 UNITY_EDITOR 编译，[HideInInspector] 隐藏，由 art-mc-mesh.ArtMeshCaseConfigEditor 读写并随 .asset 持久化，不进运行时构建；editorNormalMaps[53] 数组下标对应 canonical case 0~52，运行时由 prefab 构建器把对应贴图写入 CubedMeshPrefab.normalMap"
+    "McController 用 _meshCollider.Raycast()（Collider 自身方法），不依赖 Physics layerMask",
+    "collider mesh 的平地 quad 三角形必须绕序 0,2,1 / 0,3,2（法线朝 +Y）；原 0,1,2 / 0,2,3 绕序法线朝 -Y，从上方射线 miss",
+    "SwitchConfig(index) 直接调 RefreshAllCubes()，不走 event；无 OnBuildGridClicked / OnConfigChanged 事件",
+    "OnPointerMove：更新 _cursor 到 hit.point + hit.normal * (cellSize * 0.5)，onMesh=false 时隐藏 cursor",
+    "OnPointerClick：FireBuildClick 用 hit.normal 推算 src（被点格点）和 adj（相邻格点）；left=true→CreateCube(adj)，left=false→DestroyCube(src)",
+    "RebuildGridMesh：每次地形同步或建造后重建 collider mesh（Clear+vertices+triangles+null→sharedMesh 触发 re-bake）",
+    "StructureBuilder.AppendExposedFaces 生成 cube 暴露面；各方向法线由传入的 a/b/c/d 顶点顺序决定（外法线朝外）"
   ]
 }

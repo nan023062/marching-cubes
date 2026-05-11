@@ -3,7 +3,7 @@ type: task
 from: architect
 to: worker
 date: 2026-05-11
-status: in_progress
+status: cancelled
 priority: normal
 slug: pointquad-cell-flat
 ---

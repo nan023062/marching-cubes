@@ -2,17 +2,17 @@
 
 ## 定位
 
-地形改造 + 3D 建造综合演示（父模块）。是唯一同时使用 MC 和 MQ 双算法的 Sample 案例。通过 BuildingManager 状态机将两套完全独立的交互逻辑（TerrainState / BuildState）统一管理。
+地形改造 + 3D 建造综合演示（父模块）。是唯一同时使用 MC 和 MQ 双算法的 Sample 案例。通过 BuildingManager 状态机将两套完全独立的交互逻辑（TerrainController / McController）统一管理。
 
 ## 子模块清单与关系
 
 ```
 build-system/
-├── terrain/    ← MQ 地形层（Terrain + TerrainBuilder + TerrainState + Brush + TileCaseConfig）
-└── structure/  ← MC 建造层（McStructure + McStructureBuilder + BuildState + PointElement 系列）
+├── terrain/    ← MQ 地形层（TerrainController + TerrainBuilder + TileCaseConfig + Cursor 层次）
+└── structure/  ← MC 建造层（McController + StructureBuilder + CasePrefabConfig 系列 + CubeCursor）
 ```
 
-根目录文件：`BuildingConst.cs`、`BuildingManager.cs`、`IBuildState.cs`
+根目录文件：`BuildController.cs`、`BuildingConst.cs`、`BuildingManager.cs`、`IBuildState.cs`、`BuilderBase.cs`
 
 依赖关系：
 - `terrain` → `runtime/marching-squares`（MqTable + Tile 类型）
@@ -25,5 +25,6 @@ build-system/
 
 ## 涌现性洞察
 
-- **Unit 对齐是核心约束**：TerrainBuilder 以 `1f / Unit` 为格子尺寸，McStructure 以 `Unit` 为整数格子数，`BuildingConst.Unit` 是唯一真相源，任一子模块擅自修改都会导致坐标系错位
-- **地形同步回调**：TerrainState 在地形刷绘完成后调用 `buildState.SyncWithTerrain(builder)`，McStructure 层检查坐标冲突并销毁被地形覆盖的 PointCube，这是两套系统唯一的数据交叉点
+- **Unit 对齐是核心约束**：TerrainBuilder 以 `1f / Unit` 为格子尺寸，McController 以 `Unit` 为整数格子数，`BuildingConst.Unit` 是唯一真相源，任一子模块擅自修改都会导致坐标系错位
+- **地形同步回调**：TerrainController 在地形刷绘完成后调用 `structure.SyncWithTerrain(builder)`，McController 检查坐标冲突并销毁被地形覆盖的方块，这是两套系统唯一的数据交叉点
+- **BuildController 输入抽象**：统一的 Update 主循环 + 5 个虚函数（Move/Down/Drag/Up/Click）让子类只关注业务逻辑；Cursor 子类化让 hover 视觉与 Controller 逻辑解耦，未来新增 Controller 只需绑定对应 Cursor 子类
