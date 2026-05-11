@@ -1,28 +1,31 @@
 using UnityEngine;
-using TerrainController = MarchingSquares.TerrainController;
+using MarchingSquares;
 
 namespace MarchingCubes.Sample
 {
     public enum BuildMode { Terrain, Build }
 
-    /// <summary>
-    /// 建造系统总管：持有 BuildController 引用、驱动状态机、渲染模式切换 UI。
-    /// 每次只激活一个 BuildController，交互逻辑全部封装在各 Controller 内部。
-    /// </summary>
     public class BuildingManager : MonoBehaviour
     {
         public static BuildingManager Instance { get; private set; }
 
         [Header("建造区域（渲染格数，顶点数 = 渲染格数 + 1）")]
-        [SerializeField] private int _areaWidth   = 10;
-        [SerializeField] private int _areaDepth   = 10;
-        [SerializeField] private int _buildHeight  = 5;
+        [SerializeField] private int _areaWidth  = 10;
+        [SerializeField] private int _areaDepth  = 10;
+        [SerializeField] private int _buildHeight = 5;
 
         [Header("组件引用")]
-        [SerializeField] private TerrainController terrain;
-        [SerializeField] private McController   structure;
+        [SerializeField] private TileController terrain;
+        [SerializeField] private CubeController structure;
+        [SerializeField] private FaceController face;
         [SerializeField] private KeyCode   _switchKey   = KeyCode.Tab;
-        [SerializeField] private BuildMode _initialMode = BuildMode.Build;
+        [SerializeField] private BuildMode _initialMode = BuildMode.Terrain;
+
+        // ── 三层数据 ─────────────────────────────────────────────────────────
+
+        public TileBuilder   Tiles { get; private set; }
+        public CubeBuilder Cubes { get; private set; }
+        public FaceBuilder      Faces { get; private set; }
 
         public BuildMode CurrentMode { get; private set; }
 
@@ -34,11 +37,22 @@ namespace MarchingCubes.Sample
         {
             Instance = this;
 
-            terrain.Init(_areaWidth, _areaDepth, _buildHeight);
-            structure.Init(_areaWidth, _buildHeight, _areaDepth);
+            float unit = 1f / BuildingConst.Unit;
 
-            structure.SetTerrain(terrain.Builder);
-            terrain.SetSyncCallback(() => structure.SyncWithTerrain(terrain.Builder));
+            Tiles = new TileBuilder(_areaWidth, _areaDepth, _buildHeight, unit, terrain.transform.position);
+            Tiles.MaxHeightDiff = BuildingConst.TerrainMaxHeightDiff * BuildingConst.Unit;
+
+            var cubePos    = structure.transform.position - new Vector3(0.5f, 0.5f, 0.5f);
+            var cubeMatrix = Matrix4x4.TRS(cubePos, Quaternion.identity, Vector3.one / BuildingConst.Unit);
+            Cubes = new CubeBuilder(_areaWidth + 1, _buildHeight, _areaDepth + 1, cubeMatrix);
+
+            Faces = new FaceBuilder(_areaWidth + 1, _buildHeight + 1, _areaDepth + 1);
+
+            terrain.Init(_areaWidth, _areaDepth, _buildHeight, Tiles);
+            structure.Init(_areaWidth, _buildHeight, _areaDepth, Cubes, Tiles);
+            if (face != null) face.Init(_areaWidth + 1, _buildHeight + 1, _areaDepth + 1, Faces);
+
+            terrain.SetSyncCallback(() => structure.SyncWithTerrain());
 
             _states = new IBuildState[] { terrain, structure };
         }

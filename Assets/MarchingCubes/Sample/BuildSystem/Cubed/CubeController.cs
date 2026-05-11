@@ -4,26 +4,24 @@ using MarchingSquares;
 
 namespace MarchingCubes.Sample
 {
-    public class McController : BuildController
+    public class CubeController : BuildController
     {
         public uint unit = BuildingConst.Unit;
 
         [SerializeField] private CasePrefabConfig[] _configs;
         [SerializeField] private int _currentConfigIndex = 0;
 
-        public StructureBuilder Builder { get; private set; }
+        public CubeBuilder Builder { get; private set; }
 
         public int RenderWidth { get; private set; }
         public int BuildHeight { get; private set; }
         public int RenderDepth { get; private set; }
 
-        bool _active;
-
-        StructureBuilder   _blockBuilding;
+        CubeBuilder   _blockBuilding;
         GameObject[,,]     _cubeObjects;
         bool[,]            _cellActive;
         int[,]             _cellBaseH;
-        TerrainBuilder     _terrain;
+        TileBuilder     _terrain;
 
         // ── Config ───────────────────────────────────────────────────────────
 
@@ -44,43 +42,36 @@ namespace MarchingCubes.Sample
 
         // ── 初始化 ───────────────────────────────────────────────────────────
 
-        public void Init(int renderWidth, int buildHeight, int renderDepth)
+        public void Init(int renderWidth, int buildHeight, int renderDepth, CubeBuilder cubes, TileBuilder tiles)
         {
             RenderWidth = renderWidth;
             BuildHeight = buildHeight;
             RenderDepth = renderDepth;
             transform.localScale = Vector3.one / unit;
 
-            int x      = RenderWidth + 1;
-            int y      = BuildHeight;
-            int z      = RenderDepth + 1;
-            var pos    = transform.position - new Vector3(0.5f, 0.5f, 0.5f);
-            var matrix = Matrix4x4.TRS(pos, Quaternion.identity, Vector3.one / BuildingConst.Unit);
+            _blockBuilding = cubes;
+            Builder        = cubes;
+            _terrain       = tiles;
 
-            _blockBuilding = new StructureBuilder(x, y, z, matrix);
-            Builder        = _blockBuilding;
-
-            _cubeObjects = new GameObject[x, y, z];
+            _cubeObjects = new GameObject[cubes.X, cubes.Y, cubes.Z];
             _cellActive  = new bool[RenderWidth, RenderDepth];
             _cellBaseH   = new int[RenderWidth, RenderDepth];
 
             InitGridMeshes("BuildGridVisual", "BuildGridCollider");
         }
 
-        public void SetTerrain(TerrainBuilder t) => _terrain = t;
-
         // ── IBuildState ───────────────────────────────────────────────────────
 
         public override void OnEnter()
         {
-            _active = true;
-            if (_terrain != null) SyncWithTerrain(_terrain);
+            SetActive(true);
             SetInteraction(true);
+            if (_terrain != null) SyncWithTerrain();
         }
 
         public override void OnExit()
         {
-            _active = false;
+            SetActive(false);
             SetInteraction(false);
         }
 
@@ -97,7 +88,7 @@ namespace MarchingCubes.Sample
             for (int i = 0; i < count; i++)
             {
                 string label = i < ConfigNames.Length ? ConfigNames[i] : GetConfigName(i);
-                Rect r = new Rect(pad + i * (btnW + gap), y, btnW, btnH);
+                Rect r = new Rect(pad, y - i * (btnH + gap), btnW, btnH);
                 if (i == CurrentConfigIndex) GUI.Box(r, label);
                 else if (GUI.Button(r, label)) SwitchConfig(i);
             }
@@ -146,31 +137,29 @@ namespace MarchingCubes.Sample
                 RefreshCubeAt(i, j, k);
         }
 
-        // ── Raycast ───────────────────────────────────────────────────────────
+        // ── 输入响应 ─────────────────────────────────────────────────────────────
 
-        void Update()
+        protected override void OnPointerMove(RaycastHit hit, Ray ray, bool onMesh)
         {
-            if (!_active) return;
-            if (Camera.main == null) return;
+            if (_cursor == null) return;
+            _cursor.gameObject.SetActive(onMesh);
+            if (!onMesh) return;
 
-            for (int btn = 0; btn <= 1; btn++)
-                if (Input.GetMouseButtonDown(btn)) _pressButton = btn;
-
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (!_meshCollider.Raycast(ray, out var hit, 1000f)) return;
-
-            for (int btn = 0; btn <= 1; btn++)
-            {
-                if (Input.GetMouseButtonUp(btn) && _pressButton == btn)
-                {
-                    _pressButton = -1;
-                    FireBuildClick(hit, btn == 0);
-                    break;
-                }
-            }
+            CalcSrcAdj(hit, out _, out var adj);
+            float cellSize = 1f / BuildingConst.Unit;
+            _cursor.transform.position   = (Vector3)adj * cellSize;
+            _cursor.transform.localScale = Vector3.one * cellSize;
         }
 
+        protected override void OnPointerClick(RaycastHit hit, bool left) => FireBuildClick(hit, left);
+
         void FireBuildClick(RaycastHit hit, bool left)
+        {
+            CalcSrcAdj(hit, out var src, out var adj);
+            HandleBuildClick(src, adj, left);
+        }
+
+        static void CalcSrcAdj(RaycastHit hit, out Vector3Int src, out Vector3Int adj)
         {
             Vector3 n  = hit.normal;
             Vector3 ip = hit.point - n * 0.5f;
@@ -179,13 +168,11 @@ namespace MarchingCubes.Sample
             int srcY = Mathf.Abs(n.y) > 0.5f ? Mathf.RoundToInt(ip.y + 0.5f) : Mathf.FloorToInt(ip.y) + 1;
             int srcZ = Mathf.Abs(n.z) > 0.5f ? Mathf.RoundToInt(ip.z + 0.5f) : Mathf.FloorToInt(ip.z) + 1;
 
-            var src = new Vector3Int(srcX, srcY, srcZ);
-            var adj = src + new Vector3Int(
+            src = new Vector3Int(srcX, srcY, srcZ);
+            adj = src + new Vector3Int(
                 Mathf.RoundToInt(n.x),
                 Mathf.RoundToInt(n.y),
                 Mathf.RoundToInt(n.z));
-
-            HandleBuildClick(src, adj, left);
         }
 
         void HandleBuildClick(Vector3Int src, Vector3Int adj, bool left)
@@ -196,7 +183,7 @@ namespace MarchingCubes.Sample
 
         // ── 地形同步 ──────────────────────────────────────────────────────────
 
-        public void SyncWithTerrain(TerrainBuilder terrain)
+        public void SyncWithTerrain()
         {
             int W = RenderWidth;
             int D = RenderDepth;
@@ -204,7 +191,7 @@ namespace MarchingCubes.Sample
             for (int cx = 0; cx < W; cx++)
             for (int cz = 0; cz < D; cz++)
             {
-                bool flat = terrain.IsCellFlat(cx, cz, out int baseH);
+                bool flat = _terrain.IsCellFlat(cx, cz, out int baseH);
                 _cellActive[cx, cz] = flat;
                 _cellBaseH[cx, cz]  = baseH;
                 _blockBuilding.SetQuadActive(cx, cz, flat, baseH);
@@ -216,10 +203,10 @@ namespace MarchingCubes.Sample
             {
                 if (!_blockBuilding.IsPointActive(ci, cj, ck)) continue;
                 bool conflict =
-                    terrain.GetPointHeight(ci - 1, ck - 1) >= cj ||
-                    terrain.GetPointHeight(ci,     ck - 1) >= cj ||
-                    terrain.GetPointHeight(ci - 1, ck    ) >= cj ||
-                    terrain.GetPointHeight(ci,     ck    ) >= cj;
+                    _terrain.GetPointHeight(ci - 1, ck - 1) >= cj ||
+                    _terrain.GetPointHeight(ci,     ck - 1) >= cj ||
+                    _terrain.GetPointHeight(ci - 1, ck    ) >= cj ||
+                    _terrain.GetPointHeight(ci,     ck    ) >= cj;
                 if (conflict) DestroyCube(ci, cj, ck);
             }
 

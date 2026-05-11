@@ -9,7 +9,7 @@ namespace MarchingSquares
     /// 持有地形数据（高度 + 地形类型）和碰撞 Mesh 顶点数据。
     /// 不持有任何 GameObject / Tile，显示逻辑由 TerrainController 负责。
     /// </summary>
-    public class TerrainBuilder : BuilderBase
+    public class TileBuilder : BuilderBase
     {
         public const int TerrainTypeCount = 5;
 
@@ -28,7 +28,7 @@ namespace MarchingSquares
 
         // ── 构造 ─────────────────────────────────────────────────────────────
 
-        public TerrainBuilder(int width, int length, int height, float unit, Vector3 worldPosition)
+        public TileBuilder(int width, int length, int height, float unit, Vector3 worldPosition)
         {
             if (width != length)
                 throw new System.ArgumentException(
@@ -50,7 +50,7 @@ namespace MarchingSquares
 
         // ── 地形操作（返回 dirty 集合，由 Controller 驱动视觉刷新）────────────
 
-        public bool BrushMapHigh(Brush brush, int delta, out HashSet<(int px, int pz)> changedPoints)
+        public bool BrushMapHigh(MarchingCubes.Sample.Cursor brush, int delta, out HashSet<(int px, int pz)> changedPoints)
         {
             (Vector3 center, float radiusSqr) = CalculateArea(
                 brush, out int minX, out int minZ, out int maxX, out int maxZ);
@@ -76,7 +76,7 @@ namespace MarchingSquares
             return dirty;
         }
 
-        public bool PaintTerrainType(Brush brush, int type, out HashSet<(int px, int pz)> dirtyPoints)
+        public bool PaintTerrainType(MarchingCubes.Sample.Cursor brush, int type, out HashSet<(int px, int pz)> dirtyPoints)
         {
             type = Mathf.Clamp(type, 0, TerrainTypeCount - 1);
             byte bit = (byte)(1 << type);
@@ -98,7 +98,7 @@ namespace MarchingSquares
             return dirtyPoints.Count > 0;
         }
 
-        public bool EraseTerrainType(Brush brush, int type, out HashSet<(int px, int pz)> dirtyPoints)
+        public bool EraseTerrainType(MarchingCubes.Sample.Cursor brush, int type, out HashSet<(int px, int pz)> dirtyPoints)
         {
             type = Mathf.Clamp(type, 0, TerrainTypeCount - 1);
             byte clearBit = (byte)~(1 << type);
@@ -120,7 +120,7 @@ namespace MarchingSquares
             return dirtyPoints.Count > 0;
         }
 
-        public bool ClearTerrainMask(Brush brush, out HashSet<(int px, int pz)> dirtyPoints)
+        public bool ClearTerrainMask(MarchingCubes.Sample.Cursor brush, out HashSet<(int px, int pz)> dirtyPoints)
         {
             (Vector3 center, float radiusSqr) = CalculateArea(
                 brush, out int minX, out int minZ, out int maxX, out int maxZ);
@@ -214,7 +214,7 @@ namespace MarchingSquares
             }
         }
 
-        private (Vector3, float) CalculateArea(Brush brush,
+        private (Vector3, float) CalculateArea(MarchingCubes.Sample.Cursor brush,
             out int minX, out int minZ, out int maxX, out int maxZ)
         {
             float radius    = brush.Size * 0.5f;

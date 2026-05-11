@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace MarchingCubes.Sample
 {
-    public class StructureBuilder : BuilderBase
+    public class CubeBuilder : BuilderBase
     {
         public readonly int X, Y, Z;
 
@@ -15,7 +15,7 @@ namespace MarchingCubes.Sample
         struct Cube
         {
             public readonly sbyte x, y, z;
-            private readonly StructureBuilder building;
+            private readonly CubeBuilder building;
 
             public ref readonly Point this[int index]
             {
@@ -26,7 +26,7 @@ namespace MarchingCubes.Sample
                 }
             }
 
-            public Cube(StructureBuilder building, int x, int y, int z)
+            public Cube(CubeBuilder building, int x, int y, int z)
             {
                 this.building = building;
                 this.x = (sbyte)x;
@@ -35,7 +35,7 @@ namespace MarchingCubes.Sample
             }
         }
 
-        public StructureBuilder(int x, int y, int z, Matrix4x4 matrix)
+        public CubeBuilder(int x, int y, int z, Matrix4x4 matrix)
         {
             X = x; Y = y; Z = z;
             localToWorld = matrix;

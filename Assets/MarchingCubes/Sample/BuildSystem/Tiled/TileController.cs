@@ -4,31 +4,30 @@ using MarchingCubes.Sample;
 
 namespace MarchingSquares
 {
-    public class TerrainController : BuildController
+    public class TileController : BuildController
     {
-        [SerializeField] private Brush          _brush;
         [SerializeField] private TileCaseConfig _meshConfig;
         [SerializeField, Header("涂刷类型 (0~7，bit 位越高视觉权重越大)"), Range(0, 7)]
-        private int _textureLayer = 1;
+        private int  _textureLayer = 1;
+        [SerializeField] private bool _colorBrush;
 
-        public Brush          Brush        => _brush;
         public int            TextureLayer { get => _textureLayer; set => _textureLayer = value; }
-        public TerrainBuilder Builder      { get; private set; }
+        public TileBuilder Builder      { get; private set; }
+
+        MarchingCubes.Sample.Cursor PlaneBrush => _cursor as MarchingCubes.Sample.Cursor;
 
         private System.Action _onTerrainChanged;
         private GameObject[,] _tiles;
-        private bool          _active;
 
         static readonly string[] LayerNames = { "泥", "草", "岩", "雪", "紫" };
 
         // ── 初始化 ───────────────────────────────────────────────────────────
 
-        public void Init(int renderWidth, int renderDepth, int heightRange)
+        public void Init(int renderWidth, int renderDepth, int heightRange, TileBuilder tiles)
         {
-            float unit = 1f / BuildingConst.Unit;
-            Builder = new TerrainBuilder(renderWidth, renderDepth, heightRange, unit, transform.position);
-            Builder.MaxHeightDiff = BuildingConst.TerrainMaxHeightDiff * BuildingConst.Unit;
+            Builder = tiles;
 
+            float unit = 1f / BuildingConst.Unit;
             transform.localScale = Vector3.one * unit;
 
             _tiles = new GameObject[renderDepth, renderWidth];
@@ -43,8 +42,8 @@ namespace MarchingSquares
 
         // ── IBuildState ───────────────────────────────────────────────────────
 
-        public override void OnEnter() { SetBrushVisible(true);  _active = true;  }
-        public override void OnExit()  { SetBrushVisible(false); _active = false; }
+        public override void OnEnter() { SetActive(true);  SetInteraction(true);  }
+        public override void OnExit()  { SetActive(false); SetInteraction(false); }
 
         public override void OnUpdate() { }
 
@@ -54,14 +53,15 @@ namespace MarchingSquares
             float y = Screen.height - btnH * 3 - pad * 3 - 22f;
 
             if (GUI.Button(new Rect(pad, y, btnW, btnH),
-                    !_brush.colorBrush ? "[ 高度 ]" : "  高度  "))
-                _brush.colorBrush = false;
+                    !_colorBrush ? "[ 高度 ]" : "  高度  "))
+                _colorBrush = false;
 
-            if (GUI.Button(new Rect(pad + btnW + gap, y, btnW, btnH),
-                    _brush.colorBrush ? "[ 涂色 ]" : "  涂色  "))
-                _brush.colorBrush = true;
+            y -= btnH + gap;
+            if (GUI.Button(new Rect(pad, y, btnW, btnH),
+                    _colorBrush ? "[ 涂色 ]" : "  涂色  "))
+                _colorBrush = true;
 
-            if (_brush.colorBrush)
+            if (_colorBrush)
             {
                 y -= btnH + gap;
                 float typeBtnW = btnW * 0.55f;
@@ -82,65 +82,50 @@ namespace MarchingSquares
             }
         }
 
-        // ── Raycast ───────────────────────────────────────────────────────────
+        // ── 输入响应 ─────────────────────────────────────────────────────────────
 
-        void Update()
+        protected override void OnPointerMove(RaycastHit hit, Ray ray, bool onMesh)
         {
-            if (!_active) return;
-            if (Camera.main == null) return;
-
-            float unit      = 1f / BuildingConst.Unit;
-            Ray   ray       = Camera.main.ScreenPointToRay(Input.mousePosition);
-            bool  onTerrain = _meshCollider.Raycast(ray, out var hit, 1000f);
-
+            float unit = 1f / BuildingConst.Unit;
             Vector3 pos;
-            if (onTerrain)
+            if (onMesh)
             {
                 pos = hit.point;
             }
             else
             {
-                var   bt       = _brush != null ? _brush.transform.position : Vector3.zero;
+                var   bt       = _cursor != null ? _cursor.transform.position : Vector3.zero;
                 float northDis = Vector3.Project(bt - ray.origin, Vector3.up).magnitude;
                 float cos      = Vector3.Dot(Vector3.down, ray.direction);
                 pos = Mathf.Abs(cos) > 0.001f ? ray.origin + ray.direction * (northDis / cos) : bt;
             }
-
             int px = Mathf.RoundToInt(pos.x / unit);
             int pz = Mathf.RoundToInt(pos.z / unit);
             HandlePointMove(px, pz);
+        }
 
-            if (!onTerrain) { _pressButton = -1; return; }
-
-            for (int btn = 0; btn <= 1; btn++)
-                if (Input.GetMouseButtonDown(btn)) _pressButton = btn;
-
-            for (int btn = 0; btn <= 1; btn++)
-            {
-                if (Input.GetMouseButtonUp(btn) && _pressButton == btn)
-                {
-                    _pressButton = -1;
-                    HandlePointClicked(px, pz, btn == 0);
-                    break;
-                }
-            }
+        protected override void OnPointerClick(RaycastHit hit, bool left)
+        {
+            float unit = 1f / BuildingConst.Unit;
+            int px = Mathf.RoundToInt(hit.point.x / unit);
+            int pz = Mathf.RoundToInt(hit.point.z / unit);
+            HandlePointClicked(px, pz, left);
         }
 
         void HandlePointMove(int px, int pz)
         {
-            if (_brush == null) return;
+            if (_cursor == null) return;
             float unit = 1f / BuildingConst.Unit;
-            var   lw   = Builder.localToWorld;
-            var   t    = _brush.transform;
-            t.position   = new Vector3(px * unit, Builder.GetPointHeight(px, pz) * unit + 0.01f, pz * unit);
-            t.localScale = lw.lossyScale;
-            t.rotation   = lw.rotation;
+            _cursor.transform.position = new Vector3(px * unit, Builder.GetPointHeight(px, pz) * unit + 0.01f, pz * unit);
+            _cursor.Style = CursorStyle.QuadY;
+            float s = unit * _cursor.Size;
+            _cursor.transform.localScale = new Vector3(s, 0f, s);
         }
 
         void HandlePointClicked(int px, int pz, bool left)
         {
             bool dirty;
-            if (_brush.colorBrush)
+            if (_colorBrush)
                 dirty = left ? PaintTerrainType(_textureLayer) : EraseTerrainType(_textureLayer);
             else
                 dirty = BrushMapHigh(left ? 1 : -1);
@@ -151,7 +136,7 @@ namespace MarchingSquares
 
         public bool BrushMapHigh(int delta)
         {
-            bool dirty = Builder.BrushMapHigh(_brush, delta, out var cpts);
+            bool dirty = Builder.BrushMapHigh(PlaneBrush, delta, out var cpts);
             if (dirty)
             {
                 RebuildColliderMesh();
@@ -163,27 +148,26 @@ namespace MarchingSquares
 
         public bool PaintTerrainType(int type)
         {
-            bool dirty = Builder.PaintTerrainType(_brush, type, out var dpts);
+            bool dirty = Builder.PaintTerrainType(PlaneBrush, type, out var dpts);
             if (dirty) RefreshAffectedTilesMPB(dpts);
             return dirty;
         }
 
         public bool EraseTerrainType(int type)
         {
-            bool dirty = Builder.EraseTerrainType(_brush, type, out var dpts);
+            bool dirty = Builder.EraseTerrainType(PlaneBrush, type, out var dpts);
             if (dirty) RefreshAffectedTilesMPB(dpts);
             return dirty;
         }
 
         public bool ClearTerrainMask()
         {
-            bool dirty = Builder.ClearTerrainMask(_brush, out var dpts);
+            bool dirty = Builder.ClearTerrainMask(PlaneBrush, out var dpts);
             if (dirty) RefreshAffectedTilesMPB(dpts);
             return dirty;
         }
 
         public bool IsCellFlat(int cx, int cz, out int h) => Builder.IsCellFlat(cx, cz, out h);
-        public void SetBrushVisible(bool visible)          { if (_brush != null) _brush.gameObject.SetActive(visible); }
 
         // ── Tile 实例管理（Controller 负责 GO 生命周期）──────────────────────
 
