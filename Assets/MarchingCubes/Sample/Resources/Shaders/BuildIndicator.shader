@@ -2,15 +2,13 @@ Shader "MarchingCubes/BuildIndicator"
 {
     Properties
     {
-        _Color  ("Border Color", Color) = (1, 0.8, 0, 1)
+        _Color  ("Border Color", Color)           = (1, 0.8, 0, 1)
         _Width  ("Border Width", Range(0.01, 0.5)) = 0.06
-        _Fill   ("Fill Alpha", Range(0, 1)) = 0.08
+        _Fill   ("Fill Alpha",   Range(0, 1))     = 0.08
     }
 
     SubShader
     {
-        // 在 opaque 之后、transparent 之前绘制，ZTest LessEqual 保证不穿墙，
-        // ZWrite Off 不污染深度缓冲，Cull Off 正背面均绘制（quad 从下方也可见）
         Tags { "RenderType"="Transparent" "Queue"="Transparent" }
         ZWrite Off
         ZTest LEqual
@@ -51,16 +49,26 @@ Shader "MarchingCubes/BuildIndicator"
             fixed4 frag(v2f i) : SV_Target
             {
                 float2 uv = i.uv;
-                // 距离任意一条边的最小值
-                float d = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
+                float dx = min(uv.x, 1.0 - uv.x);  // 距左/右边距离
+                float dy = min(uv.y, 1.0 - uv.y);  // 距上/下边距离
+                float d  = min(dx, dy);
+
                 bool onBorder = d < _Width;
 
+                if (onBorder)
+                {
+                    // 每条边均分 5 段，偶数段（0,2,4）实线，奇数段（1,3）虚线
+                    float along = (dy <= dx) ? uv.x : uv.y;
+                    int   seg   = (int)(along * 5.0);
+                    if (seg % 2 != 0) discard;
+
+                    return _Color;
+                }
+
+                if (_Fill <= 0.001) discard;
+
                 fixed4 col = _Color;
-                col.a = onBorder ? _Color.a : _Fill;
-
-                // 内部填充 alpha 为 0 时直接丢弃，减少 overdraw
-                if (!onBorder && _Fill <= 0.001) discard;
-
+                col.a = _Fill;
                 return col;
             }
             ENDCG

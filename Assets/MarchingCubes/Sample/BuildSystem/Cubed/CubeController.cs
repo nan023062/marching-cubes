@@ -147,7 +147,7 @@ namespace MarchingCubes.Sample
 
             CalcSrcAdj(hit, out _, out var adj);
             float cellSize = 1f / BuildingConst.Unit;
-            _cursor.transform.position   = (Vector3)adj * cellSize;
+            _cursor.transform.position   = _blockBuilding.localToWorld.MultiplyPoint((Vector3)adj);
             _cursor.transform.localScale = Vector3.one * cellSize;
         }
 

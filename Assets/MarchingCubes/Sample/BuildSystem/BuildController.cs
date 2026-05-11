@@ -73,7 +73,7 @@ namespace MarchingCubes.Sample
 
         static Material s_gridMaterial;
         static Material GridMaterial => s_gridMaterial ??=
-            new Material(Shader.Find("Unlit/Color")) { color = new Color(0.55f, 0.55f, 0.55f) };
+            new Material(Shader.Find("Unlit/Color")) { color = new Color(0f, 1f, 0.2f) };
 
         protected void InitGridMeshes(string visualName, string colliderName)
         {
