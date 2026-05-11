@@ -25,17 +25,7 @@ namespace MarchingCubes.Sample
             _meshCollider = GetComponent<MeshCollider>();
             _meshCollider.sharedMesh = _colliderMesh;
         }
-
-        // colliderMesh 由外部提供（TerrainController 由 TerrainBuilder 管理）
-        protected void InitGridMeshes(string visualName, Mesh colliderMesh)
-        {
-            _visualMesh   = new Mesh { name = visualName };
-            _colliderMesh = colliderMesh;
-            GetComponent<MeshFilter>().sharedMesh = _visualMesh;
-            _meshCollider = GetComponent<MeshCollider>();
-            _meshCollider.sharedMesh = _colliderMesh;
-        }
-
+        
         // 启用/禁用碰撞层和视觉层（进入/退出建造模式时调用）
         protected void SetInteraction(bool active)
             => GetComponent<MeshRenderer>().enabled = active;
@@ -43,8 +33,11 @@ namespace MarchingCubes.Sample
         // ── IBuildState 生命周期（子类实现） ──────────────────────────────────
 
         public abstract void OnEnter();
+        
         public abstract void OnExit();
+        
         public abstract void OnUpdate();
+        
         public abstract void OnGUI();
     }
 }

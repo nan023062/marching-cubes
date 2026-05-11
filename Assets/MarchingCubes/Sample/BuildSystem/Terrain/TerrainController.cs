@@ -15,7 +15,6 @@ namespace MarchingSquares
         public int            TextureLayer { get => _textureLayer; set => _textureLayer = value; }
         public TerrainBuilder Builder      { get; private set; }
 
-        private int           _terrainMask;
         private System.Action _onTerrainChanged;
         private GameObject[,] _tiles;
 
@@ -28,8 +27,6 @@ namespace MarchingSquares
 
         public void Init(int renderWidth, int renderDepth, int heightRange)
         {
-            _terrainMask = 1 << LayerMask.NameToLayer("MarchingQuads");
-
             float unit = 1f / BuildingConst.Unit;
             Builder = new TerrainBuilder(renderWidth, renderDepth, heightRange, unit, transform.position);
             Builder.MaxHeightDiff = BuildingConst.TerrainMaxHeightDiff * BuildingConst.Unit;
@@ -107,7 +104,7 @@ namespace MarchingSquares
 
             float unit      = 1f / BuildingConst.Unit;
             Ray   ray       = Camera.main.ScreenPointToRay(Input.mousePosition);
-            bool  onTerrain = Physics.Raycast(ray, out var hit, 1000f, _terrainMask);
+            bool  onTerrain = _meshCollider.Raycast(ray, out var hit, 1000f);
 
             Vector3 pos;
             if (onTerrain)
@@ -289,8 +286,9 @@ namespace MarchingSquares
             int totalVertex = Builder.length * Builder.width * 6;
             var triangles = new int[totalVertex];
             for (int i = 0; i < totalVertex; i++) triangles[i] = i;
-            RebuildColliderMesh();           // 先填顶点
-            _colliderMesh.triangles = triangles; // 再设三角形索引
+            RebuildColliderMesh();                    // 先填顶点
+            _colliderMesh.triangles = triangles;     // 再设三角形索引
+            _meshCollider.sharedMesh = _colliderMesh; // 三角形到位后强制 re-bake
         }
 
         void RebuildColliderMesh()
