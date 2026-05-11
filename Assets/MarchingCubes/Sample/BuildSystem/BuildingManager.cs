@@ -1,14 +1,13 @@
 using UnityEngine;
-using MarchingSquares;
-using Terrain = MarchingSquares.Terrain;
+using TerrainController = MarchingSquares.TerrainController;
 
 namespace MarchingCubes.Sample
 {
     public enum BuildMode { Terrain, Build }
 
     /// <summary>
-    /// 建造系统总管：持有数据组件引用、驱动状态机、渲染模式切换 UI。
-    /// 交互逻辑全部封装在 TerrainState / BuildState 内部。
+    /// 建造系统总管：持有 BuildController 引用、驱动状态机、渲染模式切换 UI。
+    /// 每次只激活一个 BuildController，交互逻辑全部封装在各 Controller 内部。
     /// </summary>
     public class BuildingManager : MonoBehaviour
     {
@@ -18,12 +17,12 @@ namespace MarchingCubes.Sample
         [SerializeField] private int _areaWidth   = 10;
         [SerializeField] private int _areaDepth   = 10;
         [SerializeField] private int _buildHeight  = 5;
-        
+
         [Header("组件引用")]
-        [SerializeField] private Terrain   terrain;
-        [SerializeField] private Structure  structure;
-        [SerializeField] private KeyCode              _switchKey   = KeyCode.Tab;
-        [SerializeField] private BuildMode            _initialMode = BuildMode.Build;
+        [SerializeField] private TerrainController terrain;
+        [SerializeField] private McController   structure;
+        [SerializeField] private KeyCode   _switchKey   = KeyCode.Tab;
+        [SerializeField] private BuildMode _initialMode = BuildMode.Build;
 
         public BuildMode CurrentMode { get; private set; }
 
@@ -35,16 +34,13 @@ namespace MarchingCubes.Sample
         {
             Instance = this;
 
-            // 统一注入尺寸，确保地形与建造区域一致
             terrain.Init(_areaWidth, _areaDepth, _buildHeight);
             structure.Init(_areaWidth, _buildHeight, _areaDepth);
 
-            var buildState = new BuildState(structure, terrain.Builder);
-            _states = new IBuildState[]
-            {
-                new TerrainState(terrain, () => buildState.SyncWithTerrain(terrain.Builder)),
-                buildState,
-            };
+            structure.SetTerrain(terrain.Builder);
+            terrain.SetSyncCallback(() => structure.SyncWithTerrain(terrain.Builder));
+
+            _states = new IBuildState[] { terrain, structure };
         }
 
         private void Start()

@@ -590,8 +590,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: ede18fc881c57654abde4669f65f9b01, type: 2}
   - {fileID: 11400000, guid: 0d92fa65fc4e42c4e93ad96fede739a9, type: 2}
   _currentConfigIndex: 0
-  _pointCubePrefab: {fileID: 7868424380929822012, guid: feb0a7700d43af04991198f783d23414,
-    type: 3}
+  _buildMask:
+    serializedVersion: 2
+    m_Bits: 64
 --- !u!33 &999007711
 MeshFilter:
   m_ObjectHideFlags: 0
