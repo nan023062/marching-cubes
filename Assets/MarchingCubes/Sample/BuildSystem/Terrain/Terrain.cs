@@ -77,7 +77,12 @@ namespace MarchingSquares
 
         // ── Lifecycle ─────────────────────────────────────────────────────────
 
-        private void OnDrawGizmos() => Builder?.DrawGizmos();
+        private void OnDrawGizmos()
+        {
+            if (Application.isPlaying &&
+                BuildingManager.Instance?.CurrentMode != BuildMode.Terrain) return;
+            Builder?.DrawGizmos();
+        }
         private void OnDestroy()    { Builder = null; }
     }
 }

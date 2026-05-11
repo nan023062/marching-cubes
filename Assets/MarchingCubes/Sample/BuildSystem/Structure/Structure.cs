@@ -20,6 +20,8 @@ namespace MarchingCubes.Sample
         public GameObject PointCubePrefab => _pointCubePrefab;
         public GameObject PointQuadPrefab => _pointQuadPrefab;
 
+        public StructureBuilder Builder { get; set; }
+
         // ── 尺寸（由 BuildingManager.Init 注入，BuildState 读取）────────────
 
         public int RenderWidth  { get; private set; }
@@ -67,6 +69,13 @@ namespace MarchingCubes.Sample
             BuildHeight = buildHeight;
             RenderDepth = renderDepth;
             transform.localScale = Vector3.one / unit;
+        }
+
+        private void OnDrawGizmos()
+        {
+            if (Application.isPlaying &&
+                BuildingManager.Instance?.CurrentMode != BuildMode.Build) return;
+            Builder?.DrawGizmos();
         }
 
         // ── IMeshStore ────────────────────────────────────────────────────────

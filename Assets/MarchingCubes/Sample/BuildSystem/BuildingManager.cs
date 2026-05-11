@@ -39,7 +39,7 @@ namespace MarchingCubes.Sample
             terrain.Init(_areaWidth, _areaDepth, _buildHeight);
             structure.Init(_areaWidth, _buildHeight, _areaDepth);
 
-            var buildState = new BuildState(structure);
+            var buildState = new BuildState(structure, terrain.Builder);
             _states = new IBuildState[]
             {
                 new TerrainState(terrain, () => buildState.SyncWithTerrain(terrain.Builder)),

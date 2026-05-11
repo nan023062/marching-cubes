@@ -21,6 +21,9 @@ namespace MarchingCubes
         
         [Header( "顶点组合" )]
         public CubeVertexMask mask;
+
+        [Header("Gizmos")]
+        public bool showGizmos = false;
         
         private GUIStyle _vertexStyle;
         private GUIStyle _titleStyle;
@@ -44,6 +47,7 @@ namespace MarchingCubes
 
         private void OnDrawGizmos()
         {
+            if (!showGizmos) return;
             if(_vertexStyle == null) return;
             
             Color color = Gizmos.color;

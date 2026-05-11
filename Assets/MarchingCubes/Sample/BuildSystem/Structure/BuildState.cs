@@ -5,16 +5,18 @@ namespace MarchingCubes.Sample
 {
     public class BuildState : IBuildState
     {
-        readonly Structure _structure;
+        readonly Structure              _structure;
+        readonly MarchingSquares.TerrainBuilder _terrain;
 
         StructureBuilder _blockBuilding;
         PointCube[,,]    _pointCubes;
         GameObject[,]    _pointQuads;   // [RenderWidth, RenderDepth]，cell 索引；非平地 cell 槽位 = null
         bool             _interactionActive;
 
-        public BuildState(Structure structure)
+        public BuildState(Structure structure, MarchingSquares.TerrainBuilder terrain)
         {
             _structure = structure;
+            _terrain   = terrain;
             InitBuilding();
         }
 
@@ -29,6 +31,7 @@ namespace MarchingCubes.Sample
             var matrix = Matrix4x4.TRS(_structure.transform.position,
                 Quaternion.identity, Vector3.one / BuildingConst.Unit);
             _blockBuilding = new StructureBuilder(x, y, z, matrix, _structure);
+            _structure.Builder = _blockBuilding;
 
             _pointCubes = new PointCube[x + 1, y + 1, z + 1];
             _pointQuads = new GameObject[_structure.RenderWidth, _structure.RenderDepth];
@@ -39,6 +42,7 @@ namespace MarchingCubes.Sample
         public void OnEnter()
         {
             _structure.SetBuildHandlers(HandleClick, RefreshAllMeshes);
+            SyncWithTerrain(_terrain);
             SetInteraction(true);
         }
 
@@ -129,17 +133,20 @@ namespace MarchingCubes.Sample
                     quad.cz  = cz;
 
                     _pointQuads[cx, cz] = go;
+                    _blockBuilding.SetQuadActive(cx, cz, true, baseH);
                 }
                 else if (!flat && current != null)
                 {
                     Object.Destroy(current);
                     _pointQuads[cx, cz] = null;
+                    _blockBuilding.SetQuadActive(cx, cz, false);
                 }
                 else if (flat && current != null)
                 {
                     var pos = current.transform.localPosition;
                     pos.y = baseH;
                     current.transform.localPosition = pos;
+                    _blockBuilding.SetQuadActive(cx, cz, true, baseH);
                 }
             }
 
