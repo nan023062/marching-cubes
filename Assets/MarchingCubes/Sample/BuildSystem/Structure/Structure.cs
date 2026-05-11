@@ -14,8 +14,11 @@ namespace MarchingCubes.Sample
         [SerializeField] private CasePrefabConfig[] _configs;
         [SerializeField] private int _currentConfigIndex = 0;
 
-        [SerializeField] public GameObject pointCubePrefab;
-        [SerializeField] public GameObject pointQuadPrefab;
+        [SerializeField] private GameObject _pointCubePrefab;
+        [SerializeField] private GameObject _pointQuadPrefab;
+
+        public GameObject PointCubePrefab => _pointCubePrefab;
+        public GameObject PointQuadPrefab => _pointQuadPrefab;
 
         // ── 尺寸（由 BuildingManager.Init 注入，BuildState 读取）────────────
 

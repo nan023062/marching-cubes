@@ -12,6 +12,6 @@ namespace MarchingCubes.Sample
 {
     public class PointQuad : PointElement
     {
-        public int x, z;
+        public int cx, cz;   // cell 索引（不是格点索引）
     }
 }

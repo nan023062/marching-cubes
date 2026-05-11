@@ -67,6 +67,9 @@ namespace MarchingSquares
         public bool ClearTerrainMask()
             => Builder.ClearTerrainMask(_brush);
 
+        public bool IsCellFlat(int cx, int cz, out int baseH)
+            => Builder.IsCellFlat(cx, cz, out baseH);
+
         public void SetBrushVisible(bool visible)
         {
             if (_brush != null) _brush.gameObject.SetActive(visible);

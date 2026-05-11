@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using MarchingSquares;
 
@@ -8,9 +7,9 @@ namespace MarchingCubes.Sample
     {
         readonly Structure _structure;
 
-        StructureBuilder    _blockBuilding;
+        StructureBuilder _blockBuilding;
         PointCube[,,]    _pointCubes;
-        List<GameObject> _pointQuads;
+        GameObject[,]    _pointQuads;   // [RenderWidth, RenderDepth]，cell 索引；非平地 cell 槽位 = null
 
         public BuildState(Structure structure)
         {
@@ -31,27 +30,7 @@ namespace MarchingCubes.Sample
             _blockBuilding = new StructureBuilder(x, y, z, matrix, _structure);
 
             _pointCubes = new PointCube[x + 1, y + 1, z + 1];
-            _pointQuads = new List<GameObject>((x - 1) * (z - 1));
-
-            for (int i = 1; i < x; i++)
-            {
-                for (int j = 1; j < z; j++)
-                {
-                    var go = Object.Instantiate(_structure.pointQuadPrefab);
-                    var t  = go.transform;
-                    t.SetParent(_structure.transform);
-                    t.localPosition = new Vector3(i, 0.5f, j);
-                    t.localRotation = Quaternion.identity;
-                    t.localScale    = new Vector3(1f, 0f, 1f);
-
-                    var quad = go.GetComponent<PointQuad>();
-                    quad.mcs = _structure;
-                    quad.x   = i;
-                    quad.z   = j;
-
-                    _pointQuads.Add(go);
-                }
-            }
+            _pointQuads = new GameObject[_structure.RenderWidth, _structure.RenderDepth];
         }
 
         // ── State lifecycle ───────────────────────────────────────────────────
@@ -100,7 +79,7 @@ namespace MarchingCubes.Sample
             {
                 if (element is PointQuad quad)
                 {
-                    CreateCube(quad.x, 1, quad.z);
+                    CreateCube(quad.cx, 1, quad.cz);
                 }
                 else if (element is PointCube cube)
                 {
@@ -123,46 +102,60 @@ namespace MarchingCubes.Sample
 
         public void SyncWithTerrain(MarchingSquares.TerrainBuilder terrain)
         {
-            int idx = 0;
-            int x = _structure.RenderWidth;
-            int z = _structure.RenderDepth;
+            int xCells = _structure.RenderWidth;
+            int zCells = _structure.RenderDepth;
 
-            for (int i = 1; i < x; i++)
+            // 段一：扫所有 cell，按 IsCellFlat 增/删/移位 PointQuad
+            for (int cx = 0; cx < xCells; cx++)
+            for (int cz = 0; cz < zCells; cz++)
             {
-                for (int j = 1; j < z; j++)
+                bool flat = terrain.IsCellFlat(cx, cz, out int baseH);
+                var current = _pointQuads[cx, cz];
+
+                if (flat && current == null)
                 {
-                    if (idx < _pointQuads.Count && _pointQuads[idx] != null)
-                    {
-                        float h = Mathf.Max(
-                            terrain.GetPointHeight(i,     j),
-                            terrain.GetPointHeight(i + 1, j),
-                            terrain.GetPointHeight(i,     j + 1),
-                            terrain.GetPointHeight(i + 1, j + 1));
-                        var pos = _pointQuads[idx].transform.localPosition;
-                        pos.y = h + 0.5f;
-                        _pointQuads[idx].transform.localPosition = pos;
-                    }
-                    idx++;
+                    var go = Object.Instantiate(_structure.PointQuadPrefab);
+                    var t  = go.transform;
+                    t.SetParent(_structure.transform);
+                    t.localPosition = new Vector3(cx + 0.5f, baseH + 0.5f, cz + 0.5f);
+                    t.localRotation = Quaternion.identity;
+                    t.localScale    = new Vector3(1f, 0f, 1f);
+
+                    var quad = go.GetComponent<PointQuad>();
+                    quad.mcs = _structure;
+                    quad.cx  = cx;
+                    quad.cz  = cz;
+
+                    _pointQuads[cx, cz] = go;
+                }
+                else if (!flat && current != null)
+                {
+                    Object.Destroy(current);
+                    _pointQuads[cx, cz] = null;
+                }
+                else if (flat && current != null)
+                {
+                    var pos = current.transform.localPosition;
+                    pos.y = baseH + 0.5f;
+                    current.transform.localPosition = pos;
                 }
             }
 
+            // 段二：PointCube 冲突销毁（沿用旧逻辑）
             int xMax = _structure.RenderWidth;
             int yMax = _structure.BuildHeight;
             int zMax = _structure.RenderDepth;
-
             for (int ci = 0; ci <= xMax; ci++)
             for (int cj = 0; cj <= yMax; cj++)
             for (int ck = 0; ck <= zMax; ck++)
             {
                 var cube = _pointCubes[ci, cj, ck];
                 if (cube == null) continue;
-
                 bool conflict =
                     terrain.GetPointHeight(ci,     ck)     > cj ||
                     terrain.GetPointHeight(ci + 1, ck)     > cj ||
                     terrain.GetPointHeight(ci,     ck + 1) > cj ||
                     terrain.GetPointHeight(ci + 1, ck + 1) > cj;
-
                 if (conflict) DestroyCube(cube);
             }
         }
@@ -177,7 +170,7 @@ namespace MarchingCubes.Sample
             ref var cube = ref _pointCubes[cx, cy, cz];
             if (cube != null) return;
 
-            var go = Object.Instantiate(_structure.pointCubePrefab);
+            var go = Object.Instantiate(_structure.PointCubePrefab);
             var t  = go.transform;
             t.SetParent(_structure.transform);
             t.localPosition = new Vector3(cx, cy, cz);
