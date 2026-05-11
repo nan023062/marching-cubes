@@ -48,7 +48,7 @@ namespace MarchingSquares
 
         public override void OnUpdate() { }
 
-        public override void OnGUI()
+        public override void DrawGUI()
         {
             const float btnW = 80f, btnH = 28f, pad = 8f, gap = 4f;
             float y = Screen.height - btnH * 3 - pad * 3 - 22f;

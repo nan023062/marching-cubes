@@ -86,7 +86,7 @@ namespace MarchingCubes.Sample
 
         public override void OnUpdate() { }
 
-        public override void OnGUI()
+        public override void DrawGUI()
         {
             int count = ConfigCount;
             if (count <= 1) return;

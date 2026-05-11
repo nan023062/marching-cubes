@@ -65,7 +65,7 @@ namespace MarchingCubes.Sample
         private void OnGUI()
         {
             DrawSwitchUI();
-            _states[(int)CurrentMode].OnGUI();
+            _states[(int)CurrentMode].DrawGUI();
         }
 
         // ── State machine ─────────────────────────────────────────────────────

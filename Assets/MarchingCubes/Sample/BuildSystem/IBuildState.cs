@@ -5,6 +5,6 @@ namespace MarchingCubes.Sample
         void OnEnter();
         void OnExit();
         void OnUpdate();
-        void OnGUI();
+        void DrawGUI();
     }
 }

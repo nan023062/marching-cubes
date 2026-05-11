@@ -38,6 +38,6 @@ namespace MarchingCubes.Sample
         
         public abstract void OnUpdate();
         
-        public abstract void OnGUI();
+        public abstract void DrawGUI();
     }
 }
