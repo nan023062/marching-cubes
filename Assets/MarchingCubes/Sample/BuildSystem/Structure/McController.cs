@@ -17,9 +17,7 @@ namespace MarchingCubes.Sample
         public int BuildHeight { get; private set; }
         public int RenderDepth { get; private set; }
 
-        // ── 事件 ─────────────────────────────────────────────────────────────
-        public event System.Action<Vector3Int, Vector3Int, bool> OnBuildGridClicked;
-        public event System.Action                               OnConfigChanged;
+        bool _active;
 
         StructureBuilder   _blockBuilding;
         GameObject[,,]     _cubeObjects;
@@ -41,7 +39,7 @@ namespace MarchingCubes.Sample
             if (_configs == null || index < 0 || index >= _configs.Length) return;
             if (index == _currentConfigIndex) return;
             _currentConfigIndex = index;
-            OnConfigChanged?.Invoke();
+            RefreshAllCubes();
         }
 
         // ── 初始化 ───────────────────────────────────────────────────────────
@@ -75,16 +73,14 @@ namespace MarchingCubes.Sample
 
         public override void OnEnter()
         {
-            OnBuildGridClicked += HandleBuildClick;
-            OnConfigChanged    += RefreshAllCubes;
+            _active = true;
             if (_terrain != null) SyncWithTerrain(_terrain);
             SetInteraction(true);
         }
 
         public override void OnExit()
         {
-            OnBuildGridClicked -= HandleBuildClick;
-            OnConfigChanged    -= RefreshAllCubes;
+            _active = false;
             SetInteraction(false);
         }
 
@@ -153,15 +149,14 @@ namespace MarchingCubes.Sample
 
         void Update()
         {
+            if (!_active) return;
+            if (Camera.main == null) return;
+
             for (int btn = 0; btn <= 1; btn++)
                 if (Input.GetMouseButtonDown(btn)) _pressButton = btn;
 
-            if (OnBuildGridClicked == null) return;
-            if (Camera.main == null) return;
-
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            if (!Physics.Raycast(ray, out var hit, 1000f)) return;
-            if (hit.transform != transform) return;
+            if (!_meshCollider.Raycast(ray, out var hit, 1000f)) return;
 
             for (int btn = 0; btn <= 1; btn++)
             {
@@ -189,7 +184,7 @@ namespace MarchingCubes.Sample
                 Mathf.RoundToInt(n.y),
                 Mathf.RoundToInt(n.z));
 
-            OnBuildGridClicked?.Invoke(src, adj, left);
+            HandleBuildClick(src, adj, left);
         }
 
         void HandleBuildClick(Vector3Int src, Vector3Int adj, bool left)
@@ -279,8 +274,8 @@ namespace MarchingCubes.Sample
                 int v0 = cVerts.Count;
                 cVerts.Add(new Vector3(cx,   y, cz));   cVerts.Add(new Vector3(cx+1, y, cz));
                 cVerts.Add(new Vector3(cx+1, y, cz+1)); cVerts.Add(new Vector3(cx,   y, cz+1));
-                cTris.Add(v0); cTris.Add(v0+1); cTris.Add(v0+2);
-                cTris.Add(v0); cTris.Add(v0+2); cTris.Add(v0+3);
+                cTris.Add(v0); cTris.Add(v0+2); cTris.Add(v0+1);
+                cTris.Add(v0); cTris.Add(v0+3); cTris.Add(v0+2);
             }
 
             _blockBuilding.AppendExposedFaces(cVerts, cTris);

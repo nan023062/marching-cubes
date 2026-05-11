@@ -17,11 +17,9 @@ namespace MarchingSquares
 
         private System.Action _onTerrainChanged;
         private GameObject[,] _tiles;
+        private bool          _active;
 
         static readonly string[] LayerNames = { "泥", "草", "岩", "雪", "紫" };
-
-        public event System.Action<int, int>       OnPointMove;
-        public event System.Action<int, int, bool> OnPointClicked;
 
         // ── 初始化 ───────────────────────────────────────────────────────────
 
@@ -45,19 +43,8 @@ namespace MarchingSquares
 
         // ── IBuildState ───────────────────────────────────────────────────────
 
-        public override void OnEnter()
-        {
-            SetBrushVisible(true);
-            OnPointMove    += HandlePointMove;
-            OnPointClicked += HandlePointClicked;
-        }
-
-        public override void OnExit()
-        {
-            SetBrushVisible(false);
-            OnPointMove    -= HandlePointMove;
-            OnPointClicked -= HandlePointClicked;
-        }
+        public override void OnEnter() { SetBrushVisible(true);  _active = true;  }
+        public override void OnExit()  { SetBrushVisible(false); _active = false; }
 
         public override void OnUpdate() { }
 
@@ -99,7 +86,7 @@ namespace MarchingSquares
 
         void Update()
         {
-            if (OnPointMove == null && OnPointClicked == null) return;
+            if (!_active) return;
             if (Camera.main == null) return;
 
             float unit      = 1f / BuildingConst.Unit;
@@ -121,7 +108,7 @@ namespace MarchingSquares
 
             int px = Mathf.RoundToInt(pos.x / unit);
             int pz = Mathf.RoundToInt(pos.z / unit);
-            OnPointMove?.Invoke(px, pz);
+            HandlePointMove(px, pz);
 
             if (!onTerrain) { _pressButton = -1; return; }
 
@@ -133,7 +120,7 @@ namespace MarchingSquares
                 if (Input.GetMouseButtonUp(btn) && _pressButton == btn)
                 {
                     _pressButton = -1;
-                    OnPointClicked?.Invoke(px, pz, btn == 0);
+                    HandlePointClicked(px, pz, btn == 0);
                     break;
                 }
             }
