@@ -6,28 +6,63 @@ namespace MarchingCubes.Sample
 {
     public class TerrainState : IBuildState
     {
-        readonly Terrain _sample;
-        readonly int                  _terrainMask;
-        readonly System.Action        _onTerrainChanged;
+        readonly Terrain       _sample;
+        readonly System.Action _onTerrainChanged;
 
-        // 5 种 type（与 atlas layer 0~4 对齐）
         static readonly string[] LayerNames = { "泥", "草", "岩", "雪", "紫" };
-
-        int _pressButton = -1;
 
         public TerrainState(Terrain sample, System.Action onTerrainChanged)
         {
             _sample           = sample;
-            _terrainMask      = 1 << LayerMask.NameToLayer("MarchingQuads");
             _onTerrainChanged = onTerrainChanged;
         }
 
-        public void OnEnter() => _sample.SetBrushVisible(true);
+        public void OnEnter()
+        {
+            _sample.SetBrushVisible(true);
+            _sample.OnPointMove    += HandlePointMove;
+            _sample.OnPointClicked += HandlePointClicked;
+        }
+
         public void OnExit()
         {
             _sample.SetBrushVisible(false);
-            _pressButton = -1;
+            _sample.OnPointMove    -= HandlePointMove;
+            _sample.OnPointClicked -= HandlePointClicked;
         }
+
+        // ── 笔刷位置（吸附到格点高度）────────────────────────────────────────
+
+        void HandlePointMove(int px, int pz)
+        {
+            if (_sample.Brush == null) return;
+            float unit = 1f / BuildingConst.Unit;
+            var   lw   = _sample.Builder.localToWorld;
+            var   t    = _sample.Brush.transform;
+            t.position   = new Vector3(px * unit, _sample.Builder.GetPointHeight(px, pz) * unit + 0.01f, pz * unit);
+            t.localScale = lw.lossyScale;
+            t.rotation   = lw.rotation;
+        }
+
+        // ── 地形编辑 ─────────────────────────────────────────────────────────
+
+        void HandlePointClicked(int px, int pz, bool left)
+        {
+            bool dirty;
+            var  brush = _sample.Brush;
+            if (brush.colorBrush)
+            {
+                int type = _sample.TextureLayer;
+                dirty = left ? _sample.PaintTerrainType(type) : _sample.EraseTerrainType(type);
+            }
+            else
+            {
+                dirty = _sample.BrushMapHigh(left ? 1 : -1);
+            }
+            if (dirty) _onTerrainChanged?.Invoke();
+        }
+
+        public void OnUpdate() { }
 
         public void OnGUI()
         {
@@ -54,80 +89,14 @@ namespace MarchingCubes.Sample
                             sel ? $"[{LayerNames[i]}]" : LayerNames[i]))
                         _sample.TextureLayer = i;
                 }
-                // 「清空」按钮：与叠加 / 擦除并列，笔刷范围内所有 type 一键清掉，恢复 base
                 float clearBtnX = pad + LayerNames.Length * (typeBtnW + gap) + gap;
                 if (GUI.Button(new Rect(clearBtnX, y, btnW, btnH), "清空"))
-                {
                     if (_sample.ClearTerrainMask()) _onTerrainChanged?.Invoke();
-                }
-                // 操作提示：左键 paint（add），右键 erase（清除当前 type 的 bit），清空按钮 = 全部 type 清掉
+
                 y -= btnH + gap;
                 GUI.Label(new Rect(pad, y, 480f, btnH),
                     "左键: 叠加当前 type   |   右键: 擦除当前 type   |   清空: 笔刷内所有 type 归零");
             }
-        }
-
-        public void OnUpdate()
-        {
-            var brush = _sample.Brush;
-            if (brush == null || Camera.main == null) return;
-            Transform t = brush.transform;
-            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-
-            if (Physics.Raycast(ray, out var hit, 1000f, _terrainMask))
-            {
-                var lw = _sample.Builder.localToWorld;
-                t.position   = hit.point;
-                t.localScale = lw.lossyScale;
-                t.rotation   = lw.rotation;
-            }
-            else
-            {
-                float northDis = Vector3.Project(t.position - ray.origin, Vector3.up).magnitude;
-                float cos      = Vector3.Dot(Vector3.down, ray.direction);
-                if (Mathf.Abs(cos) > 0.001f)
-                    t.position = ray.origin + ray.direction * (northDis / cos);
-            }
-
-            float unit = 1f / BuildingConst.Unit;
-            var p = t.position;
-            p.x = Mathf.RoundToInt(p.x / unit) * unit;
-            p.z = Mathf.RoundToInt(p.z / unit) * unit;
-            t.position = p;
-
-            // 记录按下的按键
-            for (int btn = 0; btn <= 1; btn++)
-                if (Input.GetMouseButtonDown(btn))
-                    _pressButton = btn;
-
-            // 抬起时触发：按下与抬起按键匹配即生效（不限按住时长）
-            int clickBtn = -1;
-            for (int btn = 0; btn <= 1; btn++)
-            {
-                if (Input.GetMouseButtonUp(btn) && _pressButton == btn)
-                {
-                    clickBtn     = btn;
-                    _pressButton = -1;
-                    break;
-                }
-            }
-            if (clickBtn < 0) return;
-
-            bool dirty;
-            if (brush.colorBrush)
-            {
-                // 左键叠加当前 type（Add 语义），右键擦除当前 type（Erase 语义）
-                int type = _sample.TextureLayer;
-                dirty = clickBtn == 0
-                    ? _sample.PaintTerrainType(type)
-                    : _sample.EraseTerrainType(type);
-            }
-            else
-            {
-                int delta = clickBtn == 0 ? 1 : -1;
-                dirty = _sample.BrushMapHigh(delta);
-            }
-            if (dirty) _onTerrainChanged?.Invoke();
         }
     }
 }

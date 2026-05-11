@@ -1,81 +1,62 @@
-//****************************************************************************
-// File: Brush.cs
-// Author: Li Nan
-// Date: 2023-08-30 12:00
-// Version: 1.0
-//****************************************************************************
-
-using System;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace MarchingSquares
 {
     public class Brush : MonoBehaviour
     {
-        [Range(1, 5),SerializeField, Header("刷子尺寸")] 
-        private int size;
-        [SerializeField, Header("开启纹理刷")] 
+        [Range(1, 5), SerializeField, Header("刷子尺寸")]
+        private int size = 1;
+
+        [SerializeField, Header("开启纹理刷")]
         public bool colorBrush;
-        
-        private MeshRenderer _renderer;
+
         private MeshFilter _filter;
-        private Mesh _mesh;
-        private int _size;
-        
-        public int Size => _size;
-        
-        public void Awake()
+        private Mesh       _mesh;
+        private int        _cachedSize;
+
+        public int Size => size;
+
+        void Awake()
         {
-            _renderer = GetComponent<MeshRenderer>();
             _filter = GetComponent<MeshFilter>();
-            _size = 0;
-            UpdateMesh();
-        }
-
-        private void OnDestroy()
-        {
-            _filter = null;
-            _renderer = null;
-        }
-
-        private void Update()
-        {
+            _mesh   = new Mesh { name = "Brush" };
             _filter.sharedMesh = _mesh;
+            RebuildMesh();
         }
 
-        private void OnValidate()
-        {
-            UpdateMesh();
-        }
+        void OnValidate() => RebuildMesh();
 
-        private void UpdateMesh()
+        void RebuildMesh()
         {
-            if (size != _size && null != _filter)
+            if (_filter == null || size == _cachedSize) return;
+            _cachedSize = size;
+
+            const int segments = 64;
+            float     radius   = size * 0.5f;
+            const float yOff   = 0.03f;
+
+            var verts = new Vector3[segments + 1];
+            var tris  = new int[segments * 3];
+
+            verts[segments] = new Vector3(0, yOff, 0); // 圆心
+
+            for (int i = 0; i < segments; i++)
             {
-                _size = size;
-                int segment = 16;
-                float segAngle = 360f / segment;
-                Vector3 axis = new Vector3(0,0.01f,0.5f * _size);
-                Vector3[] vertices = new Vector3[segment + 1];
-                int[] triangles = new int[ segment * 3];
-                vertices[segment] = new Vector3(0, 0.01f, 0);
-                for (int i = 0; i < segment; i++)
-                {
-                    vertices[i] = Quaternion.AngleAxis(segAngle * i, Vector3.up) * axis;
-                    int index = i * 3;
-                    triangles[index + 0] = segment;
-                    triangles[index + 1] = i;
-                    triangles[index + 2] = (i + 1) % segment;
-                }
+                float angle = i * Mathf.PI * 2f / segments;
+                verts[i] = new Vector3(Mathf.Cos(angle) * radius, yOff, Mathf.Sin(angle) * radius);
 
-                _mesh = new Mesh
-                {
-                    vertices = vertices,
-                    triangles = triangles,
-                };
-                _mesh.RecalculateNormals();
+                int ti = i * 3;
+                tris[ti]     = segments;
+                tris[ti + 1] = i;
+                tris[ti + 2] = (i + 1) % segments;
             }
+
+            _mesh.Clear();
+            _mesh.vertices  = verts;
+            _mesh.triangles = tris;
+            _mesh.RecalculateNormals();
+            _mesh.RecalculateBounds();
+            _filter.sharedMesh = _mesh;
         }
     }
 }

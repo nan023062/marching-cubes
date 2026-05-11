@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace MarchingCubes.Sample
 {
@@ -7,7 +8,10 @@ namespace MarchingCubes.Sample
     /// 只负责：持有预制体引用、config 配置、IMeshStore、Transform 坐标系初始化。
     /// 建造逻辑（McStructureBuilder、PointCube/Quad、点击处理）全部在 BuildState 中实现。
     /// </summary>
-    public class Structure : MonoBehaviour
+    [RequireComponent(typeof(MeshFilter))]
+    [RequireComponent(typeof(MeshRenderer))]
+    [RequireComponent(typeof(MeshCollider))]
+    public class Structure : MonoBehaviour, IPointerClickHandler
     {
         public uint unit = BuildingConst.Unit;
 
@@ -15,10 +19,8 @@ namespace MarchingCubes.Sample
         [SerializeField] private int _currentConfigIndex = 0;
 
         [SerializeField] private GameObject _pointCubePrefab;
-        [SerializeField] private GameObject _pointQuadPrefab;
 
         public GameObject PointCubePrefab => _pointCubePrefab;
-        public GameObject PointQuadPrefab => _pointQuadPrefab;
 
         public StructureBuilder Builder { get; set; }
 
@@ -48,18 +50,27 @@ namespace MarchingCubes.Sample
         // ── 委托桥（BuildState 注入，PointElement.mcs 回调时转发）───────────
 
         private System.Action<PointElement, bool, Vector3> _clickHandler;
+        private System.Action<Vector3, bool>               _gridClickHandler;
         private System.Action                              _onConfigChanged;
 
         public void SetBuildHandlers(
             System.Action<PointElement, bool, Vector3> clickHandler,
-            System.Action onConfigChanged)
+            System.Action<Vector3, bool>               gridClickHandler,
+            System.Action                              onConfigChanged)
         {
-            _clickHandler    = clickHandler;
-            _onConfigChanged = onConfigChanged;
+            _clickHandler     = clickHandler;
+            _gridClickHandler = gridClickHandler;
+            _onConfigChanged  = onConfigChanged;
         }
 
         public void OnClicked(PointElement element, bool left, in Vector3 normal)
             => _clickHandler?.Invoke(element, left, normal);
+
+        void IPointerClickHandler.OnPointerClick(PointerEventData eventData)
+        {
+            bool left = eventData.button == PointerEventData.InputButton.Left;
+            _gridClickHandler?.Invoke(eventData.pointerCurrentRaycast.worldPosition, left);
+        }
 
         // ── 初始化（由 BuildingManager 驱动，只做 Transform 坐标系设置）──────
 
