@@ -86,17 +86,18 @@ namespace MarchingCubes.Sample
 
         public override void OnUpdate() { }
 
+        static readonly string[] ConfigNames = { "等值面", "圆角Cube" };
+
         public override void DrawGUI()
         {
             int count = ConfigCount;
             if (count <= 1) return;
-            const float btnW = 140f, btnH = 28f, pad = 8f;
-            float totalW = count * (btnW + pad) + pad;
-            GUI.Box(new Rect(pad, pad, totalW, btnH + pad * 2), GUIContent.none);
+            const float btnW = 140f, btnH = 28f, pad = 8f, gap = 4f;
+            float y = Screen.height - btnH * 3 - pad * 3 - 22f;
             for (int i = 0; i < count; i++)
             {
-                string label = GetConfigName(i);
-                Rect r = new Rect(pad + i * (btnW + pad), pad + pad * 0.5f, btnW, btnH);
+                string label = i < ConfigNames.Length ? ConfigNames[i] : GetConfigName(i);
+                Rect r = new Rect(pad + i * (btnW + gap), y, btnW, btnH);
                 if (i == CurrentConfigIndex) GUI.Box(r, label);
                 else if (GUI.Button(r, label)) SwitchConfig(i);
             }
