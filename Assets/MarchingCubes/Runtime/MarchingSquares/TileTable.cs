@@ -24,7 +24,6 @@ namespace MarchingSquares
         public const int BaseCaseCount = 81;
 
         // ── 角点坐标 ─────────────────────────────────────────────────────────
-
         /// <summary>四个角点的 (x, z) 坐标（unit quad [0,1]×[0,1]）。</summary>
         public static readonly (int x, int z)[] Corners =
         {
@@ -72,52 +71,6 @@ namespace MarchingSquares
             return m == 0;
         }
 
-        // ── 纹理组合映射 ──────────────────────────────────────────────────────
-
-        /// <summary>
-        /// 根据四角 terrainType 计算纹理 overlay case index。
-        /// overlayType = 本格需要混合的 overlay 地形类型（大于 baseType 的类型）。
-        /// bit_i=1 表示 Vi 的 terrainType >= overlayType（参与混合）。
-        /// 结果用于查询纹理 atlas（4×4 共 16 种混合图案）。
-        /// </summary>
-        public static int GetTextureCase(byte t0, byte t1, byte t2, byte t3, byte overlayType)
-        {
-            int ci = 0;
-            if (t0 >= overlayType) ci |= 1;
-            if (t1 >= overlayType) ci |= 2;
-            if (t2 >= overlayType) ci |= 4;
-            if (t3 >= overlayType) ci |= 8;
-            return ci;
-        }
-
-        /// <summary>
-        /// 从四角 terrainType 提取 baseType（最小值）和最多 3 层 overlayType。
-        /// 返回 overlay 层数（0~3）。
-        /// </summary>
-        public static int GetTerrainLayers(byte t0, byte t1, byte t2, byte t3,
-                                            out byte baseType,
-                                            out byte overlay1, out byte overlay2, out byte overlay3)
-        {
-            baseType = t0;
-            if (t1 < baseType) baseType = t1;
-            if (t2 < baseType) baseType = t2;
-            if (t3 < baseType) baseType = t3;
-
-            overlay1 = overlay2 = overlay3 = 0;
-            int count = 0;
-            for (byte t = (byte)(baseType + 1); t < 5; t++)
-            {
-                if (t == t0 || t == t1 || t == t2 || t == t3)
-                {
-                    if      (count == 0) overlay1 = t;
-                    else if (count == 1) overlay2 = t;
-                    else                 overlay3 = t;
-                    count++;
-                }
-            }
-            return count;
-        }
-
         // ── Atlas 美术约定（terrain_overlay.asset 4×4 子格排布）────────────────
         //
         // atlas 子格按 TileTable 标准编码排布（与角点 V0~V3 序号直接对应）：
@@ -141,16 +94,5 @@ namespace MarchingSquares
             | (((mBR >> bit) & 1) << 1)
             | (((mTR >> bit) & 1) << 2)
             | (((mTL >> bit) & 1) << 3);
-
-        /// <summary>4 角是否参与 (true/false) → atlas case_idx (0~15)。离线工具友好。</summary>
-        public static int GetAtlasCase(bool BL, bool BR, bool TR, bool TL)
-            =>  (BL ? 1 : 0)
-            |   (BR ? 1 : 0) << 1
-            |   (TR ? 1 : 0) << 2
-            |   (TL ? 1 : 0) << 3;
-
-        /// <summary>atlas case_idx (0~15) → 子格 (col, row)（Unity UV，row=0 在底）。</summary>
-        public static (int col, int row) GetAtlasCell(int atlasCase)
-            => (atlasCase & 3, atlasCase >> 2);
     }
 }

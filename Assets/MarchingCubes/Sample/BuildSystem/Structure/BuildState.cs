@@ -24,12 +24,12 @@ namespace MarchingCubes.Sample
 
         void InitBuilding()
         {
-            int x = _structure.RenderWidth;
+            int x = _structure.RenderWidth  + 1;
             int y = _structure.BuildHeight;
-            int z = _structure.RenderDepth;
+            int z = _structure.RenderDepth  + 1;
 
-            var matrix = Matrix4x4.TRS(_structure.transform.position,
-                Quaternion.identity, Vector3.one / BuildingConst.Unit);
+            var pos    = _structure.transform.position - new Vector3(0.5f, 0.5f, 0.5f);
+            var matrix = Matrix4x4.TRS(pos, Quaternion.identity, Vector3.one / BuildingConst.Unit);
             _blockBuilding = new StructureBuilder(x, y, z, matrix, _structure);
             _structure.Builder = _blockBuilding;
 
@@ -84,7 +84,8 @@ namespace MarchingCubes.Sample
             {
                 if (element is PointQuad quad)
                 {
-                    CreateCube(quad.cx, 1, quad.cz);
+                    int baseH = Mathf.RoundToInt(quad.transform.localPosition.y - 0.1f);
+                    CreateCube(quad.cx + 1, baseH + 1, quad.cz + 1);
                 }
                 else if (element is PointCube cube)
                 {
@@ -122,9 +123,9 @@ namespace MarchingCubes.Sample
                     var go = Object.Instantiate(_structure.PointQuadPrefab);
                     var t  = go.transform;
                     t.SetParent(_structure.transform);
-                    t.localPosition = new Vector3(cx + 0.5f, baseH, cz + 0.5f);
+                    t.localPosition = new Vector3(cx + 0.5f, baseH + 0.1f, cz + 0.5f);
                     t.localRotation = Quaternion.identity;
-                    t.localScale    = new Vector3(1f, 0f, 1f);
+                    t.localScale    = new Vector3(1f, 0.2f, 1f);
                     go.SetActive(_interactionActive);
 
                     var quad = go.GetComponent<PointQuad>();
@@ -144,7 +145,7 @@ namespace MarchingCubes.Sample
                 else if (flat && current != null)
                 {
                     var pos = current.transform.localPosition;
-                    pos.y = baseH;
+                    pos.y = baseH + 0.1f;
                     current.transform.localPosition = pos;
                     _blockBuilding.SetQuadActive(cx, cz, true, baseH);
                 }
@@ -154,17 +155,19 @@ namespace MarchingCubes.Sample
             int xMax = _structure.RenderWidth;
             int yMax = _structure.BuildHeight;
             int zMax = _structure.RenderDepth;
-            for (int ci = 0; ci <= xMax; ci++)
-            for (int cj = 0; cj <= yMax; cj++)
-            for (int ck = 0; ck <= zMax; ck++)
+            for (int ci = 1; ci <= xMax; ci++)
+            for (int cj = 1; cj <= yMax; cj++)
+            for (int ck = 1; ck <= zMax; ck++)
             {
                 var cube = _pointCubes[ci, cj, ck];
                 if (cube == null) continue;
+
                 bool conflict =
-                    terrain.GetPointHeight(ci,     ck)     > cj ||
-                    terrain.GetPointHeight(ci + 1, ck)     > cj ||
-                    terrain.GetPointHeight(ci,     ck + 1) > cj ||
-                    terrain.GetPointHeight(ci + 1, ck + 1) > cj;
+                    terrain.GetPointHeight(ci - 1, ck - 1) >= cj ||
+                    terrain.GetPointHeight(ci,     ck - 1) >= cj ||
+                    terrain.GetPointHeight(ci - 1, ck    ) >= cj ||
+                    terrain.GetPointHeight(ci,     ck    ) >= cj;
+
                 if (conflict) DestroyCube(cube);
             }
         }
@@ -182,7 +185,7 @@ namespace MarchingCubes.Sample
             var go = Object.Instantiate(_structure.PointCubePrefab);
             var t  = go.transform;
             t.SetParent(_structure.transform);
-            t.localPosition = new Vector3(cx, cy, cz);
+            t.localPosition = new Vector3(cx - 0.5f, cy - 0.5f, cz - 0.5f);
             t.localRotation = Quaternion.identity;
             t.localScale    = Vector3.one;
 

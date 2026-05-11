@@ -138,8 +138,8 @@ namespace MarchingCubes.Sample
             var prevMatrix = Gizmos.matrix;
             Gizmos.matrix = _localToWorld;
 
-            // 外露 cube 面（淡绿色）
-            Gizmos.color = new Color(0.4f, 0.9f, 0.4f, 0.7f);
+            // 外露 cube 面（灰色）
+            Gizmos.color = new Color(1f, 1f, 1f, 0.35f);
             for (int x = 0; x <= X; x++)
             for (int y = 0; y <= Y; y++)
             for (int z = 0; z <= Z; z++)
@@ -153,15 +153,15 @@ namespace MarchingCubes.Sample
                 if (!IsActive(x,     y,     z - 1)) DrawFace(new Vector3(x,        y,        z - 0.5f), Vector3.right,   Vector3.up);
             }
 
-            // 地面 quad 面（青绿色），被 cube 占据时不显示
-            Gizmos.color = new Color(0.3f, 0.85f, 0.55f, 0.6f);
+            // 地面 quad 面（灰色），被 cube 占据时不显示
+            Gizmos.color = new Color(1f, 1f, 1f, 0.35f);
             for (int cx = 0; cx < X; cx++)
             for (int cz = 0; cz < Z; cz++)
             {
                 if (!_quadActive[cx, cz]) continue;
-                if (IsActive(cx, 1, cz)) continue;
                 float y = _quadBaseH[cx, cz];
-                DrawFace(new Vector3(cx + 0.5f, y, cz + 0.5f), Vector3.right, Vector3.forward);
+                if (IsActive(cx + 1, Mathf.RoundToInt(y) + 1, cz + 1)) continue;
+                DrawFace(new Vector3(cx + 1f, y + 0.5f, cz + 1f), Vector3.right, Vector3.forward);
             }
 
             Gizmos.matrix = prevMatrix;
