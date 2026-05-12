@@ -7,14 +7,14 @@
     { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" },
     { "target": "marching-cubes/runtime/marching-squares", "type": "Association" }
   ],
-  "submodules": ["terrain", "structure", "faced"],
+  "submodules": ["terrain", "structure"],
   "boundary": "semi-open",
   "publicApi": [
     "BuildingManager — 建造系统总管（MonoBehaviour + 状态机，Singleton）：SwitchTo(BuildMode) / CurrentMode / Awake 统一注入尺寸",
     "BuildingConst — 共享常量：Unit(uint=4) / TerrainMaxHeightDiff(int=3)，两子模块 unit 对齐的唯一真相源",
     "BuildController — 抽象基类（MonoBehaviour）：_cursor(Cursor) / SetActive(bool) / SetInteraction(bool) / InitGridMeshes / TryRaycast / OnPointerMove/Down/Drag/Up/Click 虚方法；ClickMaxDuration=0.5f；Update 主循环统一管理",
     "IBuildState — 状态机接口：OnEnter / OnExit / OnUpdate / DrawGUI（原 OnGUI，已改名以避免 Unity 自动调用）",
-    "BuildMode — 状态枚举：Terrain / Build / Face"
+    "BuildMode — 状态枚举：Terrain / Build"
   ],
   "constraints": [
     "BuildingConst.Unit 是 terrain 和 structure 子模块 unit 对齐的唯一真相源：TerrainBuilder.unit = 1f / Unit，McController.unit = Unit",

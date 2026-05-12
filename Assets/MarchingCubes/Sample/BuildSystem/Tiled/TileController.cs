@@ -50,12 +50,16 @@ namespace MarchingSquares
         public override void DrawGUI()
         {
             const float btnW = 80f, btnH = 28f, pad = 8f, gap = 4f;
-            float y = Screen.height - 168f;
+            float y = Screen.height - 204f;
 
             GUI.Label(new Rect(pad, Screen.height - 132f, 480f, 20f),
                 _colorBrush
                     ? "左键 叠加当前笔刷  右键 擦除当前笔刷  清空 笔刷内全归零"
                     : "左键 升高地形  右键 降低地形");
+
+            if (GUI.Button(new Rect(pad, Screen.height - 168f, btnW + 20f, btnH),
+                    Previewing ? "[ 隐藏预览 ]" : "  预览Cases  "))
+                TogglePreview(GetAllTilePrefabs());
 
             if (GUI.Button(new Rect(pad, y, btnW, btnH),
                     !_colorBrush ? "[ 高度 ]" : "  高度  "))
@@ -313,6 +317,14 @@ namespace MarchingSquares
             _visualMesh.RecalculateBounds();
         }
         
-        private void OnDestroy() { Builder = null; }
+        GameObject[] GetAllTilePrefabs()
+        {
+            var result = new GameObject[TileCaseConfig.TerrainCaseCount];
+            for (int i = 0; i < TileCaseConfig.TerrainCaseCount; i++)
+                result[i] = _meshConfig?.GetPrefab(i);
+            return result;
+        }
+
+        protected override void OnDestroy() { base.OnDestroy(); Builder = null; }
     }
 }

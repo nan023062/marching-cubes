@@ -81,14 +81,18 @@ namespace MarchingCubes.Sample
 
         public override void DrawGUI()
         {
-            const float pad = 8f;
+            const float pad = 8f, btnH = 28f;
             GUI.Label(new Rect(pad, Screen.height - 132f, 320f, 20f),
                 "左键 放置方块  右键 移除方块");
 
+            if (GUI.Button(new Rect(pad, Screen.height - 168f, 120f, btnH),
+                    Previewing ? "[ 隐藏预览 ]" : "  预览Cases  "))
+                TogglePreview(GetCurrentConfigPrefabs());
+
             int count = ConfigCount;
             if (count <= 1) return;
-            const float btnW = 140f, btnH = 28f, gap = 4f;
-            float y = Screen.height - 168f;
+            const float btnW = 140f, gap = 4f;
+            float y = Screen.height - 204f;
             for (int i = 0; i < count; i++)
             {
                 string label = i < ConfigNames.Length ? ConfigNames[i] : GetConfigName(i);
@@ -96,6 +100,17 @@ namespace MarchingCubes.Sample
                 if (i == CurrentConfigIndex) GUI.Box(r, label);
                 else if (GUI.Button(r, label)) SwitchConfig(i);
             }
+        }
+
+        GameObject[] GetCurrentConfigPrefabs()
+        {
+            if (_configs == null || _configs.Length == 0) return new GameObject[0];
+            int idx = Mathf.Clamp(_currentConfigIndex, 0, _configs.Length - 1);
+            var config = _configs[idx];
+            var result = new GameObject[256];
+            for (int i = 0; i < 256; i++)
+                result[i] = config?.GetPrefab(i);
+            return result;
         }
 
         // ── Cube 实例管理（Controller 负责 GO 生命周期）──────────────────────

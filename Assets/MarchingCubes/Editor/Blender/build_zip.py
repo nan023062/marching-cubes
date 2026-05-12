@@ -9,7 +9,7 @@ ROOT = pathlib.Path(__file__).parent
 SRC  = ROOT / "mc_building_artmesh"
 OUT  = ROOT / "mc_building_artmesh.zip"
 
-FILES = ["__init__.py", "cube_table.py", "mc_mesh.py", "mq_mesh.py", "me_mesh.py"]
+FILES = ["__init__.py", "cube_table.py", "mc_mesh.py", "mq_mesh.py"]
 
 with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as zf:
     for name in FILES:

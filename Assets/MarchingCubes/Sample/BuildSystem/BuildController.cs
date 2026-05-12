@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using MarchingSquares;
 
@@ -14,6 +15,53 @@ namespace MarchingCubes.Sample
         protected Mesh         _colliderMesh;
         protected MeshCollider _meshCollider;
         bool                   _active;
+
+        // ── Case 预览 ────────────────────────────────────────────────────────
+
+        bool                   _previewing;
+        readonly List<GameObject> _previewObjects = new List<GameObject>();
+
+        protected bool Previewing => _previewing;
+
+        protected void TogglePreview(GameObject[] prefabs, float spacing = 1.5f)
+        {
+            if (_previewing) { ClearPreview(); return; }
+
+            var valid = new List<GameObject>();
+            foreach (var p in prefabs) if (p != null) valid.Add(p);
+            if (valid.Count == 0) return;
+
+            int cols = Mathf.Max(1, Mathf.CeilToInt(Mathf.Sqrt(valid.Count)));
+
+            var cam   = Camera.main;
+            Vector3 fwd   = cam != null ? cam.transform.forward : Vector3.forward;
+            Vector3 right = cam != null ? cam.transform.right   : Vector3.right;
+            fwd.y   = 0f; fwd   = fwd.sqrMagnitude   > 0.001f ? fwd.normalized   : Vector3.forward;
+            right.y = 0f; right = right.sqrMagnitude > 0.001f ? right.normalized : Vector3.right;
+
+            float dist   = Mathf.Max(cols, Mathf.CeilToInt((float)valid.Count / cols)) * spacing * 0.6f + 6f;
+            Vector3 base_ = cam != null ? cam.transform.position : Vector3.zero;
+            base_.y = 0f;
+            Vector3 origin = base_ + fwd * dist - right * ((cols - 1) * spacing * 0.5f);
+
+            for (int i = 0; i < valid.Count; i++)
+            {
+                int r = i / cols, c = i % cols;
+                Vector3 pos = origin + right * (c * spacing) + fwd * (r * spacing);
+                pos.y = 0f;
+                _previewObjects.Add(Object.Instantiate(valid[i], pos, Quaternion.identity));
+            }
+            _previewing = true;
+        }
+
+        protected void ClearPreview()
+        {
+            foreach (var go in _previewObjects) if (go != null) Object.Destroy(go);
+            _previewObjects.Clear();
+            _previewing = false;
+        }
+
+        protected virtual void OnDestroy() => ClearPreview();
 
         const    float   ClickMaxDuration = 0.5f;
         readonly float[] _pressTime       = { -1f, -1f };
@@ -100,6 +148,7 @@ namespace MarchingCubes.Sample
         {
             _active = active;
             if (_cursor != null) _cursor.gameObject.SetActive(active);
+            if (!active) ClearPreview();
         }
 
         public abstract void OnEnter();
