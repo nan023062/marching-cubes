@@ -20,7 +20,16 @@ namespace MarchingCubes.Sample
 
         static int[]        s_canonIdx;
         static Quaternion[] s_canonRot;
+        static int[]        s_canonList;   // canonical masks indexed 0..CanonicalCount-1
         public static int   CanonicalCount { get; private set; }
+
+        // ── Editor API ───────────────────────────────────────────────────────
+        public static void InitLookup()                    => EnsureLookup();
+        public static int  GetCanonicalMask(int canonIdx)
+        {
+            EnsureLookup();
+            return canonIdx >= 0 && canonIdx < s_canonList.Length ? s_canonList[canonIdx] : 0;
+        }
 
         // ── 构造 ─────────────────────────────────────────────────────────────
 
@@ -157,6 +166,7 @@ namespace MarchingCubes.Sample
 
             var canonList = canonSet.ToArray();
             CanonicalCount = canonList.Length; // 应为 1044
+            s_canonList    = canonList;
             var idxOf = new Dictionary<int, int>(canonList.Length);
             for (int i = 0; i < canonList.Length; i++) idxOf[canonList[i]] = i;
 
