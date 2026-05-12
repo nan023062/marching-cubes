@@ -3,7 +3,7 @@ using MarchingSquares;
 
 namespace MarchingCubes.Sample
 {
-    public enum BuildMode { Terrain, Build }
+    public enum BuildMode { Terrain, Build, Face }
 
     public class BuildingManager : MonoBehaviour
     {
@@ -59,7 +59,7 @@ namespace MarchingCubes.Sample
 
             terrain.SetSyncCallback(() => structure.SyncWithTerrain());
 
-            _states = new IBuildState[] { terrain, structure };
+            _states = new IBuildState[] { terrain, structure, face };
         }
 
         private void Start()
@@ -76,9 +76,13 @@ namespace MarchingCubes.Sample
         private void Update()
         {
             if (Input.GetKeyDown(_switchKey))
-                SwitchTo(CurrentMode == BuildMode.Terrain ? BuildMode.Build : BuildMode.Terrain);
+            {
+                int next = ((int)CurrentMode + 1) % _states.Length;
+                while (_states[next] == null) next = (next + 1) % _states.Length;
+                SwitchTo((BuildMode)next);
+            }
 
-            _states[(int)CurrentMode].OnUpdate();
+            _states[(int)CurrentMode]?.OnUpdate();
         }
 
         private void OnGUI()
@@ -92,7 +96,8 @@ namespace MarchingCubes.Sample
         public void SwitchTo(BuildMode mode)
         {
             if (mode == CurrentMode) return;
-            _states[(int)CurrentMode].OnExit();
+            if (_states[(int)mode] == null) return;
+            _states[(int)CurrentMode]?.OnExit();
             CurrentMode = mode;
             _states[(int)CurrentMode].OnEnter();
         }
@@ -102,18 +107,28 @@ namespace MarchingCubes.Sample
         private void DrawSwitchUI()
         {
             const float btnW = 100f, btnH = 32f, pad = 8f, gap = 4f;
-            float y = Screen.height - btnH - pad;
+            float y = Screen.height - btnH - 12f;   // 12px bottom margin
 
-            if (GUI.Button(new Rect(pad, y, btnW, btnH),
-                    CurrentMode == BuildMode.Terrain ? "[ 地形 ]" : "  地形  "))
-                SwitchTo(BuildMode.Terrain);
+            (BuildMode mode, string label)[] buttons =
+            {
+                (BuildMode.Terrain, "地形"),
+                (BuildMode.Build,   "建造"),
+                (BuildMode.Face,    "面建造"),
+            };
 
-            if (GUI.Button(new Rect(pad + btnW + gap, y, btnW, btnH),
-                    CurrentMode == BuildMode.Build ? "[ 建造 ]" : "  建造  "))
-                SwitchTo(BuildMode.Build);
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                var (mode, label) = buttons[i];
+                if (_states[(int)mode] == null) continue;
+                var rect = new Rect(pad + i * (btnW + gap), y, btnW, btnH);
+                if (CurrentMode == mode) GUI.Box(rect, $"[ {label} ]");
+                else if (GUI.Button(rect, $"  {label}  ")) SwitchTo(mode);
+            }
 
-            GUI.Label(new Rect(pad, y - 22f, 260f, 18f),
-                $"[{_switchKey}] 切换  当前：{(CurrentMode == BuildMode.Terrain ? "地形" : "Cube 建造")}");
+            GUI.Label(new Rect(pad, y - 28f, 320f, 20f),
+                $"[{_switchKey}] 切换  当前：{buttons[(int)CurrentMode].label}");
+            GUI.Label(new Rect(pad, y - 56f, 440f, 20f),
+                "WASD 移动  滚轮 缩放  按住右键拖动 转视角");
         }
     }
 }

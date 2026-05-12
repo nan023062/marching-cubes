@@ -34,7 +34,12 @@ namespace MarchingCubes.Sample
         public override void OnEnter() { SetActive(true);  SetInteraction(true);  }
         public override void OnExit()  { SetActive(false); SetInteraction(false); }
         public override void OnUpdate() { }
-        public override void DrawGUI()  { }
+        public override void DrawGUI()
+        {
+            const float pad = 8f;
+            GUI.Label(new Rect(pad, Screen.height - 132f, 320f, 20f),
+                "左键 放置面元素  右键 移除面元素");
+        }
 
         // ── 输入响应 ─────────────────────────────────────────────────────────
 

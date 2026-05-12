@@ -50,7 +50,12 @@ namespace MarchingSquares
         public override void DrawGUI()
         {
             const float btnW = 80f, btnH = 28f, pad = 8f, gap = 4f;
-            float y = Screen.height - btnH * 3 - pad * 3 - 22f;
+            float y = Screen.height - 168f;
+
+            GUI.Label(new Rect(pad, Screen.height - 132f, 480f, 20f),
+                _colorBrush
+                    ? "左键 叠加当前笔刷  右键 擦除当前笔刷  清空 笔刷内全归零"
+                    : "左键 升高地形  右键 降低地形");
 
             if (GUI.Button(new Rect(pad, y, btnW, btnH),
                     !_colorBrush ? "[ 高度 ]" : "  高度  "))
@@ -75,10 +80,6 @@ namespace MarchingSquares
                 float clearBtnX = pad + LayerNames.Length * (typeBtnW + gap) + gap;
                 if (GUI.Button(new Rect(clearBtnX, y, btnW, btnH), "清空"))
                     if (ClearTerrainMask()) _onTerrainChanged?.Invoke();
-
-                y -= btnH + gap;
-                GUI.Label(new Rect(pad, y, 480f, btnH),
-                    "左键: 叠加当前 type   |   右键: 擦除当前 type   |   清空: 笔刷内所有 type 归零");
             }
         }
 

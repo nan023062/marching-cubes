@@ -81,10 +81,14 @@ namespace MarchingCubes.Sample
 
         public override void DrawGUI()
         {
+            const float pad = 8f;
+            GUI.Label(new Rect(pad, Screen.height - 132f, 320f, 20f),
+                "左键 放置方块  右键 移除方块");
+
             int count = ConfigCount;
             if (count <= 1) return;
-            const float btnW = 140f, btnH = 28f, pad = 8f, gap = 4f;
-            float y = Screen.height - btnH * 3 - pad * 3 - 22f;
+            const float btnW = 140f, btnH = 28f, gap = 4f;
+            float y = Screen.height - 168f;
             for (int i = 0; i < count; i++)
             {
                 string label = i < ConfigNames.Length ? ConfigNames[i] : GetConfigName(i);
