@@ -149,9 +149,9 @@ namespace MarchingCubes.Sample
             _cursor.gameObject.SetActive(onMesh);
             if (!onMesh) return;
 
-            CalcSrcAdj(hit, out _, out var adj);
+            CalcSrcAdj(hit, out var src, out _);
             float cellSize = 1f / BuildingConst.Unit;
-            _cursor.transform.position   = _blockBuilding.localToWorld.MultiplyPoint((Vector3)adj);
+            _cursor.transform.position   = _blockBuilding.localToWorld.MultiplyPoint((Vector3)src);
             _cursor.transform.localScale = Vector3.one * cellSize;
         }
 
