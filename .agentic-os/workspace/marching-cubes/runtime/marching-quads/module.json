@@ -1,0 +1,22 @@
+{
+  "name": "marching-quads",
+  "workspaceType": "csharp-unity",
+  "summary": "MarchingQuads 围墙/围栏运行时：per-vertex 4-bit 面板连接系统，D4 对称归约 → 6 canonical，生成垂直面板网格",
+  "workspace": ["Assets/MarchingCubes/Runtime/MarchingQuads"],
+  "dependencies": [],
+  "boundary": "closed",
+  "publicApi": [
+    "QuadVertexMask — [Flags] 4-bit 顶点面板掩码（North/East/South/West）",
+    "PanelAxis — X（东西隔断）/ Z（南北隔断）",
+    "IMqReceiver — 重建回调接口",
+    "QuadTable — 静态查表：Rot90, FlipX, GetCanonical(mask)→(canonIdx,rot,flip), GetVertexMask(xPanels,zPanels,vx,vz), CanonicalCount(6)",
+    "QuadMesh — 静态网格生成：BuildPanels(xPanels,zPanels,cellSize,wallHeight)→Mesh, BuildSingle(cellSize,wallHeight)→Mesh"
+  ],
+  "constraints": [
+    "纯 C#，仅依赖 UnityEngine，不引用 Sample 层",
+    "数据：xPanels[vx,cz]（东西隔断面板, 维度(W+1)×D）+ zPanels[cx,vz]（南北隔断面板, 维度W×(D+1)）",
+    "顶点 mask bit 编码：bit0=N(xPanels[vx,vz]), bit1=E(zPanels[vx,vz]), bit2=S(xPanels[vx,vz-1]), bit3=W(zPanels[vx-1,vz])",
+    "对称群：D4 水平（与 MarchingSquares 完全相同），6 canonical 代表元：0/1/3/5/7/15",
+    "与 MarchingSquares 区别：面板数据（xPanels/zPanels 两组数组），几何垂直（高度方向 Y），用于围墙/围栏/隔断"
+  ]
+}
