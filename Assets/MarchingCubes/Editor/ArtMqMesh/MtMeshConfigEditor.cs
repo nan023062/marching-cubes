@@ -95,7 +95,7 @@ namespace MarchingCubes.Editor
 
             for (int ci = 0; ci < total; ci++)
             {
-                if (!MarchingSquareTerrain.TileTable.IsValidCase(ci)) { skipDead++; continue; }
+                if (!MarchingSquares.TileTable.IsValidCase(ci)) { skipDead++; continue; }
 
                 string fbxPath = $"{cfg.editorFbxFolder.TrimEnd('/', '\\')}/mq_case_{ci}.fbx";
                 var fbx = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
@@ -143,7 +143,7 @@ namespace MarchingCubes.Editor
                     int valid = 0, filled = 0;
                     for (int ci = 0; ci < total; ci++)
                     {
-                        if (!MarchingSquareTerrain.TileTable.IsValidCase(ci)) continue;
+                        if (!MarchingSquares.TileTable.IsValidCase(ci)) continue;
                         valid++;
                         if (cfg.GetPrefab(ci) != null) filled++;
                     }
@@ -161,7 +161,7 @@ namespace MarchingCubes.Editor
             {
                 int col = ci % Cols, row = ci / Cols;
                 Rect r = new Rect(outer.x + col * CellSz, outer.y + row * CellSz, CellSz - 1, CellSz - 1);
-                bool dead = !MarchingSquareTerrain.TileTable.IsValidCase(ci);
+                bool dead = !MarchingSquares.TileTable.IsValidCase(ci);
                 bool has  = !dead && cfg.GetPrefab(ci) != null;
                 bool sel  = ci == _selectedTerrain;
                 Color cellColor = dead ? ColDead : (sel ? ColSel : (has ? ColHas : ColNone));
