@@ -104,7 +104,8 @@ namespace MarchingCubes.Editor
 
                 var root  = new GameObject($"me_case_{ci}");
                 var child = (GameObject)PrefabUtility.InstantiatePrefab(fbxAsset, root.transform);
-                child.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+                child.transform.localPosition = Vector3.zero;
+                child.transform.localRotation = Quaternion.identity;
                 child.transform.localScale = Vector3.one;
 
                 string prefabPath = $"{relOut}/me_case_{ci}.prefab";
