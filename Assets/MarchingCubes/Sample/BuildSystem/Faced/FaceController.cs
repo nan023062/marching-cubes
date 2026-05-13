@@ -100,7 +100,7 @@ namespace MarchingCubes.Sample
                 _vertexObjects[vx, vy, vz] = null;
             }
 
-            var (canonIdx, rot) = Builder.GetCanonical(vx, vy, vz);
+            var (canonIdx, rot, flip) = Builder.GetCanonical(vx, vy, vz);
             if (canonIdx == 0) return;
 
             var prefab = _config?.GetPrefab(canonIdx);
@@ -110,7 +110,7 @@ namespace MarchingCubes.Sample
             var go = Object.Instantiate(prefab);
             go.transform.SetPositionAndRotation(
                 transform.TransformPoint(new Vector3(vx, vy, vz)), rot);
-            go.transform.localScale = Vector3.one * unit;
+            go.transform.localScale = new Vector3(flip ? -unit : unit, unit, unit);
             _vertexObjects[vx, vy, vz] = go;
         }
 

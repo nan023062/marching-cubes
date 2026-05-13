@@ -20,6 +20,7 @@ namespace MarchingCubes.Sample
 
         static int[]        s_canonIdx;
         static Quaternion[] s_canonRot;
+        static bool[]       s_canonFlip;   // canonical 对应 mask 是否需要 X 轴镜像
         static int[]        s_canonList;   // canonical masks indexed 0..CanonicalCount-1
         public static int   CanonicalCount { get; private set; }
 
@@ -131,10 +132,10 @@ namespace MarchingCubes.Sample
             return m;
         }
 
-        public (int canonIdx, Quaternion rot) GetCanonical(int vx, int vy, int vz)
+        public (int canonIdx, Quaternion rot, bool flip) GetCanonical(int vx, int vy, int vz)
         {
             int c = GetCaseIndex(vx, vy, vz);
-            return (s_canonIdx[c], s_canonRot[c]);
+            return (s_canonIdx[c], s_canonRot[c], s_canonFlip[c]);
         }
 
         bool XF(int vx, int j,  int k)  => InBoundsX(vx, j,  k)  && _xFaces[vx, j,  k];
@@ -147,36 +148,74 @@ namespace MarchingCubes.Sample
         {
             if (s_canonIdx != null) return;
 
-            var maskToMin = new int[4096];
-            var maskToRot = new int[4096];
-            var canonSet  = new SortedSet<int>();
+            var maskToMin  = new int[4096];
+            var maskToRot  = new int[4096];
+            var maskToFlip = new bool[4096];
+            var canonSet   = new SortedSet<int>();
 
             for (int m = 0; m < 4096; m++)
             {
-                int minM = m, bestR = 0, cur = m;
+                int  minM     = m;
+                int  bestR    = 0;
+                bool bestFlip = false;
+
+                // 4 旋转（无翻转）
+                int cur = m;
                 for (int r = 1; r < 4; r++)
                 {
                     cur = Rotate90CW(cur);
-                    if (cur < minM) { minM = cur; bestR = r; }
+                    if (cur < minM) { minM = cur; bestR = r; bestFlip = false; }
                 }
-                maskToMin[m] = minM;
-                maskToRot[m] = bestR;
+
+                // FlipX 后再 4 旋转（水平镜像 × 旋转）
+                cur = FlipX(m);
+                for (int r = 0; r < 4; r++)
+                {
+                    if (r > 0) cur = Rotate90CW(cur);
+                    if (cur < minM) { minM = cur; bestR = r; bestFlip = true; }
+                }
+
+                maskToMin[m]  = minM;
+                maskToRot[m]  = bestR;
+                maskToFlip[m] = bestFlip;
                 canonSet.Add(minM);
             }
 
             var canonList = canonSet.ToArray();
-            CanonicalCount = canonList.Length; // 应为 1044
+            CanonicalCount = canonList.Length; // 618（D4 水平对称：4旋转 + X镜像）
             s_canonList    = canonList;
             var idxOf = new Dictionary<int, int>(canonList.Length);
             for (int i = 0; i < canonList.Length; i++) idxOf[canonList[i]] = i;
 
-            s_canonIdx = new int[4096];
-            s_canonRot = new Quaternion[4096];
+            s_canonIdx  = new int[4096];
+            s_canonRot  = new Quaternion[4096];
+            s_canonFlip = new bool[4096];
             for (int m = 0; m < 4096; m++)
             {
-                s_canonIdx[m] = idxOf[maskToMin[m]];
-                s_canonRot[m] = Quaternion.Euler(0, maskToRot[m] * 90f, 0);
+                s_canonIdx[m]  = idxOf[maskToMin[m]];
+                s_canonRot[m]  = Quaternion.Euler(0, maskToRot[m] * 90f, 0);
+                s_canonFlip[m] = maskToFlip[m];
             }
+        }
+
+        /// <summary>X→−X 水平镜像的 12-bit 置换
+        /// X 组（YZ 平面，x=0 即镜像轴）：不变
+        /// Y 组：Y0↔Y1（bit4↔5），Y2↔Y3（bit6↔7）
+        /// Z 组：Z0↔Z1（bit8↔9），Z2↔Z3（bit10↔11）
+        /// </summary>
+        static int FlipX(int mask)
+        {
+            int r = 0;
+            r |= (mask & 0xF);                                      // X 组不变
+            if ((mask &   16) != 0) r |= 32;    // Y0 → Y1
+            if ((mask &   32) != 0) r |= 16;    // Y1 → Y0
+            if ((mask &   64) != 0) r |= 128;   // Y2 → Y3
+            if ((mask &  128) != 0) r |= 64;    // Y3 → Y2
+            if ((mask &  256) != 0) r |= 512;   // Z0 → Z1
+            if ((mask &  512) != 0) r |= 256;   // Z1 → Z0
+            if ((mask & 1024) != 0) r |= 2048;  // Z2 → Z3
+            if ((mask & 2048) != 0) r |= 1024;  // Z3 → Z2
+            return r;
         }
 
         /// <summary>绕 Y 轴 90° CW 旋转的 12-bit 置换（从+Y向下看，顺时针）</summary>
