@@ -1,5 +1,5 @@
 using UnityEngine;
-using MarchingSquareTerrain;
+using MarchingTerrain;
 
 namespace MarchingCubes.Sample
 {
@@ -15,7 +15,7 @@ namespace MarchingCubes.Sample
         [SerializeField] private int _buildHeight = 5;
 
         [Header("组件引用")]
-        [SerializeField] private TileController terrain;
+        [SerializeField] private TerrainController terrain;
         [SerializeField] private CubeController structure;
         [SerializeField] private KeyCode   _switchKey   = KeyCode.Tab;
         [SerializeField] private BuildMode _initialMode = BuildMode.Terrain;
@@ -27,7 +27,7 @@ namespace MarchingCubes.Sample
 
         // ── 数据层 ─────────────────────────────────────────────────────────
 
-        public TileBuilder Tiles { get; private set; }
+        public TerrainBuilder Tiles { get; private set; }
         public CubeBuilder Cubes { get; private set; }
 
         public BuildMode CurrentMode { get; private set; }
@@ -42,7 +42,7 @@ namespace MarchingCubes.Sample
 
             float unit = 1f / BuildingConst.Unit;
 
-            Tiles = new TileBuilder(_areaWidth, _areaDepth, _buildHeight, unit, terrain.transform.position);
+            Tiles = new TerrainBuilder(_areaWidth, _areaDepth, _buildHeight, unit, terrain.transform.position);
             Tiles.MaxHeightDiff = BuildingConst.TerrainMaxHeightDiff * BuildingConst.Unit;
 
             var cubePos    = structure.transform.position - new Vector3(0.5f, 0.5f, 0.5f);

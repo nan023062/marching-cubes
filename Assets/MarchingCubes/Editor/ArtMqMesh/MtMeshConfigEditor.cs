@@ -4,13 +4,10 @@ using UnityEngine;
 
 namespace MarchingCubes.Editor
 {
-    [CustomEditor(typeof(MarchingSquareTerrain.TileCaseConfig))]
-    public sealed class MQMeshConfigEditor : UnityEditor.Editor
+    [CustomEditor(typeof(MarchingTerrain.TerrainCaseConfig))]
+    public sealed class MtMeshConfigEditor : UnityEditor.Editor
     {
-        // ── 日志（每次 Build 后刷新，不需要持久化）──────────────────────────────
         private string _terrainLog = "";
-
-        // ── Grid / Detail ─────────────────────────────────────────────────────
         private int     _selectedTerrain = -1;
         private Vector2 _terrainScroll;
 
@@ -21,16 +18,13 @@ namespace MarchingCubes.Editor
         private static readonly Color ColDead = new Color(0.10f, 0.10f, 0.10f);
 
         private const float CellSz = 36f;
-        private const int   Cols   = 9;   // 9×9 grid（81 槽，65 实显 + 16 死槽灰显）
-
-        // ── Inspector ─────────────────────────────────────────────────────────
+        private const int   Cols   = 9;
 
         public override void OnInspectorGUI()
         {
-            var cfg = (MarchingSquareTerrain.TileCaseConfig)target;
+            var cfg = (MarchingTerrain.TerrainCaseConfig)target;
             serializedObject.Update();
 
-            // ── 统一路径 / 材质 / Build ───────────────────────────────────────
             EditorGUILayout.LabelField("── 公共配置 ──", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
                 "地形 mq_case_<N>.fbx，N ∈ [0,80] 中的 65 个 base-3 编码有效 case_idx。\n" +
@@ -48,24 +42,20 @@ namespace MarchingCubes.Editor
             }
             EditorGUILayout.Space(4);
             if (GUILayout.Button("Build All 65 Terrain Cases", GUILayout.Height(34)))
-            {
                 DoTerrainBuild(cfg);
-            }
+
             if (!string.IsNullOrEmpty(_terrainLog))
             {
                 var style = new GUIStyle(EditorStyles.helpBox) { wordWrap = true };
                 EditorGUILayout.LabelField(_terrainLog, style);
             }
 
-            // ── 地形 Grid ─────────────────────────────────────────────────────
             EditorGUILayout.Space(8);
             DrawTerrainGrid(cfg);
             if (_selectedTerrain >= 0) DrawTerrainDetail(cfg, _selectedTerrain);
 
             serializedObject.ApplyModifiedProperties();
         }
-
-        // ── 通用 ──────────────────────────────────────────────────────────────
 
         void DrawFolderField(string label, Object dirtyTarget, ref string path)
         {
@@ -93,9 +83,7 @@ namespace MarchingCubes.Editor
             r.y += 3; EditorGUI.DrawRect(r, c);
         }
 
-        // ── 地形 Build ────────────────────────────────────────────────────────
-
-        void DoTerrainBuild(MarchingSquareTerrain.TileCaseConfig cfg)
+        void DoTerrainBuild(MarchingTerrain.TerrainCaseConfig cfg)
         {
             _terrainLog = "";
             string relOut = cfg.editorPrefabFolder.TrimEnd('/', '\\');
@@ -103,7 +91,7 @@ namespace MarchingCubes.Editor
             AssetDatabase.Refresh();
 
             int ok = 0, skipDead = 0, skipMissing = 0;
-            int total = MarchingSquareTerrain.TileCaseConfig.TerrainCaseCount;
+            int total = MarchingTerrain.TerrainCaseConfig.TerrainCaseCount;
 
             for (int ci = 0; ci < total; ci++)
             {
@@ -114,7 +102,7 @@ namespace MarchingCubes.Editor
                 if (fbx == null) { skipMissing++; continue; }
 
                 var root = new GameObject($"mq_case_{ci}");
-                var dbg  = root.AddComponent<MarchingSquareTerrain.TilePrefab>();
+                var dbg  = root.AddComponent<MarchingSquares.TilePrefab>();
                 dbg.caseIndex = ci;
 
                 var child = (GameObject)PrefabUtility.InstantiatePrefab(fbx, root.transform);
@@ -143,9 +131,7 @@ namespace MarchingCubes.Editor
             Repaint();
         }
 
-        // ── 地形 Grid / Detail ────────────────────────────────────────────────
-
-        void DrawTerrainGrid(MarchingSquareTerrain.TileCaseConfig cfg)
+        void DrawTerrainGrid(MarchingTerrain.TerrainCaseConfig cfg)
         {
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -153,7 +139,7 @@ namespace MarchingCubes.Editor
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Validate", GUILayout.Width(66)))
                 {
-                    int total = MarchingSquareTerrain.TileCaseConfig.TerrainCaseCount;
+                    int total = MarchingTerrain.TerrainCaseConfig.TerrainCaseCount;
                     int valid = 0, filled = 0;
                     for (int ci = 0; ci < total; ci++)
                     {
@@ -166,7 +152,7 @@ namespace MarchingCubes.Editor
             }
             EditorGUI.DrawRect(GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.ExpandWidth(true), GUILayout.Height(1)), new Color(0,0,0,0.3f));
 
-            int cnt = MarchingSquareTerrain.TileCaseConfig.TerrainCaseCount;
+            int cnt = MarchingTerrain.TerrainCaseConfig.TerrainCaseCount;
             float h = Mathf.Ceil((float)cnt / Cols) * CellSz;
             _terrainScroll = EditorGUILayout.BeginScrollView(_terrainScroll, GUILayout.Height(h + 4));
             Rect outer = GUILayoutUtility.GetRect(Cols * CellSz, h);
@@ -196,7 +182,7 @@ namespace MarchingCubes.Editor
             }
         }
 
-        void DrawTerrainDetail(MarchingSquareTerrain.TileCaseConfig cfg, int ci)
+        void DrawTerrainDetail(MarchingTerrain.TerrainCaseConfig cfg, int ci)
         {
             EditorGUI.DrawRect(GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.ExpandWidth(true), GUILayout.Height(1)), new Color(0,0,0,0.3f));
             EditorGUILayout.Space(4);
@@ -209,9 +195,6 @@ namespace MarchingCubes.Editor
             DrawPreview(cur);
         }
 
-        // ── Mini 图标绘制 ─────────────────────────────────────────────────────
-
-        // base-3 4 角高度小图：r_i ∈ {0,1,2} → 灰 / 橙 / 红
         void DrawMiniQuad(int ci, Rect r)
         {
             float pad = r.width * 0.12f, w = r.width - pad * 2, h = r.height - pad * 2 - 12f;
@@ -219,10 +202,10 @@ namespace MarchingCubes.Editor
             float dotR = w * 0.15f;
             var corners = new[]
             {
-                new Vector2(r.x + pad,     r.y + pad + h),  // V0 BL
-                new Vector2(r.x + pad + w, r.y + pad + h),  // V1 BR
-                new Vector2(r.x + pad + w, r.y + pad),      // V2 TR
-                new Vector2(r.x + pad,     r.y + pad),      // V3 TL
+                new Vector2(r.x + pad,     r.y + pad + h),
+                new Vector2(r.x + pad + w, r.y + pad + h),
+                new Vector2(r.x + pad + w, r.y + pad),
+                new Vector2(r.x + pad,     r.y + pad),
             };
             for (int i = 0; i < 4; i++)
             {

@@ -1,40 +1,23 @@
-using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
-
 namespace MarchingSquares
 {
     /// <summary>
-    /// MarchingSquares 地板砖查表（类比 MarchingSquareTerrain 的 TileTable）。
+    /// Marching Squares 全局静态映射表（类比 CubeTable）。
     ///
-    /// 角点编号（unit cell，XZ 平面），与 TileTable 完全对应：
-    ///   V3(TL) ─── V2(TR)
-    ///     │               │
+    /// 两类组合映射：
+    ///   1. Mesh 组合映射 — 四角高度 → base-3 编码 case_idx ∈ [0,80]（65 真实几何 + 16 死槽）
+    ///   2. 纹理组合映射 — 四角 terrainType / mask → 16 种 atlas overlay case
+    ///
+    /// 角点编号（unit quad，XZ 平面）：
+    ///   V3(TL) ─── V2(TR)       Mesh: r_i = h_i - min(h0..h3) ∈ {0,1,2}
+    ///     │               │       Atlas: bit_i = 该角是否参与本 layer
     ///   V0(BL) ─── V1(BR)
-    ///
-    /// 每个格子 (cx, cz) 看其 4 个角点（顶点）是否在地板区域内：
-    ///   V0 BL = vertex (cx,   cz  )
-    ///   V1 BR = vertex (cx+1, cz  )
-    ///   V2 TR = vertex (cx+1, cz+1)
-    ///   V3 TL = vertex (cx,   cz+1)
-    ///
-    /// GetMeshCase(b0,b1,b2,b3) → 4-bit case index (0-15)，
-    /// D4 水平对称归约 → 6 canonical：
-    ///   0  (0b0000) 空      V3(TL)───V2(TR)
-    ///   1  (0b0001) 单角         │         │
-    ///   3  (0b0011) 邻边   V0(BL)───V1(BR)
-    ///   5  (0b0101) 对角
-    ///   7  (0b0111) 三角
-    ///   15 (0b1111) 满格
     /// </summary>
-    public static class SquareTable
+    public static class TileTable
     {
-        public const int CornerCount  = 4;
-        public const int CaseCount    = 16;  // 2^4
-
-        // ── 角点坐标（与 TileTable.Corners 完全对应）────────────────────────
-
-        /// <summary>四个角点的 (x, z) 坐标（unit cell [0,1]×[0,1]）。</summary>
+        public const int CornerCount = 4;
+        
+        // ── 角点坐标 ─────────────────────────────────────────────────────────
+        /// <summary>四个角点的 (x, z) 坐标（unit quad [0,1]×[0,1]）。</summary>
         public static readonly (int x, int z)[] Corners =
         {
             (0, 0),  // V0 BL
@@ -43,143 +26,66 @@ namespace MarchingSquares
             (0, 1),  // V3 TL
         };
 
-        // ── Mesh 组合映射（binary 编码）──────────────────────────────────────
+        // ── Mesh 组合映射（base-3 编码）───────────────────────────────────────
 
         /// <summary>
-        /// 根据四角顶点是否在地板区域内，计算该格的 case index（0-15）。
-        /// b0=V0(BL), b1=V1(BR), b2=V2(TR), b3=V3(TL)。
-        /// 类比 TileTable.GetMeshCase，此处为纯 binary（0/1）而非 base-3 高度。
+        /// 根据四角高度计算 Mesh case index 和 base 高度。
+        /// h0=V0(BL), h1=V1(BR), h2=V2(TR), h3=V3(TL)。
+        /// base = 四角最小高度，r_i = h_i - base ∈ {0,1,2}（同格 4 角高差 ≤ 2 硬约束）。
+        /// 返回 case_idx = r0 + r1*3 + r2*9 + r3*27 ∈ [0, 80]。
+        /// 65 个真实几何 case（min(r) == 0）+ 16 个死槽（min(r) > 0，永远不会产出）。
         /// </summary>
-        public static int GetMeshCase(bool b0, bool b1, bool b2, bool b3)
+        public static int GetMeshCase(int h0, int h1, int h2, int h3, out int baseH)
         {
-            int r = 0;
-            if (b0) r |= 1;   // V0 BL → bit 0
-            if (b1) r |= 2;   // V1 BR → bit 1
-            if (b2) r |= 4;   // V2 TR → bit 2
-            if (b3) r |= 8;   // V3 TL → bit 3
-            return r;
+            baseH = h0;
+            if (h1 < baseH) baseH = h1;
+            if (h2 < baseH) baseH = h2;
+            if (h3 < baseH) baseH = h3;
+
+            int r0 = h0 - baseH, r1 = h1 - baseH, r2 = h2 - baseH, r3 = h3 - baseH;
+            return r0 + r1 * 3 + r2 * 9 + r3 * 27;
         }
 
         /// <summary>
-        /// 给定格子网格（cells），返回格子 (cx,cz) 的 4-bit case。
-        /// 顶点状态：vertex (vx,vz) 在地板内 = 其周围至少有一个激活格子。
+        /// 判定 case_idx 是否为有效（真实几何）case：min(r0..r3) == 0。
+        /// 死槽 case_idx（min(r) > 0）不会被 GetMeshCase 产出，运行时永不访问；
+        /// 编辑器扫描 / 批量构建时跳过。
         /// </summary>
-        public static int GetCellCase(bool[,] cells, int cx, int cz)
+        public static bool IsValidCase(int caseIdx)
         {
-            return GetMeshCase(
-                IsVertexInside(cells, cx,     cz    ),   // V0 BL
-                IsVertexInside(cells, cx + 1, cz    ),   // V1 BR
-                IsVertexInside(cells, cx + 1, cz + 1),  // V2 TR
-                IsVertexInside(cells, cx,     cz + 1)   // V3 TL
-            );
+            int r0 = caseIdx % 3;
+            int r1 = (caseIdx / 3) % 3;
+            int r2 = (caseIdx / 9) % 3;
+            int r3 = (caseIdx / 27) % 3;
+            int m  = r0;
+            if (r1 < m) m = r1;
+            if (r2 < m) m = r2;
+            if (r3 < m) m = r3;
+            return m == 0;
         }
 
-        /// <summary>顶点 (vx,vz) 是否在地板区域内：周围至少一个格子激活。</summary>
-        public static bool IsVertexInside(bool[,] cells, int vx, int vz)
-        {
-            int W = cells.GetLength(0), D = cells.GetLength(1);
-            return (vx > 0 && vz > 0     && cells[vx - 1, vz - 1])   // SW cell
-                || (vx < W && vz > 0     && cells[vx,     vz - 1])   // SE cell
-                || (vx > 0 && vz < D     && cells[vx - 1, vz    ])   // NW cell
-                || (vx < W && vz < D     && cells[vx,     vz    ]);  // NE cell
-        }
+        // ── Atlas 美术约定（terrain_overlay.asset 4×4 子格排布）────────────────
+        //
+        // atlas 子格按 TileTable 标准编码排布（与角点 V0~V3 序号直接对应）：
+        //
+        //   bit 0 = V0(BL) → mask 贡献 1
+        //   bit 1 = V1(BR) → mask 贡献 2
+        //   bit 2 = V2(TR) → mask 贡献 4
+        //   bit 3 = V3(TL) → mask 贡献 8
+        //
+        //   atlas_idx = Σ (Vi 标记 ? 1<<i : 0)            ← 4 个点 mask 直接相加
+        //   子格位置: col = atlas_idx % 4, row = atlas_idx / 4 (Unity UV，row=0 在底)
+        //
+        // 例：V0+V2 标记 → idx = 1 + 4 = 5 → 子格 (col=1, row=1)
+        //
+        // 任何端（C# runtime / Python 离线 / shader）的「4 角 → atlas idx」一律
+        // 直接位运算，无须查表无须旋转。
 
-        // ── Canonical 归约（D4 水平，8 变换 → 6 canonical）────────────────────
-
-        static int[]        s_canonIdx;
-        static Quaternion[] s_canonRot;
-        static bool[]       s_canonFlip;
-        static int[]        s_canonList;
-
-        public static int CanonicalCount { get; private set; } // = 6
-
-        public static void EnsureLookup()
-        {
-            if (s_canonIdx != null) return;
-
-            var maskToMin  = new int[16];
-            var maskToRot  = new int[16];
-            var maskToFlip = new bool[16];
-            var canonSet   = new SortedSet<int>();
-
-            for (int m = 0; m < 16; m++)
-            {
-                int  minM     = m;
-                int  bestR    = 0;
-                bool bestFlip = false;
-
-                int cur = m;
-                for (int r = 1; r < 4; r++)
-                {
-                    cur = Rot90(cur);
-                    if (cur < minM) { minM = cur; bestR = r; bestFlip = false; }
-                }
-                cur = FlipX(m);
-                for (int r = 0; r < 4; r++)
-                {
-                    if (r > 0) cur = Rot90(cur);
-                    if (cur < minM) { minM = cur; bestR = r; bestFlip = true; }
-                }
-
-                maskToMin[m]  = minM;
-                maskToRot[m]  = bestR;
-                maskToFlip[m] = bestFlip;
-                canonSet.Add(minM);
-            }
-
-            var canonList = canonSet.ToArray(); // {0,1,3,5,7,15}
-            CanonicalCount = canonList.Length;
-            s_canonList    = canonList;
-            var idxOf = new Dictionary<int, int>(canonList.Length);
-            for (int i = 0; i < canonList.Length; i++) idxOf[canonList[i]] = i;
-
-            s_canonIdx  = new int[16];
-            s_canonRot  = new Quaternion[16];
-            s_canonFlip = new bool[16];
-            for (int m = 0; m < 16; m++)
-            {
-                s_canonIdx[m]  = idxOf[maskToMin[m]];
-                s_canonRot[m]  = Quaternion.Euler(0, maskToRot[m] * 90f, 0);
-                s_canonFlip[m] = maskToFlip[m];
-            }
-        }
-
-        /// <summary>4-bit case → (canonical 序号 0-5, Y轴旋转, 是否X镜像)。</summary>
-        public static (int canonIdx, Quaternion rot, bool flip) GetCanonical(int mask)
-        {
-            EnsureLookup();
-            return (s_canonIdx[mask & 0xF], s_canonRot[mask & 0xF], s_canonFlip[mask & 0xF]);
-        }
-
-        /// <summary>canonical 序号 → 代表 mask（{0,1,3,5,7,15} 之一）。</summary>
-        public static int GetCanonicalMask(int canonIdx)
-        {
-            EnsureLookup();
-            return canonIdx >= 0 && canonIdx < s_canonList.Length ? s_canonList[canonIdx] : 0;
-        }
-
-        // ── 4-bit 角点置换（BL→BR→TR→TL→BL = N→E→S→W→N 同构）───────────────
-
-        /// <summary>绕 Y 轴 90° CW 旋转角点（BL→BR→TR→TL→BL）。</summary>
-        public static int Rot90(int mask)
-        {
-            int r = 0;
-            if ((mask & 1) != 0) r |= 2;  // BL → BR
-            if ((mask & 2) != 0) r |= 4;  // BR → TR
-            if ((mask & 4) != 0) r |= 8;  // TR → TL
-            if ((mask & 8) != 0) r |= 1;  // TL → BL
-            return r;
-        }
-
-        /// <summary>左右镜像（BL↔BR, TL↔TR）。</summary>
-        public static int FlipX(int mask)
-        {
-            int r = 0;
-            if ((mask & 1) != 0) r |= 2;  // BL → BR
-            if ((mask & 2) != 0) r |= 1;  // BR → BL
-            if ((mask & 4) != 0) r |= 8;  // TR → TL
-            if ((mask & 8) != 0) r |= 4;  // TL → TR
-            return r;
-        }
+        /// <summary>4 角 mask + 单 bit type → atlas case_idx (0~15)，TileTable 标准编码。</summary>
+        public static int GetAtlasCase(byte mBL, byte mBR, byte mTR, byte mTL, int bit)
+            =>  ((mBL >> bit) & 1)
+            | (((mBR >> bit) & 1) << 1)
+            | (((mTR >> bit) & 1) << 2)
+            | (((mTL >> bit) & 1) << 3);
     }
 }

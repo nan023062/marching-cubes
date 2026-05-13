@@ -1,15 +1,16 @@
 using System.Collections.Generic;
 using UnityEngine;
 using MarchingCubes.Sample;
+using MarchingSquares;
 
-namespace MarchingSquareTerrain
+namespace MarchingTerrain
 {
     /// <summary>
     /// MQ 地形核心逻辑（纯 C#）。
     /// 持有地形数据（高度 + 地形类型）和碰撞 Mesh 顶点数据。
     /// 不持有任何 GameObject / Tile，显示逻辑由 TerrainController 负责。
     /// </summary>
-    public class TileBuilder : BuilderBase
+    public class TerrainBuilder : BuilderBase
     {
         public const int TerrainTypeCount = 5;
 
@@ -28,7 +29,7 @@ namespace MarchingSquareTerrain
 
         // ── 构造 ─────────────────────────────────────────────────────────────
 
-        public TileBuilder(int width, int length, int height, float unit, Vector3 worldPosition)
+        public TerrainBuilder(int width, int length, int height, float unit, Vector3 worldPosition)
         {
             if (width != length)
                 throw new System.ArgumentException(

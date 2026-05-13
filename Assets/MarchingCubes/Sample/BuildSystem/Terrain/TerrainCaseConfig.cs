@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace MarchingSquareTerrain
+namespace MarchingTerrain
 {
     /// <summary>
     /// 地形 tile 配置（base-3 编码 81 槽：65 个真实几何 + 16 个死槽）。
@@ -10,8 +10,8 @@ namespace MarchingSquareTerrain
     /// 16 个死槽（min(r) > 0）永远不会被 TileTable.GetMeshCase 产出，槽位常驻 null。
     /// 角点编号：V3(TL)─V2(TR) / V0(BL)─V1(BR)
     /// </summary>
-    [CreateAssetMenu(fileName = "TileCaseConfig", menuName = "MarchingCubes/Mq Mesh Config")]
-    public sealed class TileCaseConfig : ScriptableObject
+    [CreateAssetMenu(fileName = "TerrainCaseConfig", menuName = "MarchingCubes/Terrain Case Config")]
+    public sealed class TerrainCaseConfig : ScriptableObject
     {
         public const int TerrainCaseCount = 81;
 
@@ -19,7 +19,6 @@ namespace MarchingSquareTerrain
         [SerializeField] private GameObject[] _prefabs = new GameObject[TerrainCaseCount];
 
 #if UNITY_EDITOR
-        // ── Editor 缓存（仅编辑器使用，随 .asset 持久化，不进运行时）────────────
         [HideInInspector] public string   editorFbxFolder    = "Assets/MarchingCubes/Sample/Resources/mq";
         [HideInInspector] public string   editorPrefabFolder = "Assets/MarchingCubes/Sample/Resources/mq/prefabs";
         [HideInInspector] public Material editorTerrainMat;
@@ -41,8 +40,6 @@ namespace MarchingSquareTerrain
                         arr[i] = old[i];
             }
         }
-
-        // ── 地形 API ──────────────────────────────────────────────────────────
 
         public GameObject GetPrefab(int ci)
         {

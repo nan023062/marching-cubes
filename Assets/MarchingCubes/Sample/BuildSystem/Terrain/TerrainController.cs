@@ -1,18 +1,19 @@
 using System.Collections.Generic;
 using UnityEngine;
 using MarchingCubes.Sample;
+using MarchingSquares;
 
-namespace MarchingSquareTerrain
+namespace MarchingTerrain
 {
-    public class TileController : BuildController
+    public class TerrainController : BuildController
     {
-        [SerializeField] private TileCaseConfig _meshConfig;
+        [SerializeField] private TerrainCaseConfig _meshConfig;
         [SerializeField, Header("涂刷类型 (0~7，bit 位越高视觉权重越大)"), Range(0, 7)]
         private int  _textureLayer = 1;
         [SerializeField] private bool _colorBrush;
 
         public int            TextureLayer { get => _textureLayer; set => _textureLayer = value; }
-        public TileBuilder Builder      { get; private set; }
+        public  TerrainBuilder Builder      { get; private set; }
 
         MarchingCubes.Sample.Cursor PlaneBrush => _cursor as MarchingCubes.Sample.Cursor;
 
@@ -23,7 +24,7 @@ namespace MarchingSquareTerrain
 
         // ── 初始化 ───────────────────────────────────────────────────────────
 
-        public void Init(int renderWidth, int renderDepth, int heightRange, TileBuilder tiles)
+        public void Init(int renderWidth, int renderDepth, int heightRange, TerrainBuilder tiles)
         {
             Builder = tiles;
 
@@ -319,8 +320,8 @@ namespace MarchingSquareTerrain
         
         GameObject[] GetAllTilePrefabs()
         {
-            var result = new GameObject[TileCaseConfig.TerrainCaseCount];
-            for (int i = 0; i < TileCaseConfig.TerrainCaseCount; i++)
+            var result = new GameObject[TerrainCaseConfig.TerrainCaseCount];
+            for (int i = 0; i < TerrainCaseConfig.TerrainCaseCount; i++)
                 result[i] = _meshConfig?.GetPrefab(i);
             return result;
         }

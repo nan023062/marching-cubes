@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
-using MarchingSquareTerrain;
+using MarchingTerrain;
 
 namespace MarchingCubes.Sample
 {
@@ -21,7 +21,7 @@ namespace MarchingCubes.Sample
         GameObject[,,]     _cubeObjects;
         bool[,]            _cellActive;
         int[,]             _cellBaseH;
-        TileBuilder     _terrain;
+        TerrainBuilder     _terrain;
 
         // ── Config ───────────────────────────────────────────────────────────
 
@@ -42,7 +42,7 @@ namespace MarchingCubes.Sample
 
         // ── 初始化 ───────────────────────────────────────────────────────────
 
-        public void Init(int renderWidth, int buildHeight, int renderDepth, CubeBuilder cubes, TileBuilder tiles)
+        public void Init(int renderWidth, int buildHeight, int renderDepth, CubeBuilder cubes, TerrainBuilder tiles)
         {
             RenderWidth = renderWidth;
             BuildHeight = buildHeight;
