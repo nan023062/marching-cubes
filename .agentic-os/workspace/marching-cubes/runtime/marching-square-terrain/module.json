@@ -1,9 +1,9 @@
 {
-  "name": "marching-squares",
+  "name": "marching-square-terrain",
   "type": "code",
   "workspaceType": "csharp-unity",
   "summary": "2.5D Marching Squares 算法基础层：地形 81 槽 base-3 编码查表（TileTable，65 真实几何 + 16 死槽）、5 layer atlas 编码 API（GetAtlasCase/GetAtlasCell）、核心类型定义（Tile.cs）、程序化连续 tile mesh 生成器（TileTerrain）、prefab 调试组件（TilePrefab）",
-  "workspace": ["Assets/MarchingCubes/Runtime/MarchingSquares"],
+  "workspace": ["Assets/MarchingCubes/Runtime/MarchingSquareTerrain"],
   "dependencies": [],
   "boundary": "semi-open",
   "publicApi": [

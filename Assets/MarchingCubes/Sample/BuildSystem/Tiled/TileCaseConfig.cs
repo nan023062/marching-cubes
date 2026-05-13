@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace MarchingSquares
+namespace MarchingSquareTerrain
 {
     /// <summary>
     /// 地形 tile 配置（base-3 编码 81 槽：65 个真实几何 + 16 个死槽）。

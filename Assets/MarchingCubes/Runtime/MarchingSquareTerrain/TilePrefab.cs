@@ -4,7 +4,7 @@ using UnityEditor;
 
 using UnityEngine;
 
-namespace MarchingSquares
+namespace MarchingSquareTerrain
 {
     /// <summary>
     /// MQ tile prefab 调试组件，仅持有 caseIndex / baseHeight 数据供 Inspector 查看。

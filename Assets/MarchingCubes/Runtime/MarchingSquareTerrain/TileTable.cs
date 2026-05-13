@@ -1,5 +1,5 @@
 
-namespace MarchingSquares
+namespace MarchingSquareTerrain
 {
     /// <summary>
     /// Marching Squares 全局静态映射表（类比 CubeTable）。

@@ -1,5 +1,5 @@
 using UnityEngine;
-using MarchingSquares;
+using MarchingSquareTerrain;
 
 namespace MarchingCubes.Sample
 {

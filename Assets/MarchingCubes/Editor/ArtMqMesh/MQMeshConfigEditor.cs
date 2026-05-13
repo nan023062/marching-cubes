@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace MarchingCubes.Editor
 {
-    [CustomEditor(typeof(MarchingSquares.TileCaseConfig))]
+    [CustomEditor(typeof(MarchingSquareTerrain.TileCaseConfig))]
     public sealed class MQMeshConfigEditor : UnityEditor.Editor
     {
         // ── 日志（每次 Build 后刷新，不需要持久化）──────────────────────────────
@@ -27,7 +27,7 @@ namespace MarchingCubes.Editor
 
         public override void OnInspectorGUI()
         {
-            var cfg = (MarchingSquares.TileCaseConfig)target;
+            var cfg = (MarchingSquareTerrain.TileCaseConfig)target;
             serializedObject.Update();
 
             // ── 统一路径 / 材质 / Build ───────────────────────────────────────
@@ -95,7 +95,7 @@ namespace MarchingCubes.Editor
 
         // ── 地形 Build ────────────────────────────────────────────────────────
 
-        void DoTerrainBuild(MarchingSquares.TileCaseConfig cfg)
+        void DoTerrainBuild(MarchingSquareTerrain.TileCaseConfig cfg)
         {
             _terrainLog = "";
             string relOut = cfg.editorPrefabFolder.TrimEnd('/', '\\');
@@ -103,18 +103,18 @@ namespace MarchingCubes.Editor
             AssetDatabase.Refresh();
 
             int ok = 0, skipDead = 0, skipMissing = 0;
-            int total = MarchingSquares.TileCaseConfig.TerrainCaseCount;
+            int total = MarchingSquareTerrain.TileCaseConfig.TerrainCaseCount;
 
             for (int ci = 0; ci < total; ci++)
             {
-                if (!MarchingSquares.TileTable.IsValidCase(ci)) { skipDead++; continue; }
+                if (!MarchingSquareTerrain.TileTable.IsValidCase(ci)) { skipDead++; continue; }
 
                 string fbxPath = $"{cfg.editorFbxFolder.TrimEnd('/', '\\')}/mq_case_{ci}.fbx";
                 var fbx = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
                 if (fbx == null) { skipMissing++; continue; }
 
                 var root = new GameObject($"mq_case_{ci}");
-                var dbg  = root.AddComponent<MarchingSquares.TilePrefab>();
+                var dbg  = root.AddComponent<MarchingSquareTerrain.TilePrefab>();
                 dbg.caseIndex = ci;
 
                 var child = (GameObject)PrefabUtility.InstantiatePrefab(fbx, root.transform);
@@ -145,7 +145,7 @@ namespace MarchingCubes.Editor
 
         // ── 地形 Grid / Detail ────────────────────────────────────────────────
 
-        void DrawTerrainGrid(MarchingSquares.TileCaseConfig cfg)
+        void DrawTerrainGrid(MarchingSquareTerrain.TileCaseConfig cfg)
         {
             using (new EditorGUILayout.HorizontalScope())
             {
@@ -153,11 +153,11 @@ namespace MarchingCubes.Editor
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Validate", GUILayout.Width(66)))
                 {
-                    int total = MarchingSquares.TileCaseConfig.TerrainCaseCount;
+                    int total = MarchingSquareTerrain.TileCaseConfig.TerrainCaseCount;
                     int valid = 0, filled = 0;
                     for (int ci = 0; ci < total; ci++)
                     {
-                        if (!MarchingSquares.TileTable.IsValidCase(ci)) continue;
+                        if (!MarchingSquareTerrain.TileTable.IsValidCase(ci)) continue;
                         valid++;
                         if (cfg.GetPrefab(ci) != null) filled++;
                     }
@@ -166,7 +166,7 @@ namespace MarchingCubes.Editor
             }
             EditorGUI.DrawRect(GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.ExpandWidth(true), GUILayout.Height(1)), new Color(0,0,0,0.3f));
 
-            int cnt = MarchingSquares.TileCaseConfig.TerrainCaseCount;
+            int cnt = MarchingSquareTerrain.TileCaseConfig.TerrainCaseCount;
             float h = Mathf.Ceil((float)cnt / Cols) * CellSz;
             _terrainScroll = EditorGUILayout.BeginScrollView(_terrainScroll, GUILayout.Height(h + 4));
             Rect outer = GUILayoutUtility.GetRect(Cols * CellSz, h);
@@ -175,7 +175,7 @@ namespace MarchingCubes.Editor
             {
                 int col = ci % Cols, row = ci / Cols;
                 Rect r = new Rect(outer.x + col * CellSz, outer.y + row * CellSz, CellSz - 1, CellSz - 1);
-                bool dead = !MarchingSquares.TileTable.IsValidCase(ci);
+                bool dead = !MarchingSquareTerrain.TileTable.IsValidCase(ci);
                 bool has  = !dead && cfg.GetPrefab(ci) != null;
                 bool sel  = ci == _selectedTerrain;
                 Color cellColor = dead ? ColDead : (sel ? ColSel : (has ? ColHas : ColNone));
@@ -196,7 +196,7 @@ namespace MarchingCubes.Editor
             }
         }
 
-        void DrawTerrainDetail(MarchingSquares.TileCaseConfig cfg, int ci)
+        void DrawTerrainDetail(MarchingSquareTerrain.TileCaseConfig cfg, int ci)
         {
             EditorGUI.DrawRect(GUILayoutUtility.GetRect(GUIContent.none, GUIStyle.none, GUILayout.ExpandWidth(true), GUILayout.Height(1)), new Color(0,0,0,0.3f));
             EditorGUILayout.Space(4);

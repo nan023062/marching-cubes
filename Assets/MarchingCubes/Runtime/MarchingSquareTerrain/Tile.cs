@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace MarchingSquares
+namespace MarchingSquareTerrain
 {
 /************ MQ Quad 顶点和边的索引约定 ****************
 

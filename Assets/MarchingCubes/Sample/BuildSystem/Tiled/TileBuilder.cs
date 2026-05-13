@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using MarchingCubes.Sample;
 
-namespace MarchingSquares
+namespace MarchingSquareTerrain
 {
     /// <summary>
     /// MQ 地形核心逻辑（纯 C#）。

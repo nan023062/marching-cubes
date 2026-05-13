@@ -5,7 +5,7 @@
   "workspace": ["Assets/MarchingCubes/Sample/BuildSystem"],
   "dependencies": [
     { "target": "marching-cubes/runtime/marching-cubes", "type": "Association" },
-    { "target": "marching-cubes/runtime/marching-squares", "type": "Association" }
+    { "target": "marching-cubes/runtime/marching-square-terrain", "type": "Association" }
   ],
   "submodules": ["terrain", "structure"],
   "boundary": "semi-open",

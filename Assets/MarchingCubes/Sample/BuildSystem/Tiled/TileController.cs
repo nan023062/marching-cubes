@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using MarchingCubes.Sample;
 
-namespace MarchingSquares
+namespace MarchingSquareTerrain
 {
     public class TileController : BuildController
     {

@@ -8,7 +8,7 @@
 using System;
 using UnityEngine;
 
-namespace MarchingSquares
+namespace MarchingSquareTerrain
 {
     public class CameraController : MonoBehaviour
     {

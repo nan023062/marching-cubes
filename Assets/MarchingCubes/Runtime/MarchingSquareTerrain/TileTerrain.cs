@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace MarchingSquares
+namespace MarchingSquareTerrain
 {
     /// <summary>
     /// MQ 程序化地形 mesh 生成器（类比 CubeMesh）。

@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEditor;
 
-namespace MarchingSquares.Editor
+namespace MarchingSquareTerrain.Editor
 {
     public static class MSQTextureGenerator
     {
