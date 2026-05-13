@@ -10,8 +10,9 @@ bl_info = {
 
 from . import mc_mesh
 from . import mq_mesh
+from . import me_mesh
 
-_ALL_CLASSES = mc_mesh._CLASSES + mq_mesh._MQ_CLASSES
+_ALL_CLASSES = mc_mesh._CLASSES + mq_mesh._MQ_CLASSES + me_mesh._ME_CLASSES
 
 
 def register():
@@ -21,6 +22,7 @@ def register():
     bpy.types.Scene.mc_props       = bpy.props.PointerProperty(type=mc_mesh.MCProps)
     bpy.types.Scene.mc_cubes_props = bpy.props.PointerProperty(type=mc_mesh.MCCubesProps)
     bpy.types.Scene.mq_props       = bpy.props.PointerProperty(type=mq_mesh.MQProperties)
+    bpy.types.Scene.me_props       = bpy.props.PointerProperty(type=me_mesh.MEProps)
 
 
 def unregister():
@@ -30,6 +32,7 @@ def unregister():
     del bpy.types.Scene.mc_props
     del bpy.types.Scene.mc_cubes_props
     del bpy.types.Scene.mq_props
+    del bpy.types.Scene.me_props
 
 
 if __name__ == "__main__":
