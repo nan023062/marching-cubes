@@ -1,0 +1,23 @@
+{
+  "name": "marching-squares",
+  "workspaceType": "csharp-unity",
+  "summary": "MarchingSquares 地板砖运行时：per-cell 4-bit 邻居系统，D4 对称归约 → 6 canonical，生成平铺地板网格",
+  "workspace": ["Assets/MarchingCubes/Runtime/MarchingSquares"],
+  "dependencies": [],
+  "boundary": "closed",
+  "publicApi": [
+    "CellNeighborMask — [Flags] 4-bit per-cell 邻居掩码（North/East/South/West）",
+    "SquareVertexMask — [Flags] 4-bit per-vertex 格子掩码（BL/BR/TR/TL）",
+    "SquarePoint — 格点数据结构（sbyte x,z + bool active）",
+    "IMsReceiver — 重建回调接口",
+    "SquareTable — 静态查表：Rot90, FlipX, GetCanonical(mask)→(canonIdx,rot,flip), GetNeighborMask, CanonicalCount(6)",
+    "SquareMesh — 静态网格生成：BuildGrid(bool[,],cellSize,origin)→Mesh, BuildSingle(cellSize)→Mesh"
+  ],
+  "constraints": [
+    "纯 C#，仅依赖 UnityEngine，不引用 Sample 层",
+    "对称群：D4 水平（4旋转 + FlipX，FlipX∘Rot180=FlipZ）→ 6 canonical；不含 FlipY（地板上/下表面不对称）",
+    "bit 编码：per-cell 邻居 bit0=N, bit1=E, bit2=S, bit3=W；per-vertex 格子 bit0=BL, bit1=BR, bit2=TR, bit3=TL",
+    "6 canonical 代表元：0(孤立), 1(末端), 3(转角L), 5(通道), 7(T形), 15(内部)",
+    "与 MarchingSquareTerrain 的区别：纯 boolean on/off，无高度，专为建造层地板砖设计"
+  ]
+}
