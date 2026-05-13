@@ -4,34 +4,94 @@ using UnityEngine;
 namespace MarchingSquares
 {
     /// <summary>
-    /// MarchingSquares 地板砖查表（per-cell 邻居系统）。
+    /// MarchingSquares 地板砖查表（类比 MarchingSquareTerrain 的 TileTable）。
     ///
-    /// 4-bit mask：bit0=N, bit1=E, bit2=S, bit3=W（该格的4个基本方向邻居是否激活）。
-    /// 16 种原始配置，D4 水平对称（4旋转 + X镜像 = 8变换）→ 6 canonical。
+    /// 角点编号（unit cell，XZ 平面），与 TileTable 完全对应：
+    ///   V3(TL) ─── V2(TR)
+    ///     │               │
+    ///   V0(BL) ─── V1(BR)
     ///
-    /// 6 个 canonical 地板砖形态：
-    ///   0  (0b0000) 孤立砖  —— 四面暴露（独立地板）
-    ///   1  (0b0001) 末端砖  —— 三面暴露（走廊尽头）
-    ///   3  (0b0011) 转角砖  —— 两面相邻暴露（L形角落）
-    ///   5  (0b0101) 通道砖  —— 两面对向暴露（直线走廊）
-    ///   7  (0b0111) T形砖   —— 一面暴露（T字交叉）
-    ///   15 (0b1111) 内部砖  —— 全部连接（房间内部）
+    /// 每个格子 (cx, cz) 看其 4 个角点（顶点）是否在地板区域内：
+    ///   V0 BL = vertex (cx,   cz  )
+    ///   V1 BR = vertex (cx+1, cz  )
+    ///   V2 TR = vertex (cx+1, cz+1)
+    ///   V3 TL = vertex (cx,   cz+1)
     ///
-    /// 对称群：D4 水平（4旋转 + X镜像，含 FlipX∘Rot180=FlipZ）。
-    /// 不含 FlipY（地板上/下表面不对称）。
+    /// GetMeshCase(b0,b1,b2,b3) → 4-bit case index (0-15)，
+    /// D4 水平对称归约 → 6 canonical：
+    ///   0  (0b0000) 空      V3(TL)───V2(TR)
+    ///   1  (0b0001) 单角         │         │
+    ///   3  (0b0011) 邻边   V0(BL)───V1(BR)
+    ///   5  (0b0101) 对角
+    ///   7  (0b0111) 三角
+    ///   15 (0b1111) 满格
     /// </summary>
     public static class SquareTable
     {
-        // ── Canonical 查表 ────────────────────────────────────────────────────
+        public const int CornerCount  = 4;
+        public const int CaseCount    = 16;  // 2^4
 
-        static int[]        s_canonIdx;   // [16]: mask → canonical index (0-5)
-        static Quaternion[] s_canonRot;   // [16]: mask → Y轴旋转
-        static bool[]       s_canonFlip;  // [16]: mask → 是否需要 X 镜像
-        static int[]        s_canonList;  // [6]:  canonical index → canonical mask
+        // ── 角点坐标（与 TileTable.Corners 完全对应）────────────────────────
+
+        /// <summary>四个角点的 (x, z) 坐标（unit cell [0,1]×[0,1]）。</summary>
+        public static readonly (int x, int z)[] Corners =
+        {
+            (0, 0),  // V0 BL
+            (1, 0),  // V1 BR
+            (1, 1),  // V2 TR
+            (0, 1),  // V3 TL
+        };
+
+        // ── Mesh 组合映射（binary 编码）──────────────────────────────────────
+
+        /// <summary>
+        /// 根据四角顶点是否在地板区域内，计算该格的 case index（0-15）。
+        /// b0=V0(BL), b1=V1(BR), b2=V2(TR), b3=V3(TL)。
+        /// 类比 TileTable.GetMeshCase，此处为纯 binary（0/1）而非 base-3 高度。
+        /// </summary>
+        public static int GetMeshCase(bool b0, bool b1, bool b2, bool b3)
+        {
+            int r = 0;
+            if (b0) r |= 1;   // V0 BL → bit 0
+            if (b1) r |= 2;   // V1 BR → bit 1
+            if (b2) r |= 4;   // V2 TR → bit 2
+            if (b3) r |= 8;   // V3 TL → bit 3
+            return r;
+        }
+
+        /// <summary>
+        /// 给定格子网格（cells），返回格子 (cx,cz) 的 4-bit case。
+        /// 顶点状态：vertex (vx,vz) 在地板内 = 其周围至少有一个激活格子。
+        /// </summary>
+        public static int GetCellCase(bool[,] cells, int cx, int cz)
+        {
+            return GetMeshCase(
+                IsVertexInside(cells, cx,     cz    ),   // V0 BL
+                IsVertexInside(cells, cx + 1, cz    ),   // V1 BR
+                IsVertexInside(cells, cx + 1, cz + 1),  // V2 TR
+                IsVertexInside(cells, cx,     cz + 1)   // V3 TL
+            );
+        }
+
+        /// <summary>顶点 (vx,vz) 是否在地板区域内：周围至少一个格子激活。</summary>
+        public static bool IsVertexInside(bool[,] cells, int vx, int vz)
+        {
+            int W = cells.GetLength(0), D = cells.GetLength(1);
+            return (vx > 0 && vz > 0     && cells[vx - 1, vz - 1])   // SW cell
+                || (vx < W && vz > 0     && cells[vx,     vz - 1])   // SE cell
+                || (vx > 0 && vz < D     && cells[vx - 1, vz    ])   // NW cell
+                || (vx < W && vz < D     && cells[vx,     vz    ]);  // NE cell
+        }
+
+        // ── Canonical 归约（D4 水平，8 变换 → 6 canonical）────────────────────
+
+        static int[]        s_canonIdx;
+        static Quaternion[] s_canonRot;
+        static bool[]       s_canonFlip;
+        static int[]        s_canonList;
 
         public static int CanonicalCount { get; private set; } // = 6
 
-        /// <summary>强制初始化查表（通常由 GetCanonical 自动触发）。</summary>
         public static void EnsureLookup()
         {
             if (s_canonIdx != null) return;
@@ -47,15 +107,12 @@ namespace MarchingSquares
                 int  bestR    = 0;
                 bool bestFlip = false;
 
-                // 4 旋转
                 int cur = m;
                 for (int r = 1; r < 4; r++)
                 {
                     cur = Rot90(cur);
                     if (cur < minM) { minM = cur; bestR = r; bestFlip = false; }
                 }
-
-                // FlipX 后再 4 旋转（FlipX∘Rot180 = FlipZ，覆盖所有水平镜像轴）
                 cur = FlipX(m);
                 for (int r = 0; r < 4; r++)
                 {
@@ -69,8 +126,7 @@ namespace MarchingSquares
                 canonSet.Add(minM);
             }
 
-            // 应为 {0, 1, 3, 5, 7, 15} = 6 canonical
-            var canonList = canonSet.ToArray();
+            var canonList = canonSet.ToArray(); // {0,1,3,5,7,15}
             CanonicalCount = canonList.Length;
             s_canonList    = canonList;
             var idxOf = new Dictionary<int, int>(canonList.Length);
@@ -87,54 +143,41 @@ namespace MarchingSquares
             }
         }
 
-        /// <summary>4-bit 邻居 mask → (canonical 序号 0-5, Y轴旋转, 是否X镜像)。</summary>
+        /// <summary>4-bit case → (canonical 序号 0-5, Y轴旋转, 是否X镜像)。</summary>
         public static (int canonIdx, Quaternion rot, bool flip) GetCanonical(int mask)
         {
             EnsureLookup();
-            mask &= 0xF;
-            return (s_canonIdx[mask], s_canonRot[mask], s_canonFlip[mask]);
+            return (s_canonIdx[mask & 0xF], s_canonRot[mask & 0xF], s_canonFlip[mask & 0xF]);
         }
 
-        /// <summary>canonical 序号 → 对应的代表 4-bit mask。</summary>
+        /// <summary>canonical 序号 → 代表 mask（{0,1,3,5,7,15} 之一）。</summary>
         public static int GetCanonicalMask(int canonIdx)
         {
             EnsureLookup();
             return canonIdx >= 0 && canonIdx < s_canonList.Length ? s_canonList[canonIdx] : 0;
         }
 
-        /// <summary>计算某格的 4-bit 邻居 mask（N/E/S/W 邻格是否激活）。</summary>
-        public static int GetNeighborMask(bool[,] grid, int x, int z)
-        {
-            int W = grid.GetLength(0), D = grid.GetLength(1);
-            int mask = 0;
-            if (z + 1 < D && grid[x,     z + 1]) mask |= 1; // North
-            if (x + 1 < W && grid[x + 1, z    ]) mask |= 2; // East
-            if (z - 1 >= 0 && grid[x,     z - 1]) mask |= 4; // South
-            if (x - 1 >= 0 && grid[x - 1, z    ]) mask |= 8; // West
-            return mask;
-        }
+        // ── 4-bit 角点置换（BL→BR→TR→TL→BL = N→E→S→W→N 同构）───────────────
 
-        // ── 4-bit 置换 ────────────────────────────────────────────────────────
-
-        /// <summary>绕 Y 轴 90° CW 旋转（N→E→S→W→N）。</summary>
+        /// <summary>绕 Y 轴 90° CW 旋转角点（BL→BR→TR→TL→BL）。</summary>
         public static int Rot90(int mask)
         {
             int r = 0;
-            if ((mask & 1) != 0) r |= 2;  // N → E
-            if ((mask & 2) != 0) r |= 4;  // E → S
-            if ((mask & 4) != 0) r |= 8;  // S → W
-            if ((mask & 8) != 0) r |= 1;  // W → N
+            if ((mask & 1) != 0) r |= 2;  // BL → BR
+            if ((mask & 2) != 0) r |= 4;  // BR → TR
+            if ((mask & 4) != 0) r |= 8;  // TR → TL
+            if ((mask & 8) != 0) r |= 1;  // TL → BL
             return r;
         }
 
-        /// <summary>X→−X 水平镜像（East↔West，N/S 不变）。</summary>
+        /// <summary>左右镜像（BL↔BR, TL↔TR）。</summary>
         public static int FlipX(int mask)
         {
             int r = 0;
-            if ((mask & 1) != 0) r |= 1;  // N unchanged
-            if ((mask & 2) != 0) r |= 8;  // E → W
-            if ((mask & 4) != 0) r |= 4;  // S unchanged
-            if ((mask & 8) != 0) r |= 2;  // W → E
+            if ((mask & 1) != 0) r |= 2;  // BL → BR
+            if ((mask & 2) != 0) r |= 1;  // BR → BL
+            if ((mask & 4) != 0) r |= 8;  // TR → TL
+            if ((mask & 8) != 0) r |= 4;  // TL → TR
             return r;
         }
     }
