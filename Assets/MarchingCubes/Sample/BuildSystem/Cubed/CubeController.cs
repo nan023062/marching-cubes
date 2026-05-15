@@ -77,7 +77,7 @@ namespace MarchingCubes.Sample
 
         public override void OnUpdate() { }
 
-        static readonly string[] ConfigNames = { "等值面", "圆角Cube" };
+        static readonly string[] ConfigNames = { "等值面", "圆角Cube", "山体白模" };
 
         public override void DrawGUI()
         {
@@ -101,6 +101,7 @@ namespace MarchingCubes.Sample
                 else if (GUI.Button(r, label)) SwitchConfig(i);
             }
         }
+
 
         GameObject[] GetCurrentConfigPrefabs()
         {

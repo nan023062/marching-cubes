@@ -465,7 +465,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _cursor: {fileID: 1092352291}
-  _meshConfig: {fileID: 11400000, guid: 0b81b08a3c66a6b459b375ec6fcbc363, type: 2}
+  _meshConfig: {fileID: 11400000, guid: 970392114363f5a46ad0b6beca4f736b, type: 2}
   _textureLayer: 1
   _colorBrush: 0
 --- !u!4 &518160457
@@ -712,6 +712,7 @@ MonoBehaviour:
   _configs:
   - {fileID: 11400000, guid: ede18fc881c57654abde4669f65f9b01, type: 2}
   - {fileID: 11400000, guid: 0d92fa65fc4e42c4e93ad96fede739a9, type: 2}
+  - {fileID: 11400000, guid: d36b9b9d9e2515b43b889be93855f586, type: 2}
   _currentConfigIndex: 1
 --- !u!33 &999007711
 MeshFilter:

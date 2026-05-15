@@ -213,6 +213,11 @@ namespace MarchingTerrain
 
         void RefreshTile(int x, int z)
         {
+            if (_meshConfig == null)
+            {
+                Debug.LogError("[TerrainController] _meshConfig 未赋值，请在 Inspector 中指定 TerrainCaseConfig 资产。", this);
+                return;
+            }
             if (_tiles[x, z] != null)
             {
                 Object.Destroy(_tiles[x, z]);
